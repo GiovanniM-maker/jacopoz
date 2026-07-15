@@ -140,6 +140,44 @@ async function openLibraryByIsbn(isbn: string): Promise<NormalizedBook | null> {
   };
 }
 
+// Open Library free-text search. Used as the primary free-text source
+// because Google Books free-text is unreliable from the edge runtime
+// without an API key (it silently returns nothing).
+async function openLibrarySearch(query: string, limit: number): Promise<NormalizedBook[]> {
+  const ua = Deno.env.get("OPEN_LIBRARY_USER_AGENT") ?? "jacopoz/0.1";
+  const url = new URL("https://openlibrary.org/search.json");
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", String(Math.min(limit, 20)));
+  url.searchParams.set("fields", "key,title,author_name,first_publish_year,isbn,cover_i,subject,number_of_pages_median");
+  const res = await fetch(url, { headers: { "User-Agent": ua } });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.docs ?? [])
+    .map((d: any): NormalizedBook | null => {
+      if (!d.title || !(d.author_name?.length)) return null;
+      const isbn13 = (d.isbn ?? []).find((i: string) => i.length === 13) ?? null;
+      return {
+        title: d.title,
+        subtitle: null,
+        authors: d.author_name ?? [],
+        description: null,
+        cover_url: d.cover_i
+          ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg`
+          : isbn13
+            ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg`
+            : null,
+        published_year: d.first_publish_year ?? null,
+        page_count: d.number_of_pages_median ?? null,
+        language: null,
+        isbn_13: isbn13,
+        isbn_10: null,
+        categories: mapCategories(d.subject ?? []),
+        providerIds: d.key ? [{ provider: "open_library", external_id: d.key }] : [],
+      };
+    })
+    .filter(Boolean) as NormalizedBook[];
+}
+
 // --- Canonical upsert (dedup) -----------------------------------------
 async function upsertCanonical(supabase: any, nb: NormalizedBook) {
   // 1) Try to find an existing canonical row: ISBN-13 first, then dedup_key.
@@ -215,7 +253,12 @@ Deno.serve(async (req) => {
       const nb = v ? normalizeGoogleVolume(v) : null;
       if (nb) normalized = [nb];
     } else if (body.query) {
-      normalized = await googleBooksSearch(String(body.query), Number(body.limit ?? 10));
+      // Google Books first (richer descriptions), Open Library as a reliable
+      // fallback when Google returns nothing (common without an API key).
+      const q = String(body.query);
+      const n = Number(body.limit ?? 10);
+      normalized = await googleBooksSearch(q, n);
+      if (normalized.length === 0) normalized = await openLibrarySearch(q, n);
     } else {
       return new Response(JSON.stringify({ error: "provide isbn, googleVolumeId or query" }), {
         status: 400,
