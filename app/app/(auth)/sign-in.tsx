@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } fro
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { Wordmark } from "@/components/Wordmark";
 import { colors, spacing, typography } from "@/theme";
 
 export default function SignIn() {
@@ -40,7 +41,7 @@ export default function SignIn() {
       >
         <View style={styles.flex}>
           <View style={styles.header}>
-            <Text style={styles.logo}>jacopoz</Text>
+            <Wordmark size={48} />
             <Text style={styles.tagline}>Discover books through people like you.</Text>
           </View>
 

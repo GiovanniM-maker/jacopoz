@@ -11,6 +11,7 @@ import { track } from "@/api/analytics";
 import { BookRow } from "@/components/BookRow";
 import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { Wordmark } from "@/components/Wordmark";
 import { useAuth } from "@/store/auth";
 import { colors, radius, spacing, typography } from "@/theme";
 import type { BookReco, Genre } from "@/types/database";
@@ -49,7 +50,7 @@ export default function Home() {
             <BookRow title="Consigliati per te" books={recos.data} />
           ) : null}
 
-          <TopTenRow title="Top 10 su jacopoz oggi" books={trending.data ?? []} />
+          <TopTenRow title="Top 10 su Decameron oggi" books={trending.data ?? []} />
 
           {(prefs.data ?? []).map((slug: string) => (
             <GenreRow key={slug} slug={slug} title={genreName(slug)} />
@@ -85,7 +86,7 @@ function Billboard({ book }: { book: BookReco }) {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.brandBar}>
-        <Text style={styles.brand}>JACOPOZ</Text>
+        <Wordmark size={26} />
       </View>
 
       <View style={styles.billboardContent}>

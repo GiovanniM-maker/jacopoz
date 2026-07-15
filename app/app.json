@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "jacopoz",
-    "slug": "jacopoz",
+    "name": "Decameron",
+    "slug": "decameron",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "jacopoz",
+    "scheme": "decameron",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "backgroundColor": "#0B0B0F",
+    "backgroundColor": "#141414",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.jacopoz.beta"
+      "bundleIdentifier": "app.decameron.beta"
     },
     "android": {
-      "package": "app.jacopoz.beta"
+      "package": "app.decameron.beta"
     },
     "web": {
       "bundler": "metro",
