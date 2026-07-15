@@ -1,10 +1,11 @@
 import { Tabs } from "expo-router";
-import { Text } from "react-native";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { colors } from "@/theme";
 
-// Emoji tab icons keep the beta dependency-free (no icon font to bundle).
-function TabIcon({ icon, color }: { icon: string; color: string }) {
-  return <Text style={{ fontSize: 22, color }}>{icon}</Text>;
+function tabIcon(name: IconName) {
+  return ({ color, focused }: { color: string; focused: boolean }) => (
+    <Icon name={name} color={color} filled={focused} size={26} />
+  );
 }
 
 export default function TabsLayout() {
@@ -12,30 +13,22 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textFaint,
         tabBarStyle: {
           backgroundColor: "#000",
           borderTopColor: "#000",
+          height: 58,
         },
+        tabBarItemStyle: { paddingTop: 6 },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{ title: "Home", tabBarIcon: ({ color }) => <TabIcon icon="🏠" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="search"
-        options={{ title: "Search", tabBarIcon: ({ color }) => <TabIcon icon="🔍" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="community"
-        options={{ title: "Community", tabBarIcon: ({ color }) => <TabIcon icon="💬" color={color} /> }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: "Profile", tabBarIcon: ({ color }) => <TabIcon icon="👤" color={color} /> }}
-      />
+      <Tabs.Screen name="index" options={{ tabBarIcon: tabIcon("home") }} />
+      <Tabs.Screen name="search" options={{ tabBarIcon: tabIcon("search") }} />
+      <Tabs.Screen name="create" options={{ tabBarIcon: tabIcon("create") }} />
+      <Tabs.Screen name="community" options={{ tabBarIcon: tabIcon("community") }} />
+      <Tabs.Screen name="profile" options={{ tabBarIcon: tabIcon("profile") }} />
     </Tabs>
   );
 }
