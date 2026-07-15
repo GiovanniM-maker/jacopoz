@@ -15,10 +15,21 @@ export default function SignIn() {
   async function onSignIn() {
     setError(null);
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    setLoading(false);
-    if (error) setError(error.message);
-    // On success the auth listener + gate navigate automatically.
+    try {
+      // Guard against a stalled network so the button never spins forever.
+      const result = await Promise.race([
+        supabase.auth.signInWithPassword({ email: email.trim(), password }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out. Check your connection.")), 15000),
+        ),
+      ]);
+      if (result.error) setError(result.error.message);
+      // On success the auth listener + gate navigate automatically.
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

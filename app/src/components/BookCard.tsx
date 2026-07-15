@@ -7,11 +7,12 @@ import { BookCover } from "./BookCover";
 interface Props {
   book: BookCardType;
   width?: number;
+  /** Netflix rows show only the artwork; meta is hidden by default. */
   showMeta?: boolean;
 }
 
 /** A tappable poster card used in dashboard rows and grids. */
-export function BookCard({ book, width = 120, showMeta = true }: Props) {
+export function BookCard({ book, width = 120, showMeta = false }: Props) {
   return (
     <Pressable
       style={[styles.card, { width }]}
@@ -33,7 +34,7 @@ export function BookCard({ book, width = 120, showMeta = true }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { marginRight: spacing.md },
+  card: { marginRight: spacing.sm },
   meta: { marginTop: spacing.sm, gap: 2 },
   title: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 17 },
   author: { color: colors.textMuted, fontSize: 12 },

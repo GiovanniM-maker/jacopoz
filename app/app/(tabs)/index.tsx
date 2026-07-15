@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -8,15 +9,16 @@ import { getRecommendations } from "@/api/reco";
 import { getGenrePrefs } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { BookRow } from "@/components/BookRow";
+import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
 import { colors, radius, spacing, typography } from "@/theme";
 import type { BookReco, Genre } from "@/types/database";
 
-const { width: SCREEN_W } = Dimensions.get("window");
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 export default function Home() {
-  const { session, profile } = useAuth();
+  const { session } = useAuth();
   const userId = session?.user.id;
 
   const recos = useQuery({ queryKey: ["recos"], queryFn: () => getRecommendations(20) });
@@ -35,31 +37,27 @@ export default function Home() {
 
   const genreName = (slug: string) =>
     genres.data?.find((g: Genre) => g.slug === slug)?.name ?? slug;
-  const hero: BookReco | undefined = recos.data?.[0] ?? undefined;
+  const hero: BookReco | undefined = recos.data?.[0] ?? trending.data?.[0] ?? undefined;
 
   return (
-    <ScreenContainer edges={["top"]}>
+    <ScreenContainer edges={[]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Text style={styles.logo}>jacopoz</Text>
-          <Text style={styles.hello}>Hi, {profile?.display_name?.split(" ")[0] ?? "reader"}</Text>
+        {hero ? <Billboard book={hero} /> : <View style={{ height: spacing.xxl }} />}
+
+        <View style={styles.rows}>
+          {recos.data && recos.data.length > 0 ? (
+            <BookRow title="Consigliati per te" books={recos.data} />
+          ) : null}
+
+          <TopTenRow title="Top 10 su jacopoz oggi" books={trending.data ?? []} />
+
+          {(prefs.data ?? []).map((slug: string) => (
+            <GenreRow key={slug} slug={slug} title={genreName(slug)} />
+          ))}
+
+          <BookRow title="Nuove uscite" books={newReleases.data ?? []} />
+          <View style={{ height: spacing.xxl }} />
         </View>
-
-        {hero ? <Hero book={hero} /> : null}
-
-        {recos.data && recos.data.length > 0 ? (
-          <BookRow title="For you" subtitle="Picked from your taste" books={recos.data} />
-        ) : null}
-
-        <BookRow title="Popular now" books={trending.data ?? []} />
-
-        {(prefs.data ?? []).map((slug: string) => (
-          <GenreRow key={slug} slug={slug} title={genreName(slug)} />
-        ))}
-
-        <BookRow title="New releases" books={newReleases.data ?? []} />
-
-        <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </ScreenContainer>
   );
@@ -70,46 +68,102 @@ function GenreRow({ slug, title }: { slug: string; title: string }) {
   return <BookRow title={title} books={q.data ?? []} />;
 }
 
-function Hero({ book }: { book: BookReco }) {
+/** Full-bleed Netflix billboard: backdrop, gradient fade, title, Play / Info. */
+function Billboard({ book }: { book: BookReco }) {
+  const height = Math.min(SCREEN_H * 0.62, SCREEN_W * 1.35);
   return (
-    <Pressable style={styles.hero} onPress={() => router.push(`/book/${book.id}`)}>
+    <View style={[styles.billboard, { height }]}>
       {book.cover_url ? (
-        <Image source={{ uri: book.cover_url }} style={styles.heroImage} contentFit="cover" blurRadius={2} />
+        <Image source={{ uri: book.cover_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
       ) : (
-        <View style={[styles.heroImage, { backgroundColor: colors.surfaceAlt }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceAlt }]} />
       )}
-      <View style={styles.heroOverlay}>
-        <Text style={styles.heroReason}>{book.reason}</Text>
-        <Text style={styles.heroTitle} numberOfLines={2}>
+      {/* Fade the backdrop into the page background at the bottom. */}
+      <LinearGradient
+        colors={["rgba(20,20,20,0.1)", "rgba(20,20,20,0.35)", colors.bg]}
+        locations={[0, 0.55, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.brandBar}>
+        <Text style={styles.brand}>JACOPOZ</Text>
+      </View>
+
+      <View style={styles.billboardContent}>
+        <Text style={styles.billboardTitle} numberOfLines={2}>
           {book.title}
         </Text>
-        <Text style={styles.heroAuthor}>{book.authors[0]}</Text>
+        <Text style={styles.billboardMeta} numberOfLines={1}>
+          {book.reason} · {book.authors[0]}
+        </Text>
+        <View style={styles.billboardButtons}>
+          <Pressable style={styles.playBtn} onPress={() => router.push(`/book/${book.id}`)}>
+            <Text style={styles.playIcon}>▶</Text>
+            <Text style={styles.playLabel}>Apri</Text>
+          </Pressable>
+          <Pressable style={styles.infoBtn} onPress={() => router.push(`/book/${book.id}`)}>
+            <Text style={styles.infoIcon}>ⓘ</Text>
+            <Text style={styles.infoLabel}>Info</Text>
+          </Pressable>
+        </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  billboard: { width: SCREEN_W, justifyContent: "flex-end" },
+  brandBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: spacing.xxl,
     alignItems: "center",
-    paddingHorizontal: spacing.lg,
+  },
+  brand: {
+    color: colors.primary,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: 2,
+  },
+  billboardContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, alignItems: "center" },
+  billboardTitle: {
+    color: "#fff",
+    fontSize: 30,
+    fontWeight: "900",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.6)",
+    textShadowRadius: 8,
+  },
+  billboardMeta: {
+    color: colors.text,
+    fontSize: 13,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    textAlign: "center",
+  },
+  billboardButtons: { flexDirection: "row", gap: spacing.md },
+  playBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "#fff",
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
   },
-  logo: { ...typography.h2, color: colors.primary },
-  hello: { ...typography.bodyMuted },
-  hero: {
-    height: SCREEN_W * 0.9,
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.xl,
-    borderRadius: radius.lg,
-    overflow: "hidden",
-    justifyContent: "flex-end",
+  playIcon: { color: "#000", fontSize: 15 },
+  playLabel: { color: "#000", fontSize: 16, fontWeight: "700" },
+  infoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: "rgba(109,109,110,0.7)",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.sm,
   },
-  heroImage: { ...StyleSheet.absoluteFillObject, width: "100%", height: "100%" },
-  heroOverlay: { padding: spacing.lg, backgroundColor: colors.overlay },
-  heroReason: { color: colors.accent, fontSize: 13, fontWeight: "700", marginBottom: spacing.xs },
-  heroTitle: { color: "#fff", fontSize: 26, fontWeight: "800" },
-  heroAuthor: { color: colors.text, fontSize: 15, marginTop: spacing.xs },
+  infoIcon: { color: "#fff", fontSize: 16 },
+  infoLabel: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  rows: { marginTop: spacing.lg },
 });

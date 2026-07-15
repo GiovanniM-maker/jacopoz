@@ -5,35 +5,36 @@ import { BookCard } from "./BookCard";
 
 interface Props {
   title: string;
-  subtitle?: string;
   books: BookCardType[];
+  cardWidth?: number;
 }
 
 /** A Netflix-style horizontally-scrolling row of book posters. */
-export function BookRow({ title, subtitle, books }: Props) {
+export function BookRow({ title, books, cardWidth = 108 }: Props) {
   if (books.length === 0) return null;
   return (
     <View style={styles.wrap}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      </View>
+      <Text style={styles.title}>{title}</Text>
       <FlatList
         horizontal
         data={books}
         keyExtractor={(b) => b.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => <BookCard book={item} />}
+        renderItem={({ item }) => <BookCard book={item} width={cardWidth} />}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.xl },
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
-  title: { color: colors.text, fontSize: 18, fontWeight: "700" },
-  subtitle: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  wrap: { marginBottom: spacing.lg },
+  title: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "700",
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+  },
   list: { paddingHorizontal: spacing.lg },
 });

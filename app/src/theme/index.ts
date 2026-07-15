@@ -3,19 +3,20 @@
 // dark-first, Netflix-like). Centralized so screens never hardcode hex.
 // =====================================================================
 
+// Netflix palette: near-black canvas, signature red, high-contrast text.
 export const colors = {
-  bg: "#0B0B0F",
-  surface: "#16161D",
-  surfaceAlt: "#1F1F29",
-  border: "#2A2A36",
-  text: "#F5F5F7",
-  textMuted: "#9A9AA8",
-  textFaint: "#63636F",
-  primary: "#E63946", // jacopoz red — CTAs, active states
-  primaryDim: "#7A1F26",
-  accent: "#F4A261",
-  success: "#2A9D8F",
-  star: "#F4C430",
+  bg: "#141414",
+  surface: "#181818",
+  surfaceAlt: "#2A2A2A",
+  border: "#333333",
+  text: "#FFFFFF",
+  textMuted: "#B3B3B3",
+  textFaint: "#808080",
+  primary: "#E50914", // Netflix red — CTAs, active states
+  primaryDim: "#7A0A10",
+  accent: "#E5A00D",
+  success: "#46D369",
+  star: "#E5A00D",
   overlay: "rgba(0,0,0,0.55)",
 } as const;
 

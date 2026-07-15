@@ -75,7 +75,7 @@ export default function Search() {
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
-            <BookCard book={item} width={cardWidth} />
+            <BookCard book={item} width={cardWidth} showMeta />
           )}
         />
       )}

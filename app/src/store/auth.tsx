@@ -30,21 +30,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      if (data.session) await loadProfile(data.session.user.id);
-      setLoading(false);
-    });
+    // Failsafe: never let the app hang on a blank loading screen. If the
+    // network stalls, drop into the (signed-out) UI after a few seconds
+    // rather than spinning forever.
+    const failsafe = setTimeout(() => {
+      if (active) setLoading(false);
+    }, 6000);
+
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        setSession(data.session);
+        if (data.session) await loadProfile(data.session.user.id);
+      } catch {
+        // ignore — fall through to signed-out state
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, next) => {
       setSession(next);
-      if (next) await loadProfile(next.user.id);
-      else setProfile(null);
+      if (next) {
+        try {
+          await loadProfile(next.user.id);
+        } catch {
+          setProfile(null);
+        }
+      } else {
+        setProfile(null);
+      }
     });
 
     return () => {
       active = false;
+      clearTimeout(failsafe);
       sub.subscription.unsubscribe();
     };
   }, []);
