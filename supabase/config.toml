@@ -1,0 +1,43 @@
+# Supabase local/project configuration.
+# project_id is used by the CLI to namespace local containers.
+project_id = "jacopoz"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 16
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "jacopoz://"
+# Deep-link + web origins allowed to complete auth redirects.
+additional_redirect_urls = ["jacopoz://", "http://localhost:8081", "exp://127.0.0.1:19000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Beta: email confirmation ON in production; can be relaxed locally.
+enable_confirmations = true
+
+[storage]
+enabled = true
+# Avatars only; book covers are hotlinked from providers.
+file_size_limit = "5MiB"
+
+[edge_runtime]
+enabled = true
+
+[functions.ingest-book]
+verify_jwt = true
