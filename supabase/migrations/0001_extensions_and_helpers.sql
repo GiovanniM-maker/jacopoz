@@ -27,13 +27,18 @@ $$;
 -- use in generated columns / functional indexes. Wrap it as IMMUTABLE so
 -- we can build search indexes on normalized text.
 -- ---------------------------------------------------------------------
+-- search_path pins the extensions schema (where Supabase installs unaccent)
+-- while staying portable to setups that install it into public. The two-arg
+-- unaccent(regdictionary, text) form is IMMUTABLE, so this can back both a
+-- generated column and functional indexes.
 create or replace function public.immutable_unaccent(text)
 returns text
 language sql
 immutable
 parallel safe
+set search_path = extensions, public, pg_temp
 as $$
-  select public.unaccent('public.unaccent'::regdictionary, $1)
+  select unaccent('unaccent'::regdictionary, $1)
 $$;
 
 -- ---------------------------------------------------------------------
