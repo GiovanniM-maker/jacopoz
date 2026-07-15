@@ -75,15 +75,39 @@ Set the production Supabase env for the build profile (EAS secrets / `eas.json` 
 
 ---
 
-## 3. Optional web build (Vercel)
+## 3. Web deploy (Vercel)
+
+The repo ships a root `vercel.json` that builds the Expo web SPA from the `app/`
+subdirectory, so a Vercel project connected to the repo root needs **no build
+settings** — just environment variables. Every push to the branch triggers a deploy.
+
+`vercel.json` (already committed) sets:
+
+```jsonc
+{
+  "buildCommand": "cd app && npm install && npx expo export -p web",
+  "outputDirectory": "app/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] // SPA fallback
+}
+```
+
+**Required — set these in Vercel → Project → Settings → Environment Variables**
+(Production + Preview). They are baked into the client bundle at build time; the
+anon key is public by design, so this is safe:
+
+| Name | Value |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | `https://<your-ref>.supabase.co` |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | your project's anon key |
+
+Then add the resulting Vercel URL (e.g. `https://jacopoz.vercel.app`) to
+**Supabase → Auth → URL Configuration → Redirect URLs** so email/auth links resolve.
+
+To build the static site locally instead:
 
 ```bash
-cd /home/user/jacopoz/app
-npx expo export --platform web      # outputs a static site (app/dist)
+cd app && npx expo export -p web    # outputs app/dist
 ```
-Deploy `app/dist` to Vercel (framework preset: "Other", output dir `dist`). Set
-`EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` as Vercel env vars, and add the Vercel URL
-to Supabase Auth redirect URLs. Good for shareable book/profile links alongside the mobile beta.
 
 ---
 
