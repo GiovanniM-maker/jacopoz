@@ -209,7 +209,7 @@ begin
       when s.author_aff > 0 then 'Because you read authors you love'
       when s.collab_aff > 0 then 'Popular with readers like you'
       when s.genre_aff > 0 then 'Matches your favourite genres'
-      else 'Trending on Decameron'
+      else 'Trending on Tomo'
     end as reason
   from scored s
   order by score desc, (s.reads_count + s.saves_count + s.likes_count) desc

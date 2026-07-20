@@ -51,7 +51,7 @@ export default function Home() {
             <BookRow title="Consigliati per te" books={recos.data} />
           ) : null}
 
-          <TopTenRow title="Top 10 su Decameron oggi" books={trending.data ?? []} />
+          <TopTenRow title="Top 10 su Tomo oggi" books={trending.data ?? []} />
 
           {(prefs.data ?? []).map((slug: string) => (
             <GenreRow key={slug} slug={slug} title={genreName(slug)} />

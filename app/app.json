@@ -1,28 +1,28 @@
 {
   "expo": {
-    "name": "Decameron",
-    "slug": "decameron",
+    "name": "Tomo",
+    "slug": "tomo",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "decameron",
+    "scheme": "tomo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "backgroundColor": "#141414",
+    "backgroundColor": "#17130E",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#141414"
+      "backgroundColor": "#17130E"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "app.decameron.beta"
+      "bundleIdentifier": "app.tomo.beta"
     },
     "android": {
-      "package": "app.decameron.beta",
+      "package": "app.tomo.beta",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#141414"
+        "backgroundColor": "#17130E"
       }
     },
     "web": {

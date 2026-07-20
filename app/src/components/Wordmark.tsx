@@ -6,9 +6,9 @@ interface Props {
 }
 
 /**
- * The "DECAMERON" wordmark, styled after the Netflix logo: tall, condensed,
- * uppercase, deep red, with a subtle glow. We fake the condensed-tall look
- * with a vertical scale + tight letter spacing so no custom font is bundled.
+ * The "TOMO" wordmark: tall, condensed, uppercase, in the theme's primary
+ * colour with a subtle glow. We fake the condensed-tall look with a vertical
+ * scale + tight letter spacing so no custom font is bundled.
  */
 export function Wordmark({ size = 34 }: Props) {
   return (
@@ -27,7 +27,7 @@ export function Wordmark({ size = 34 }: Props) {
           },
         ]}
       >
-        DECAMERON
+        TOMO
       </Text>
     </View>
   );
