@@ -93,30 +93,15 @@ export default function BookPage() {
           </View>
         </View>
 
-        {/* Shelf actions */}
-        <View style={styles.actions}>
-          <ActionButton icon={isRead ? "✅" : "📖"} label="Read" active={isRead}
-            onPress={() => mutateShelf({ status: isRead ? null : "read" })} />
-          <ActionButton icon={isSaved ? "🔖" : "📚"} label="Save" active={isSaved}
-            onPress={() => mutateShelf({ status: isSaved ? null : "want_to_read" })} />
-          <ActionButton icon={ub?.liked ? "❤️" : "🤍"} label="Like" active={!!ub?.liked}
-            onPress={() => mutateShelf({ liked: !ub?.liked })} />
-          <ActionButton icon="➕" label="List"
-            onPress={() => router.push(`/add-to-list?bookId=${b.id}`)} />
-        </View>
-
-        {/* Personal rating */}
-        <View style={styles.rateBox}>
-          <Text style={styles.rateLabel}>Your rating</Text>
-          <RatingStars value={ub?.rating ?? null} size={28} onChange={(r) => mutateShelf({ rating: r })} />
-        </View>
-
-        {affiliate.data ? (
-          <Pressable style={styles.buy} onPress={onBuy}>
-            <Text style={styles.buyText}>🛒 Buy on Amazon</Text>
-          </Pressable>
+        {/* Synopsis — right under the average rating */}
+        {b.description ? (
+          <View style={styles.synopsis}>
+            <Text style={styles.synTitle}>Sinossi</Text>
+            <Text style={styles.description}>{b.description}</Text>
+          </View>
         ) : null}
 
+        {/* Categories */}
         {b.categories.length > 0 ? (
           <View style={styles.chips}>
             {b.categories.map((c: string) => (
@@ -125,14 +110,32 @@ export default function BookPage() {
           </View>
         ) : null}
 
-        {b.description ? <Text style={styles.description}>{b.description}</Text> : null}
+        {/* Personal rating */}
+        <View style={styles.rateBox}>
+          <Text style={styles.rateLabel}>La tua valutazione</Text>
+          <RatingStars value={ub?.rating ?? null} size={30} onChange={(r) => mutateShelf({ rating: r })} />
+        </View>
+
+        {/* Primary actions */}
+        <View style={styles.actions}>
+          <ActionButton icon="✍️" label="Recensisci"
+            onPress={() => router.push(`/compose-review?bookId=${b.id}`)} />
+          <ActionButton icon="➕" label="Booklist"
+            onPress={() => router.push(`/add-to-list?bookId=${b.id}`)} />
+          <ActionButton icon={ub?.liked ? "❤️" : "🤍"} label="Like" active={!!ub?.liked}
+            onPress={() => mutateShelf({ liked: !ub?.liked })} />
+        </View>
+
+        {/* Amazon — kept in reserve, secondary link */}
+        {affiliate.data ? (
+          <Pressable style={styles.buyLink} onPress={onBuy}>
+            <Text style={styles.buyLinkText}>Disponibile su Amazon ↗</Text>
+          </Pressable>
+        ) : null}
 
         {/* Reviews */}
         <View style={styles.reviewsHeader}>
-          <Text style={styles.sectionTitle}>Community reviews</Text>
-          <Pressable onPress={() => router.push(`/compose-review?bookId=${b.id}`)}>
-            <Text style={styles.writeReview}>✍️ Write</Text>
-          </Pressable>
+          <Text style={styles.sectionTitle}>Recensioni della community</Text>
         </View>
 
         {(reviews.data ?? []).length === 0 ? (
@@ -215,23 +218,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   rateLabel: { ...typography.bodyMuted },
-  buy: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    alignItems: "center",
-    marginBottom: spacing.lg,
-  },
-  buyText: { color: "#1a1a1a", fontSize: 16, fontWeight: "700" },
+  buyLink: { alignItems: "center", paddingVertical: spacing.sm, marginBottom: spacing.lg },
+  buyLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
-  description: { ...typography.body, lineHeight: 22, marginBottom: spacing.xl },
-  reviewsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.md,
+  synopsis: { marginBottom: spacing.lg },
+  synTitle: {
+    ...typography.caption,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
+  description: { ...typography.body, lineHeight: 22 },
+  reviewsHeader: { marginBottom: spacing.md },
   sectionTitle: { ...typography.h3 },
-  writeReview: { color: colors.primary, fontSize: 15, fontWeight: "700" },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },
 });
