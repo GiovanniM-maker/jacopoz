@@ -8,10 +8,10 @@ import { getBooksByGenre, getGenres, getNewReleases, getTrendingBooks } from "@/
 import { getRecommendations } from "@/api/reco";
 import { getGenrePrefs } from "@/api/profile";
 import { track } from "@/api/analytics";
+import { AppHeader } from "@/components/AppHeader";
 import { BookRow } from "@/components/BookRow";
 import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { Wordmark } from "@/components/Wordmark";
 import { useAuth } from "@/store/auth";
 import { colors, radius, spacing, typography } from "@/theme";
 import type { BookReco, Genre } from "@/types/database";
@@ -41,7 +41,8 @@ export default function Home() {
   const hero: BookReco | undefined = recos.data?.[0] ?? trending.data?.[0] ?? undefined;
 
   return (
-    <ScreenContainer edges={[]}>
+    <ScreenContainer edges={["top"]}>
+      <AppHeader />
       <ScrollView showsVerticalScrollIndicator={false}>
         {hero ? <Billboard book={hero} /> : <View style={{ height: spacing.xxl }} />}
 
@@ -81,14 +82,10 @@ function Billboard({ book }: { book: BookReco }) {
       )}
       {/* Fade the backdrop into the page background at the bottom. */}
       <LinearGradient
-        colors={["rgba(20,20,20,0.1)", "rgba(20,20,20,0.35)", colors.bg]}
+        colors={["transparent", `${colors.bg}66`, colors.bg]}
         locations={[0, 0.55, 1]}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.brandBar}>
-        <Wordmark size={26} />
-      </View>
-
       <View style={styles.billboardContent}>
         <Text style={styles.billboardTitle} numberOfLines={2}>
           {book.title}
@@ -113,31 +110,17 @@ function Billboard({ book }: { book: BookReco }) {
 
 const styles = StyleSheet.create({
   billboard: { width: SCREEN_W, justifyContent: "flex-end" },
-  brandBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingTop: spacing.xxl,
-    alignItems: "center",
-  },
-  brand: {
-    color: colors.primary,
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: 2,
-  },
   billboardContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, alignItems: "center" },
   billboardTitle: {
-    color: "#fff",
+    color: colors.text,
     fontSize: 30,
     fontWeight: "900",
     textAlign: "center",
-    textShadowColor: "rgba(0,0,0,0.6)",
-    textShadowRadius: 8,
+    textShadowColor: colors.overlay,
+    textShadowRadius: 10,
   },
   billboardMeta: {
-    color: colors.text,
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: spacing.sm,
     marginBottom: spacing.lg,
@@ -148,23 +131,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: "#fff",
+    backgroundColor: colors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: radius.sm,
   },
-  playIcon: { color: "#000", fontSize: 15 },
-  playLabel: { color: "#000", fontSize: 16, fontWeight: "700" },
+  playIcon: { color: colors.onPrimary, fontSize: 15 },
+  playLabel: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
   infoBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: "rgba(109,109,110,0.7)",
+    backgroundColor: colors.surfaceAlt,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
     borderRadius: radius.sm,
   },
-  infoIcon: { color: "#fff", fontSize: 16 },
-  infoLabel: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  infoIcon: { color: colors.text, fontSize: 16 },
+  infoLabel: { color: colors.text, fontSize: 16, fontWeight: "700" },
   rows: { marginTop: spacing.lg },
 });

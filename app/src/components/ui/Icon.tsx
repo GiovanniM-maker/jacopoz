@@ -1,6 +1,6 @@
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 
-export type IconName = "home" | "search" | "create" | "community" | "profile";
+export type IconName = "home" | "search" | "create" | "community" | "profile" | "review";
 
 interface Props {
   name: IconName;
@@ -60,6 +60,19 @@ export function Icon({ name, size = 26, color, filled = false }: Props) {
           strokeLinejoin="round"
           fill={fill}
         />
+      )}
+
+      {name === "review" && (
+        <>
+          <Path
+            d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17v3Z"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinejoin="round"
+            fill={fill}
+          />
+          <Path d="M13.5 6.5l3 3" stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+        </>
       )}
 
       {name === "profile" && (

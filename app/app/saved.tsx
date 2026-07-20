@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   },
   tabOn: { backgroundColor: colors.primary },
   tabLabel: { color: colors.textMuted, fontWeight: "600" },
-  tabLabelOn: { color: "#fff" },
+  tabLabelOn: { color: colors.onPrimary },
   body: { paddingHorizontal: spacing.lg, flexGrow: 1 },
   empty: { height: 260 },
   commentWrap: {

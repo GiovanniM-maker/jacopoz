@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: colors.primary },
   tabLabel: { color: colors.textMuted, fontWeight: "600" },
-  tabLabelActive: { color: "#fff" },
+  tabLabelActive: { color: colors.onPrimary },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

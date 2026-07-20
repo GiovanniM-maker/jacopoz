@@ -31,5 +31,5 @@ const styles = StyleSheet.create({
   },
   selected: { backgroundColor: colors.primary, borderColor: colors.primary },
   label: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
-  selectedLabel: { color: "#fff" },
+  selectedLabel: { color: colors.onPrimary },
 });

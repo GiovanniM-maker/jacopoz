@@ -1,24 +1,29 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { getCommunityFeed } from "@/api/feed";
+import { useState } from "react";
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { getCommunityFeed, getFollowingFeed } from "@/api/feed";
 import { toggleLike } from "@/api/social";
+import { AppHeader } from "@/components/AppHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { colors, spacing, typography } from "@/theme";
+import { colors, spacing } from "@/theme";
 import type { FeedItem } from "@/types/database";
+
+type Feed = "for_you" | "following";
 
 export default function Community() {
   const qc = useQueryClient();
+  const [feed, setFeed] = useState<Feed>("for_you");
+
   const { data = [], isLoading, isRefetching, refetch } = useQuery({
-    queryKey: ["feed"],
-    queryFn: () => getCommunityFeed(30),
+    queryKey: ["feed", feed],
+    queryFn: () => (feed === "for_you" ? getCommunityFeed(30) : getFollowingFeed(30)),
   });
 
   async function onLike(item: FeedItem) {
-    // Optimistic update of the cached feed.
-    qc.setQueryData<FeedItem[]>(["feed"], (prev: FeedItem[] | undefined) =>
+    qc.setQueryData<FeedItem[]>(["feed", feed], (prev: FeedItem[] | undefined) =>
       (prev ?? []).map((f: FeedItem) =>
         f.review_id === item.review_id
           ? {
@@ -32,15 +37,23 @@ export default function Community() {
     try {
       await toggleLike("review", item.review_id);
     } catch {
-      refetch(); // reconcile on failure
+      refetch();
     }
   }
 
   return (
     <ScreenContainer edges={["top"]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Community</Text>
-        <Text style={styles.subtitle}>Reviews ranked for you — not just the newest.</Text>
+      <AppHeader />
+
+      <View style={styles.segment}>
+        {(["for_you", "following"] as Feed[]).map((f) => (
+          <Pressable key={f} style={styles.seg} onPress={() => setFeed(f)}>
+            <Text style={[styles.segLabel, feed === f && styles.segLabelOn]}>
+              {f === "for_you" ? "Per te" : "Following"}
+            </Text>
+            {feed === f ? <View style={styles.segBar} /> : null}
+          </Pressable>
+        ))}
       </View>
 
       <FlatList
@@ -53,11 +66,20 @@ export default function Community() {
         }
         ListEmptyComponent={
           !isLoading ? (
-            <EmptyState
-              icon="💬"
-              title="The feed is warming up"
-              message="Follow readers and write reviews to bring this to life."
-            />
+            feed === "following" ? (
+              <EmptyState
+                icon="👥"
+                title="Nothing from your circle yet"
+                message="Follow readers you like — their reviews show up here."
+                action={{ label: "Discover readers", onPress: () => setFeed("for_you") }}
+              />
+            ) : (
+              <EmptyState
+                icon="💬"
+                title="The feed is warming up"
+                message="Write reviews and follow readers to bring this to life."
+              />
+            )
           ) : null
         }
         renderItem={({ item }) => (
@@ -84,8 +106,24 @@ export default function Community() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: 2 },
-  title: typography.h1,
-  subtitle: typography.bodyMuted,
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, flexGrow: 1 },
+  segment: {
+    flexDirection: "row",
+    gap: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  seg: { paddingVertical: spacing.md, alignItems: "center" },
+  segLabel: { color: colors.textFaint, fontSize: 15, fontWeight: "700" },
+  segLabelOn: { color: colors.text },
+  segBar: {
+    position: "absolute",
+    bottom: -StyleSheet.hairlineWidth,
+    left: 0,
+    right: 0,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, flexGrow: 1 },
 });

@@ -154,5 +154,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkMark: { color: "#fff", fontWeight: "800" },
+  checkMark: { color: colors.onPrimary, fontWeight: "800" },
 });
