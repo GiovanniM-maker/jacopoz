@@ -1,8 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { deleteList, getList, getListBooks } from "@/api/lists";
+import {
+  deleteList,
+  followList,
+  getList,
+  getListBooks,
+  isFollowingList,
+  unfollowList,
+} from "@/api/lists";
 import { BookCard } from "@/components/BookCard";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
@@ -24,6 +32,21 @@ export default function ListDetail() {
   });
 
   const isOwner = list.data?.user_id === session?.user.id;
+  const userId = session?.user.id;
+  const following = useQuery({
+    queryKey: ["is-following-list", id, userId],
+    queryFn: () => isFollowingList(userId!, id!),
+    enabled: !!id && !!userId && !isOwner,
+  });
+
+  async function onToggleFollow() {
+    if (!userId || !id) return;
+    if (following.data) await unfollowList(userId, id);
+    else await followList(userId, id);
+    qc.invalidateQueries({ queryKey: ["is-following-list", id, userId] });
+    qc.invalidateQueries({ queryKey: ["followed-lists", userId] });
+    qc.invalidateQueries({ queryKey: ["list", id] });
+  }
 
   function onDelete() {
     if (!id) return;
@@ -62,9 +85,18 @@ export default function ListDetail() {
           <Text style={styles.name}>{l.name}</Text>
           {l.description ? <Text style={styles.desc}>{l.description}</Text> : null}
           <Text style={styles.meta}>
-            {l.book_count} {l.book_count === 1 ? "book" : "books"}
-            {l.is_public ? "" : " · private"}
+            {l.book_count} {l.book_count === 1 ? "libro" : "libri"}
+            {l.follower_count > 0 ? ` · ${l.follower_count} follower` : ""}
+            {l.is_public ? "" : " · privata"}
           </Text>
+          {!isOwner ? (
+            <Button
+              label={following.data ? "Seguìta" : "Segui lista"}
+              variant={following.data ? "secondary" : "primary"}
+              onPress={onToggleFollow}
+              style={styles.followBtn}
+            />
+          ) : null}
         </View>
 
         {(books.data ?? []).length === 0 ? (
@@ -97,6 +129,7 @@ const styles = StyleSheet.create({
   name: { ...typography.h1 },
   desc: { ...typography.body, color: colors.textMuted },
   meta: { ...typography.caption, marginTop: spacing.xs },
+  followBtn: { marginTop: spacing.md, alignSelf: "flex-start", minWidth: 150 },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

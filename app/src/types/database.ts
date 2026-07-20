@@ -103,6 +103,7 @@ export interface BookList {
   description: string | null;
   is_public: boolean;
   book_count: number;
+  follower_count: number;
   created_at: string;
   updated_at: string;
 }

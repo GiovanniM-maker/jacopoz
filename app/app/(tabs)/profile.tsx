@@ -3,7 +3,7 @@ import { router } from "expo-router";
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { getProfileStats } from "@/api/profile";
-import { getUserLists } from "@/api/lists";
+import { getFollowedLists, getUserLists } from "@/api/lists";
 import { getUserReviews, type UserReview } from "@/api/reviews";
 import { getShelfBooks } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
@@ -26,6 +26,7 @@ export default function ProfileScreen() {
   const userId = session?.user.id;
   const qc = useQueryClient();
   const [section, setSection] = useState<Section>("reviews");
+  const [listTab, setListTab] = useState<"mine" | "followed">("mine");
 
   const stats = useQuery({
     queryKey: ["stats", userId],
@@ -41,6 +42,11 @@ export default function ProfileScreen() {
     queryKey: ["lists", userId],
     queryFn: () => getUserLists(userId!),
     enabled: !!userId && section === "lists",
+  });
+  const followedLists = useQuery({
+    queryKey: ["followed-lists", userId],
+    queryFn: () => getFollowedLists(userId!),
+    enabled: !!userId && section === "lists" && listTab === "followed",
   });
   const liked = useQuery({
     queryKey: ["shelf", userId, "liked"],
@@ -126,30 +132,38 @@ export default function ProfileScreen() {
 
         {section === "lists" ? (
           <View style={styles.listsWrap}>
-            <Pressable style={styles.newList} onPress={() => router.push("/new-list")}>
-              <View style={styles.newListIcon}>
-                <Icon name="create" color={colors.primary} size={22} />
-              </View>
-              <Text style={styles.newListLabel}>Crea nuova lista</Text>
-            </Pressable>
-            {(lists.data ?? []).length === 0 ? (
-              <SectionEmpty icon="📚" title="Nessuna booklist" msg="Crea la tua prima lista qui sopra." />
-            ) : (
-              (lists.data ?? []).map((l: BookList) => (
-                <Pressable key={l.id} style={styles.listRow} onPress={() => router.push(`/list/${l.id}`)}>
-                  <View style={styles.listThumb}>
+            <View style={styles.listToggle}>
+              {(["mine", "followed"] as const).map((t) => (
+                <Pressable
+                  key={t}
+                  style={[styles.ltBtn, listTab === t && styles.ltBtnOn]}
+                  onPress={() => setListTab(t)}
+                >
+                  <Text style={[styles.ltLabel, listTab === t && styles.ltLabelOn]}>
+                    {t === "mine" ? "Mie" : "Seguite"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {listTab === "mine" ? (
+              <>
+                <Pressable style={styles.newList} onPress={() => router.push("/new-list")}>
+                  <View style={styles.newListIcon}>
                     <Icon name="create" color={colors.primary} size={22} />
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.listName}>{l.name}</Text>
-                    <Text style={styles.listMeta}>
-                      {l.book_count} {l.book_count === 1 ? "libro" : "libri"}
-                      {l.is_public ? "" : " · privata"}
-                    </Text>
-                  </View>
-                  <Text style={styles.chev}>›</Text>
+                  <Text style={styles.newListLabel}>Crea nuova lista</Text>
                 </Pressable>
-              ))
+                {(lists.data ?? []).length === 0 ? (
+                  <SectionEmpty icon="📚" title="Nessuna booklist" msg="Crea la tua prima lista qui sopra." />
+                ) : (
+                  (lists.data ?? []).map((l: BookList) => <ListRow key={l.id} list={l} />)
+                )}
+              </>
+            ) : (followedLists.data ?? []).length === 0 ? (
+              <SectionEmpty icon="🔖" title="Nessuna lista seguita" msg="Segui le liste pubbliche che ti piacciono." />
+            ) : (
+              (followedLists.data ?? []).map((l: BookList) => <ListRow key={l.id} list={l} showAuthor />)
             )}
           </View>
         ) : null}
@@ -177,6 +191,25 @@ function Stat({ label, value, onPress }: { label: string; value: number; onPress
     <Pressable style={styles.stat} onPress={onPress} disabled={!onPress}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function ListRow({ list, showAuthor }: { list: BookList; showAuthor?: boolean }) {
+  return (
+    <Pressable style={styles.listRow} onPress={() => router.push(`/list/${list.id}`)}>
+      <View style={styles.listThumb}>
+        <Icon name="create" color={colors.primary} size={22} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.listName}>{list.name}</Text>
+        <Text style={styles.listMeta}>
+          {list.book_count} {list.book_count === 1 ? "libro" : "libri"}
+          {list.follower_count > 0 ? ` · ${list.follower_count} follower` : ""}
+          {list.is_public ? "" : " · privata"}
+        </Text>
+      </View>
+      <Text style={styles.chev}>›</Text>
     </Pressable>
   );
 }
@@ -234,7 +267,18 @@ const styles = StyleSheet.create({
   },
   tabOn: { borderBottomColor: colors.primary },
   feed: { paddingHorizontal: spacing.lg },
-  listsWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  listsWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  listToggle: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm },
+  ltBtn: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ltBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  ltLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
+  ltLabelOn: { color: colors.onPrimary },
   newList: {
     flexDirection: "row",
     alignItems: "center",

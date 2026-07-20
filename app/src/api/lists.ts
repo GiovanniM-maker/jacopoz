@@ -95,6 +95,43 @@ export async function removeBookFromList(listId: UUID, bookId: UUID): Promise<vo
   if (error) throw error;
 }
 
+// ---- Following other people's lists ---------------------------------
+
+export async function followList(userId: UUID, listId: UUID): Promise<void> {
+  const { error } = await supabase.from("list_follows").insert({ user_id: userId, list_id: listId });
+  if (error) throw error;
+}
+
+export async function unfollowList(userId: UUID, listId: UUID): Promise<void> {
+  const { error } = await supabase
+    .from("list_follows")
+    .delete()
+    .eq("user_id", userId)
+    .eq("list_id", listId);
+  if (error) throw error;
+}
+
+export async function isFollowingList(userId: UUID, listId: UUID): Promise<boolean> {
+  const { data } = await supabase
+    .from("list_follows")
+    .select("list_id")
+    .eq("user_id", userId)
+    .eq("list_id", listId)
+    .maybeSingle();
+  return !!data;
+}
+
+/** Lists the user follows (created by others), newest-followed first. */
+export async function getFollowedLists(userId: UUID): Promise<BookList[]> {
+  const { data, error } = await supabase
+    .from("list_follows")
+    .select("list:book_lists(*)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.list).filter(Boolean) as BookList[];
+}
+
 /** All books across the user's own lists (deduped), as cards. */
 export async function getBooksInUserLists(userId: UUID): Promise<BookCard[]> {
   const { data, error } = await supabase
