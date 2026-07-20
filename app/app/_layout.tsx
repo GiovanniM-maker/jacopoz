@@ -20,13 +20,18 @@ function useAuthGate() {
     const group = segments[0];
     const inAuth = group === "(auth)";
     const inOnboarding = group === "onboarding";
+    // The boot/landing route ("/") has no segment. Signed-in users must be
+    // forwarded off it (and off the auth/onboarding stacks) into the app —
+    // otherwise they sit on the index spinner forever. Deep links elsewhere
+    // (/book, /settings, …) are left untouched.
+    const atBoot = group === undefined || inAuth || inOnboarding;
     const needsOnboarding = !!session && !!profile && !profile.onboarded_at;
 
-    if (!session && !inAuth) {
-      router.replace("/(auth)/sign-in");
-    } else if (session && needsOnboarding && !inOnboarding) {
-      router.replace("/onboarding");
-    } else if (session && !needsOnboarding && (inAuth || inOnboarding)) {
+    if (!session) {
+      if (!inAuth) router.replace("/(auth)/sign-in");
+    } else if (needsOnboarding) {
+      if (!inOnboarding) router.replace("/onboarding");
+    } else if (atBoot) {
       router.replace("/(tabs)");
     }
   }, [session, profile, loading, segments, router]);

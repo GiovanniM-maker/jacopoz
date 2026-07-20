@@ -1,22 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect } from "react";
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getBooksByGenre, getGenres, getNewReleases, getTrendingBooks } from "@/api/books";
 import { getRecommendations } from "@/api/reco";
 import { getGenrePrefs } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { AppHeader } from "@/components/AppHeader";
+import { BookCover } from "@/components/BookCover";
 import { BookRow } from "@/components/BookRow";
 import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, displayFont, radius, spacing, typography } from "@/theme";
+import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing } from "@/theme";
 import type { BookReco, Genre } from "@/types/database";
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 export default function Home() {
   const { session } = useAuth();
@@ -43,8 +40,14 @@ export default function Home() {
   return (
     <ScreenContainer edges={["top"]}>
       <AppHeader />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {hero ? <Billboard book={hero} /> : <View style={{ height: spacing.xxl }} />}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* Masthead strip: this is a numbered issue of the collana. */}
+        <View style={styles.masthead}>
+          <Text style={styles.mastheadText}>Periodico di letture</Text>
+          <Text style={styles.mastheadText}>Anno I · N°07</Text>
+        </View>
+
+        {hero ? <IssueHero book={hero} /> : null}
 
         <View style={styles.rows}>
           {recos.data && recos.data.length > 0 ? (
@@ -70,37 +73,38 @@ function GenreRow({ slug, title }: { slug: string; title: string }) {
   return <BookRow title={title} books={q.data ?? []} />;
 }
 
-/** Full-bleed Netflix billboard: backdrop, gradient fade, title, Play / Info. */
-function Billboard({ book }: { book: BookReco }) {
-  const height = Math.min(SCREEN_H * 0.62, SCREEN_W * 1.35);
+/**
+ * "Il numero del mese" — the editorial cover-story block. A hard-framed
+ * coloured card (not a Netflix billboard): masthead band, the featured book
+ * beside its condensed title and reason, and a single call to action.
+ */
+function IssueHero({ book }: { book: BookReco }) {
+  const { number } = collanaMark(book.title);
+  const ink = onBand(colors.accent);
+  const open = () => router.push(`/book/${book.id}`);
+
   return (
-    <View style={[styles.billboard, { height }]}>
-      {book.cover_url ? (
-        <Image source={{ uri: book.cover_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.surfaceAlt }]} />
-      )}
-      {/* Fade the backdrop into the page background at the bottom. */}
-      <LinearGradient
-        colors={["transparent", `${colors.bg}66`, colors.bg]}
-        locations={[0, 0.55, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.billboardContent}>
-        <Text style={styles.billboardTitle} numberOfLines={2}>
-          {book.title}
-        </Text>
-        <Text style={styles.billboardMeta} numberOfLines={1}>
-          {book.reason} · {book.authors[0]}
-        </Text>
-        <View style={styles.billboardButtons}>
-          <Pressable style={styles.playBtn} onPress={() => router.push(`/book/${book.id}`)}>
-            <Text style={styles.playIcon}>▶</Text>
-            <Text style={styles.playLabel}>Apri</Text>
-          </Pressable>
-          <Pressable style={styles.infoBtn} onPress={() => router.push(`/book/${book.id}`)}>
-            <Text style={styles.infoIcon}>ⓘ</Text>
-            <Text style={styles.infoLabel}>Info</Text>
+    <View style={[styles.issue, hardShadow]}>
+      <View style={styles.issueBand}>
+        <Text style={[styles.issueKicker, { color: ink }]}>Il numero del mese</Text>
+        <Text style={[styles.issueKicker, { color: ink }]}>N°{number}</Text>
+      </View>
+
+      <View style={styles.issueBody}>
+        <Pressable onPress={open}>
+          <BookCover url={book.cover_url} title={book.title} width={96} />
+        </Pressable>
+
+        <View style={styles.issueInfo}>
+          <Text style={[styles.issueTitle, { color: ink }]} numberOfLines={3}>
+            {book.title}
+          </Text>
+          <Text style={[styles.issueAuthor, { color: ink }]} numberOfLines={2}>
+            {book.authors[0]}
+            {book.reason ? ` · ${book.reason}` : ""}
+          </Text>
+          <Pressable style={styles.issueCta} onPress={open}>
+            <Text style={styles.issueCtaText}>Apri la scheda ▸</Text>
           </Pressable>
         </View>
       </View>
@@ -109,48 +113,67 @@ function Billboard({ book }: { book: BookReco }) {
 }
 
 const styles = StyleSheet.create({
-  billboard: { width: SCREEN_W, justifyContent: "flex-end" },
-  billboardContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, alignItems: "center" },
-  billboardTitle: {
-    color: colors.text,
+  scroll: { paddingTop: spacing.sm },
+  masthead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.md,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.border,
+  },
+  mastheadText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
+  issue: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accent,
+    overflow: "hidden",
+  },
+  issueBand: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.border,
+  },
+  issueKicker: { fontSize: 10, fontWeight: "800", letterSpacing: 2, textTransform: "uppercase" },
+  issueBody: { flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  issueInfo: { flex: 1, justifyContent: "center" },
+  issueTitle: {
     fontFamily: displayFont,
-    fontSize: 40,
+    fontSize: 30,
     fontWeight: "900",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    textAlign: "center",
-    textShadowColor: colors.overlay,
-    textShadowRadius: 10,
+    letterSpacing: 0.4,
+    lineHeight: 30,
   },
-  billboardMeta: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-    textAlign: "center",
-  },
-  billboardButtons: { flexDirection: "row", gap: spacing.md },
-  playBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
+  issueAuthor: { fontSize: 13, fontStyle: "italic", marginTop: spacing.xs, opacity: 0.9 },
+  issueCta: {
+    alignSelf: "flex-start",
+    marginTop: spacing.md,
     backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  playIcon: { color: colors.onPrimary, fontSize: 15 },
-  playLabel: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
-  infoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.surfaceAlt,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.sm,
+  issueCtaText: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
   },
-  infoIcon: { color: colors.text, fontSize: 16 },
-  infoLabel: { color: colors.text, fontSize: 16, fontWeight: "700" },
-  rows: { marginTop: spacing.lg },
+  rows: { marginTop: spacing.sm },
 });
