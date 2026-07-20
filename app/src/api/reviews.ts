@@ -33,6 +33,25 @@ export async function getReview(id: UUID, viewerId?: UUID): Promise<ReviewWithAu
   return withLike;
 }
 
+export interface UserReview extends Review {
+  book: { id: UUID; title: string; cover_url: string | null };
+  author: { id: UUID; username: string; display_name: string; avatar_url: string | null };
+}
+
+/** A user's own reviews with book + author, for the profile Reviews tab. */
+export async function getUserReviews(userId: UUID): Promise<UserReview[]> {
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(
+      "*, book:books(id,title,cover_url), author:profiles!reviews_user_id_fkey(id,username,display_name,avatar_url)",
+    )
+    .eq("user_id", userId)
+    .eq("status", "visible")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as UserReview[];
+}
+
 /** The current user's own review of a book, if any (one per book). */
 export async function getMyReview(userId: UUID, bookId: UUID): Promise<Review | null> {
   const { data, error } = await supabase

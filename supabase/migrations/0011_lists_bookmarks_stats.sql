@@ -118,8 +118,8 @@ as $$
     (select count(*)::int from user_books where user_id = p_user and status = 'read'),
     (select count(*)::int from reviews where user_id = p_user and status = 'visible'),
     (select count(*)::int from comments where user_id = p_user and status = 'visible'),
-    (select coalesce(sum(like_count), 0)::int from reviews where user_id = p_user and status = 'visible')
-      + (select coalesce(sum(like_count), 0)::int from comments where user_id = p_user and status = 'visible'),
+    -- likes received on the user's REVIEWS only
+    (select coalesce(sum(like_count), 0)::int from reviews where user_id = p_user and status = 'visible'),
     (select count(*)::int from likes where user_id = p_user),
     (select followers_count from profiles where id = p_user),
     (select following_count from profiles where id = p_user),
