@@ -95,6 +95,39 @@ export async function removeBookFromList(listId: UUID, bookId: UUID): Promise<vo
   if (error) throw error;
 }
 
+/** All books across the user's own lists (deduped), as cards. */
+export async function getBooksInUserLists(userId: UUID): Promise<BookCard[]> {
+  const { data, error } = await supabase
+    .from("book_list_items")
+    .select(
+      "book:books(id,title,subtitle,authors,cover_url,published_year,categories,reads_count,saves_count,likes_count,reviews_count,rating_sum,rating_count), book_lists!inner(user_id)",
+    )
+    .eq("book_lists.user_id", userId);
+  if (error) throw error;
+  const seen = new Set<string>();
+  const out: BookCard[] = [];
+  for (const r of (data ?? []) as any[]) {
+    const b = r.book;
+    if (!b || seen.has(b.id)) continue;
+    seen.add(b.id);
+    out.push({
+      id: b.id,
+      title: b.title,
+      subtitle: b.subtitle,
+      authors: b.authors,
+      cover_url: b.cover_url,
+      published_year: b.published_year,
+      categories: b.categories,
+      avg_rating: b.rating_count > 0 ? Number((b.rating_sum / b.rating_count).toFixed(2)) : null,
+      reads_count: b.reads_count,
+      saves_count: b.saves_count,
+      likes_count: b.likes_count,
+      reviews_count: b.reviews_count,
+    });
+  }
+  return out;
+}
+
 /** The set of the user's list ids that already contain a given book — used to
  *  show checkmarks in the "add to list" sheet. */
 export async function getListIdsContainingBook(userId: UUID, bookId: UUID): Promise<Set<UUID>> {

@@ -101,6 +101,12 @@ export async function upsertReview(
   return data as Review;
 }
 
+/** Book ids the user has already reviewed (to exclude from "to review"). */
+export async function getReviewedBookIds(userId: UUID): Promise<Set<UUID>> {
+  const { data } = await supabase.from("reviews").select("book_id").eq("user_id", userId);
+  return new Set((data ?? []).map((r) => r.book_id));
+}
+
 export async function deleteReview(id: UUID): Promise<void> {
   const { error } = await supabase.from("reviews").delete().eq("id", id);
   if (error) throw error;

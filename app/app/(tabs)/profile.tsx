@@ -58,8 +58,8 @@ export default function ProfileScreen() {
           <Pressable onPress={() => router.push("/saved")} hitSlop={8}>
             <Text style={styles.topLink}>🔖 Salvati</Text>
           </Pressable>
-          <Pressable onPress={signOut} hitSlop={8}>
-            <Text style={styles.topLink}>Esci</Text>
+          <Pressable onPress={() => router.push("/settings")} hitSlop={8}>
+            <Text style={styles.topLink}>⚙ Impostazioni</Text>
           </Pressable>
         </View>
 
@@ -126,8 +126,14 @@ export default function ProfileScreen() {
 
         {section === "lists" ? (
           <View style={styles.listsWrap}>
+            <Pressable style={styles.newList} onPress={() => router.push("/new-list")}>
+              <View style={styles.newListIcon}>
+                <Icon name="create" color={colors.primary} size={22} />
+              </View>
+              <Text style={styles.newListLabel}>Crea nuova lista</Text>
+            </Pressable>
             {(lists.data ?? []).length === 0 ? (
-              <SectionEmpty icon="📚" title="Nessuna booklist" msg="Crea liste dalle pagine dei libri." />
+              <SectionEmpty icon="📚" title="Nessuna booklist" msg="Crea la tua prima lista qui sopra." />
             ) : (
               (lists.data ?? []).map((l: BookList) => (
                 <Pressable key={l.id} style={styles.listRow} onPress={() => router.push(`/list/${l.id}`)}>
@@ -229,6 +235,25 @@ const styles = StyleSheet.create({
   tabOn: { borderBottomColor: colors.primary },
   feed: { paddingHorizontal: spacing.lg },
   listsWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  newList: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  newListIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  newListLabel: { color: colors.primary, fontSize: 16, fontWeight: "700" },
   listRow: {
     flexDirection: "row",
     alignItems: "center",

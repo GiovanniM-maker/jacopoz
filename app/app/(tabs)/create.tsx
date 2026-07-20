@@ -1,86 +1,105 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { getReviewedBookIds } from "@/api/reviews";
+import { getBooksInUserLists } from "@/api/lists";
 import { getShelfBooks } from "@/api/shelves";
 import { BookCard } from "@/components/BookCard";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
 import { colors, radius, spacing, typography } from "@/theme";
-import type { BookCard as BookCardType, ShelfStatus } from "@/types/database";
+import type { BookCard as BookCardType } from "@/types/database";
+import { FlatList } from "react-native";
 
 const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
 
 /**
- * Instagram-style "create a post" hub. A post here is a book review, so we
- * help the user pick a book fast — from what they're reading / have read, or
- * via search — then send them to the book page to write it.
+ * "Create a review" hub. Proposes books the user already cares about —
+ * liked or saved into a list — but hasn't reviewed yet. Tapping one jumps
+ * straight to the review composer.
  */
 export default function Create() {
   const { session } = useAuth();
   const userId = session?.user.id;
 
-  const reading = useQuery({
-    queryKey: ["shelf", userId, "reading"],
-    queryFn: () => getShelfBooks(userId!, { status: "reading" as ShelfStatus }),
+  const candidates = useQuery({
+    queryKey: ["review-candidates", userId],
+    queryFn: async (): Promise<BookCardType[]> => {
+      const [liked, inLists, reviewed] = await Promise.all([
+        getShelfBooks(userId!, { liked: true }),
+        getBooksInUserLists(userId!),
+        getReviewedBookIds(userId!),
+      ]);
+      const seen = new Set<string>();
+      const out: BookCardType[] = [];
+      for (const b of [...liked, ...inLists]) {
+        if (seen.has(b.id) || reviewed.has(b.id)) continue;
+        seen.add(b.id);
+        out.push(b);
+      }
+      return out;
+    },
     enabled: !!userId,
   });
-  const read = useQuery({
-    queryKey: ["shelf", userId, "read"],
-    queryFn: () => getShelfBooks(userId!, { status: "read" as ShelfStatus }),
-    enabled: !!userId,
-  });
-
-  const hasBooks = (reading.data?.length ?? 0) + (read.data?.length ?? 0) > 0;
 
   return (
     <ScreenContainer edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Create</Text>
-        <Text style={styles.subtitle}>Share your take on a book.</Text>
+        <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Text style={styles.back}>‹ Indietro</Text>
+        </Pressable>
+        <Text style={styles.title}>Recensisci</Text>
+        <View style={{ width: 44 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-        <Pressable style={styles.searchCta} onPress={() => router.push("/search")}>
-          <Icon name="search" color={colors.text} size={20} />
-          <Text style={styles.searchLabel}>Find a book to review…</Text>
-        </Pressable>
+      <Pressable style={styles.searchCta} onPress={() => router.push("/search")}>
+        <Icon name="search" color={colors.text} size={20} />
+        <Text style={styles.searchLabel}>Cerca un altro libro da recensire…</Text>
+      </Pressable>
 
-        {hasBooks ? (
-          <Text style={styles.hint}>…or tap one of yours to review it</Text>
-        ) : (
-          <Text style={styles.hint}>
-            Books you're reading or have read will appear here for quick reviewing.
-          </Text>
+      <Text style={styles.hint}>Da recensire — libri che ami o hai salvato in lista</Text>
+
+      <FlatList
+        data={candidates.data ?? []}
+        keyExtractor={(b) => b.id}
+        numColumns={3}
+        columnWrapperStyle={styles.col}
+        contentContainerStyle={styles.grid}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          !candidates.isLoading ? (
+            <View style={{ height: 260 }}>
+              <EmptyState
+                icon="✍️"
+                title="Niente da recensire"
+                message="Metti like o salva libri in una lista: appariranno qui, pronti da recensire."
+                action={{ label: "Cerca libri", onPress: () => router.push("/search") }}
+              />
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <Pressable onPress={() => router.push(`/compose-review?bookId=${item.id}`)}>
+            <BookCard book={item} width={CARD_W} showMeta />
+          </Pressable>
         )}
-
-        <Section title="Currently reading" books={reading.data ?? []} />
-        <Section title="Read" books={read.data ?? []} />
-        <View style={{ height: spacing.xxl }} />
-      </ScrollView>
+      />
     </ScreenContainer>
   );
 }
 
-function Section({ title, books }: { title: string; books: BookCardType[] }) {
-  if (books.length === 0) return null;
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <View style={styles.grid}>
-        {books.map((b) => (
-          <BookCard key={b.id} book={b} width={CARD_W} showMeta />
-        ))}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: 2 },
-  title: typography.h1,
-  subtitle: typography.bodyMuted,
-  body: { paddingHorizontal: spacing.lg },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  back: { color: colors.textMuted, fontSize: 16 },
+  title: { ...typography.h3 },
   searchCta: {
     flexDirection: "row",
     alignItems: "center",
@@ -89,12 +108,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    padding: spacing.lg,
+    padding: spacing.md,
+    marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
-  searchLabel: { color: colors.textMuted, fontSize: 16 },
-  hint: { ...typography.caption, marginBottom: spacing.lg },
-  section: { marginBottom: spacing.lg },
-  sectionTitle: { ...typography.h3, marginBottom: spacing.md },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
+  searchLabel: { color: colors.textMuted, fontSize: 15 },
+  hint: { ...typography.caption, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  grid: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl, flexGrow: 1 },
+  col: { gap: spacing.md, marginBottom: spacing.lg },
 });

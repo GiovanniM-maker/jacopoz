@@ -18,6 +18,12 @@ export async function getProfileByUsername(username: string): Promise<Profile> {
   return data as Profile;
 }
 
+/** Permanently delete the signed-in user's account and all their data. */
+export async function deleteAccount(): Promise<void> {
+  const { error } = await supabase.rpc("delete_my_account");
+  if (error) throw error;
+}
+
 export async function updateProfile(
   id: UUID,
   patch: Partial<Pick<Profile, "display_name" | "bio" | "avatar_url">>,
