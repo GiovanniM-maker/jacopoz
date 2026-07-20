@@ -4,7 +4,7 @@ import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getBook, bookAvgRating } from "@/api/books";
-import { getBookReviews } from "@/api/reviews";
+import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
 import { affiliateUrl } from "@/api/config";
@@ -16,7 +16,7 @@ import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
 import { colors, radius, spacing, typography } from "@/theme";
-import type { ReviewWithAuthor } from "@/types/database";
+import type { FeedItem } from "@/types/database";
 
 export default function BookPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,7 +32,7 @@ export default function BookPage() {
   });
   const reviews = useQuery({
     queryKey: ["book-reviews", id, userId],
-    queryFn: () => getBookReviews(id!, userId),
+    queryFn: () => getBookReviewsRanked(id!),
     enabled: !!id,
   });
   const affiliate = useQuery({
@@ -141,11 +141,11 @@ export default function BookPage() {
         {(reviews.data ?? []).length === 0 ? (
           <Text style={styles.noReviews}>Be the first to review this book.</Text>
         ) : (
-          (reviews.data ?? []).map((r: ReviewWithAuthor) => (
+          (reviews.data ?? []).map((r: FeedItem) => (
             <ReviewCard
-              key={r.id}
-              authorName={r.author.display_name}
-              authorAvatar={r.author.avatar_url}
+              key={r.review_id}
+              authorName={r.author_display_name}
+              authorAvatar={r.author_avatar_url}
               createdAt={r.created_at}
               rating={r.rating}
               body={r.body}
@@ -153,8 +153,8 @@ export default function BookPage() {
               likeCount={r.like_count}
               commentCount={r.comment_count}
               likedByViewer={r.viewer_has_liked}
-              onPress={() => router.push(`/review/${r.id}`)}
-              onLike={() => onReviewLike(r.id)}
+              onPress={() => router.push(`/review/${r.review_id}`)}
+              onLike={() => onReviewLike(r.review_id)}
             />
           ))
         )}

@@ -20,3 +20,18 @@ export async function getFollowingFeed(limit = 20, offset = 0): Promise<FeedItem
   if (error) throw error;
   return (data ?? []) as FeedItem[];
 }
+
+/** Reviews on a single book, ranked for the viewer (interests-aware). */
+export async function getBookReviewsRanked(
+  bookId: string,
+  limit = 30,
+  offset = 0,
+): Promise<FeedItem[]> {
+  const { data, error } = await supabase.rpc("get_book_reviews_ranked", {
+    p_book_id: bookId,
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) throw error;
+  return (data ?? []) as FeedItem[];
+}
