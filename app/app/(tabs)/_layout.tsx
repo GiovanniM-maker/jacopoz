@@ -25,10 +25,11 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ tabBarIcon: tabIcon("home") }} />
-      <Tabs.Screen name="search" options={{ tabBarIcon: tabIcon("search") }} />
-      <Tabs.Screen name="create" options={{ tabBarIcon: tabIcon("create") }} />
       <Tabs.Screen name="community" options={{ tabBarIcon: tabIcon("community") }} />
       <Tabs.Screen name="profile" options={{ tabBarIcon: tabIcon("profile") }} />
+      {/* Reachable from the header (search right, review left) — hidden from the tab bar. */}
+      <Tabs.Screen name="search" options={{ href: null }} />
+      <Tabs.Screen name="create" options={{ href: null }} />
     </Tabs>
   );
 }
