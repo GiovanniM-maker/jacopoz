@@ -9,6 +9,7 @@ export type UUID = string;
 export type ShelfStatus = "want_to_read" | "reading" | "read";
 export type ContentStatus = "visible" | "hidden" | "removed";
 export type LikeableType = "review" | "comment";
+export type BookmarkType = "review" | "comment";
 export type ReportTarget = "review" | "comment" | "profile" | "book";
 export type UserRole = "user" | "moderator" | "admin";
 
@@ -93,6 +94,28 @@ export interface Comment {
   reply_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface BookList {
+  id: UUID;
+  user_id: UUID;
+  name: string;
+  description: string | null;
+  is_public: boolean;
+  book_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileStats {
+  books_read: number;
+  reviews: number;
+  comments: number;
+  likes_received: number;
+  likes_given: number;
+  followers: number;
+  following: number;
+  lists: number;
 }
 
 // ---- RPC return shapes (composite types from 0006) -------------------

@@ -101,6 +101,8 @@ export default function BookPage() {
             onPress={() => mutateShelf({ status: isSaved ? null : "want_to_read" })} />
           <ActionButton icon={ub?.liked ? "❤️" : "🤍"} label="Like" active={!!ub?.liked}
             onPress={() => mutateShelf({ liked: !ub?.liked })} />
+          <ActionButton icon="➕" label="List"
+            onPress={() => router.push(`/add-to-list?bookId=${b.id}`)} />
         </View>
 
         {/* Personal rating */}
@@ -162,12 +164,12 @@ export default function BookPage() {
 function ActionButton({
   icon,
   label,
-  active,
+  active = false,
   onPress,
 }: {
   icon: string;
   label: string;
-  active: boolean;
+  active?: boolean;
   onPress: () => void;
 }) {
   return (

@@ -7,14 +7,17 @@ import { Avatar } from "./ui/Avatar";
 interface Props {
   comment: CommentWithAuthor;
   isReply?: boolean;
+  saved?: boolean;
   onLike?: () => void;
   onReply?: () => void;
+  onSave?: () => void;
+  onPress?: () => void;
 }
 
 /** A single comment or reply in a review thread. */
-export function CommentItem({ comment, isReply, onLike, onReply }: Props) {
+export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, onPress }: Props) {
   return (
-    <View style={[styles.row, isReply && styles.reply]}>
+    <Pressable style={[styles.row, isReply && styles.reply]} onPress={onPress} disabled={!onPress}>
       <Avatar url={comment.author.avatar_url} name={comment.author.display_name} size={30} />
       <View style={styles.body}>
         <Text style={styles.author}>
@@ -32,9 +35,14 @@ export function CommentItem({ comment, isReply, onLike, onReply }: Props) {
               <Text style={styles.action}>Reply{comment.reply_count ? ` (${comment.reply_count})` : ""}</Text>
             </Pressable>
           ) : null}
+          {onSave ? (
+            <Pressable onPress={onSave} hitSlop={8}>
+              <Text style={[styles.action, saved && styles.liked]}>{saved ? "🔖 Saved" : "🔖 Save"}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

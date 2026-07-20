@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Genre, Profile, UUID } from "@/types/database";
+import type { Genre, Profile, ProfileStats, UUID } from "@/types/database";
 import { track } from "./analytics";
 
 export async function getProfile(id: UUID): Promise<Profile> {
@@ -60,42 +60,41 @@ export async function saveOnboarding(userId: UUID, genreSlugs: string[]): Promis
   void track("onboarding_completed", { genres: genreSlugs.length });
 }
 
-export interface ProfileStats {
-  booksRead: number;
-  booksSaved: number;
-  reviews: number;
-  likesReceived: number;
+/** Full profile statistics in one round trip (see get_profile_stats RPC). */
+export async function getProfileStats(userId: UUID): Promise<ProfileStats> {
+  const { data, error } = await supabase.rpc("get_profile_stats", { p_user: userId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row ?? {
+    books_read: 0,
+    reviews: 0,
+    comments: 0,
+    likes_received: 0,
+    likes_given: 0,
+    followers: 0,
+    following: 0,
+    lists: 0,
+  }) as ProfileStats;
 }
 
-/** Basic profile statistics assembled from a few cheap count queries. */
-export async function getProfileStats(userId: UUID): Promise<ProfileStats> {
-  const [read, saved, reviews] = await Promise.all([
-    supabase
-      .from("user_books")
-      .select("book_id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "read"),
-    supabase
-      .from("user_books")
-      .select("book_id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .eq("status", "want_to_read"),
-    supabase
-      .from("reviews")
-      .select("id, like_count")
-      .eq("user_id", userId)
-      .eq("status", "visible"),
-  ]);
+type MiniProfile = Pick<Profile, "id" | "username" | "display_name" | "avatar_url">;
 
-  const likesReceived = (reviews.data ?? []).reduce(
-    (sum: number, r: any) => sum + (r.like_count ?? 0),
-    0,
-  );
+/** Users who follow `userId`. */
+export async function getFollowers(userId: UUID): Promise<MiniProfile[]> {
+  const { data, error } = await supabase
+    .from("follows")
+    .select("follower:profiles!follows_follower_id_fkey(id,username,display_name,avatar_url)")
+    .eq("following_id", userId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.follower).filter(Boolean) as MiniProfile[];
+}
 
-  return {
-    booksRead: read.count ?? 0,
-    booksSaved: saved.count ?? 0,
-    reviews: (reviews.data ?? []).length,
-    likesReceived,
-  };
+/** Users `userId` follows. */
+export async function getFollowing(userId: UUID): Promise<MiniProfile[]> {
+  const { data, error } = await supabase
+    .from("follows")
+    .select("following:profiles!follows_following_id_fkey(id,username,display_name,avatar_url)")
+    .eq("follower_id", userId);
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.following).filter(Boolean) as MiniProfile[];
 }

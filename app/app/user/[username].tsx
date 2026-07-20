@@ -77,10 +77,18 @@ export default function PublicProfile() {
         </View>
 
         <View style={styles.statsRow}>
-          <Stat label="Read" value={stats.data?.booksRead ?? 0} />
+          <Stat label="Read" value={stats.data?.books_read ?? 0} />
           <Stat label="Reviews" value={stats.data?.reviews ?? 0} />
-          <Stat label="Followers" value={p.followers_count} />
-          <Stat label="Following" value={p.following_count} />
+          <Stat
+            label="Followers"
+            value={stats.data?.followers ?? p.followers_count}
+            onPress={() => router.push(`/connections?userId=${p.id}&type=followers`)}
+          />
+          <Stat
+            label="Following"
+            value={stats.data?.following ?? p.following_count}
+            onPress={() => router.push(`/connections?userId=${p.id}&type=following`)}
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Read</Text>
@@ -95,12 +103,12 @@ export default function PublicProfile() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, onPress }: { label: string; value: number; onPress?: () => void }) {
   return (
-    <View style={styles.stat}>
+    <Pressable style={styles.stat} onPress={onPress} disabled={!onPress}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 

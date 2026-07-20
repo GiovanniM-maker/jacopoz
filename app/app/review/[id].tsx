@@ -14,6 +14,7 @@ import {
 import { addComment, getComments, getReplies } from "@/api/comments";
 import { getReview } from "@/api/reviews";
 import { toggleLike } from "@/api/social";
+import { getBookmarkedIds, toggleBookmark } from "@/api/bookmarks";
 import { CommentItem } from "@/components/CommentItem";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
@@ -41,6 +42,17 @@ export default function ReviewThread() {
     queryFn: () => getComments(id!, userId),
     enabled: !!id,
   });
+  const savedComments = useQuery({
+    queryKey: ["saved-comment-ids", userId],
+    queryFn: () => getBookmarkedIds(userId!, "comment"),
+    enabled: !!userId,
+  });
+
+  async function onSaveComment(commentId: string) {
+    if (!userId) return;
+    await toggleBookmark(userId, "comment", commentId);
+    qc.invalidateQueries({ queryKey: ["saved-comment-ids", userId] });
+  }
 
   async function onReviewLike() {
     if (!id) return;
@@ -99,8 +111,10 @@ export default function ReviewThread() {
             <View key={c.id}>
               <CommentItem
                 comment={c}
+                saved={savedComments.data?.has(c.id) ?? false}
                 onLike={() => onCommentLike(c.id)}
                 onReply={() => setReplyTo(c)}
+                onSave={() => onSaveComment(c.id)}
               />
               {c.reply_count > 0 ? (
                 <ReplyList parentId={c.id} viewerId={userId} onLike={onCommentLike} />

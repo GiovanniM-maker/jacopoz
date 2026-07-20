@@ -52,6 +52,10 @@ function RootNavigator() {
       <Stack.Screen name="book/[id]" options={{ presentation: "card" }} />
       <Stack.Screen name="review/[id]" />
       <Stack.Screen name="compose-review" options={{ presentation: "modal" }} />
+      <Stack.Screen name="add-to-list" options={{ presentation: "modal" }} />
+      <Stack.Screen name="list/[id]" />
+      <Stack.Screen name="connections" />
+      <Stack.Screen name="saved" />
       <Stack.Screen name="user/[username]" />
     </Stack>
   );

@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { getProfileStats } from "@/api/profile";
+import { getUserLists } from "@/api/lists";
 import { getShelfBooks } from "@/api/shelves";
 import { BookCard } from "@/components/BookCard";
 import { Avatar } from "@/components/ui/Avatar";
@@ -9,8 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, spacing, typography } from "@/theme";
-import type { BookCard as BookCardType, ShelfStatus } from "@/types/database";
+import { colors, radius, spacing, typography } from "@/theme";
+import type { BookCard as BookCardType, BookList, ShelfStatus } from "@/types/database";
 
 type Tab = "read" | "saved" | "liked";
 const TABS: { key: Tab; label: string }[] = [
@@ -31,7 +33,11 @@ export default function ProfileScreen() {
     queryFn: () => getProfileStats(userId!),
     enabled: !!userId,
   });
-
+  const lists = useQuery({
+    queryKey: ["lists", userId],
+    queryFn: () => getUserLists(userId!),
+    enabled: !!userId,
+  });
   const shelf = useQuery({
     queryKey: ["shelf", userId, tab],
     queryFn: () => {
@@ -45,6 +51,7 @@ export default function ProfileScreen() {
   });
 
   if (!profile) return <ScreenContainer />;
+  const s = stats.data;
 
   return (
     <ScreenContainer edges={["top"]}>
@@ -56,13 +63,57 @@ export default function ProfileScreen() {
           {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
         </View>
 
-        <View style={styles.statsRow}>
-          <Stat label="Read" value={stats.data?.booksRead ?? 0} />
-          <Stat label="Reviews" value={stats.data?.reviews ?? 0} />
-          <Stat label="Likes" value={stats.data?.likesReceived ?? 0} />
-          <Stat label="Followers" value={profile.followers_count} />
+        {/* Stats grid */}
+        <View style={styles.statsGrid}>
+          <Stat label="Read" value={s?.books_read ?? 0} />
+          <Stat label="Reviews" value={s?.reviews ?? 0} />
+          <Stat label="Comments" value={s?.comments ?? 0} />
+          <Stat label="Likes" value={s?.likes_received ?? 0} />
+          <Stat
+            label="Followers"
+            value={s?.followers ?? profile.followers_count}
+            onPress={() => router.push(`/connections?userId=${userId}&type=followers`)}
+          />
+          <Stat
+            label="Following"
+            value={s?.following ?? profile.following_count}
+            onPress={() => router.push(`/connections?userId=${userId}&type=following`)}
+          />
         </View>
 
+        {/* Quick links */}
+        <View style={styles.links}>
+          <Pressable style={styles.link} onPress={() => router.push("/saved")}>
+            <Text style={styles.linkText}>🔖 Saved</Text>
+          </Pressable>
+        </View>
+
+        {/* Lists */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Lists</Text>
+          {(lists.data ?? []).length === 0 ? (
+            <Text style={styles.emptyLine}>No lists yet — add books to a list from any book page.</Text>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.md }}
+            >
+              {(lists.data ?? []).map((l: BookList) => (
+                <Pressable key={l.id} style={styles.listCard} onPress={() => router.push(`/list/${l.id}`)}>
+                  <Text style={styles.listName} numberOfLines={2}>
+                    {l.name}
+                  </Text>
+                  <Text style={styles.listMeta}>
+                    {l.book_count} {l.book_count === 1 ? "book" : "books"}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        {/* Shelves */}
         <View style={styles.tabs}>
           {TABS.map((t) => (
             <Pressable
@@ -82,7 +133,7 @@ export default function ProfileScreen() {
             </View>
           ) : (
             (shelf.data ?? []).map((b: BookCardType) => (
-              <BookCard key={b.id} book={b} width={CARD_W} />
+              <BookCard key={b.id} book={b} width={CARD_W} showMeta />
             ))
           )}
         </View>
@@ -94,12 +145,12 @@ export default function ProfileScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, onPress }: { label: string; value: number; onPress?: () => void }) {
   return (
-    <View style={styles.stat}>
+    <Pressable style={styles.stat} onPress={onPress} disabled={!onPress}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -108,17 +159,40 @@ const styles = StyleSheet.create({
   name: { ...typography.h2, marginTop: spacing.sm },
   username: { ...typography.bodyMuted },
   bio: { ...typography.body, textAlign: "center", paddingHorizontal: spacing.xl, marginTop: spacing.sm },
-  statsRow: {
+  statsGrid: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: spacing.lg,
+    flexWrap: "wrap",
     marginHorizontal: spacing.lg,
     backgroundColor: colors.surface,
     borderRadius: 12,
+    paddingVertical: spacing.md,
   },
-  stat: { alignItems: "center" },
+  stat: { width: "33.33%", alignItems: "center", paddingVertical: spacing.sm },
   statValue: { ...typography.h3, color: colors.text },
   statLabel: { ...typography.caption },
+  links: { flexDirection: "row", paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  link: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    flex: 1,
+    alignItems: "center",
+  },
+  linkText: { color: colors.text, fontWeight: "600", fontSize: 15 },
+  section: { marginTop: spacing.xl, paddingLeft: spacing.lg },
+  sectionTitle: { ...typography.h3, marginBottom: spacing.md },
+  emptyLine: { ...typography.bodyMuted, paddingRight: spacing.lg },
+  listCard: {
+    width: 140,
+    height: 90,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    justifyContent: "space-between",
+  },
+  listName: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  listMeta: { color: colors.textMuted, fontSize: 12 },
   tabs: { flexDirection: "row", marginTop: spacing.xl, paddingHorizontal: spacing.lg, gap: spacing.sm },
   tab: {
     flex: 1,
