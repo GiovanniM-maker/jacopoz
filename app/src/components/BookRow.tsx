@@ -1,6 +1,6 @@
 import { FlatList, StyleSheet, Text, View } from "react-native";
 import type { BookCard as BookCardType } from "@/types/database";
-import { colors, spacing } from "@/theme";
+import { colors, displayFont, spacing } from "@/theme";
 import { BookCard } from "./BookCard";
 
 interface Props {
@@ -31,8 +31,11 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.lg },
   title: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
+    fontFamily: displayFont,
+    fontSize: 20,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },

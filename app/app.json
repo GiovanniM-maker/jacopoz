@@ -5,14 +5,14 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "tomo",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "backgroundColor": "#17130E",
+    "backgroundColor": "#ECE1C8",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#17130E"
+      "backgroundColor": "#ECE1C8"
     },
     "ios": {
       "supportsTablet": true,
@@ -22,7 +22,7 @@
       "package": "app.tomo.beta",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#17130E"
+        "backgroundColor": "#ECE1C8"
       }
     },
     "web": {

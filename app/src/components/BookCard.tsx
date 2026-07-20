@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { BookCard as BookCardType } from "@/types/database";
-import { colors, spacing } from "@/theme";
+import { colors, displayFont, spacing } from "@/theme";
 import { BookCover } from "./BookCover";
 
 interface Props {
@@ -36,6 +36,13 @@ export function BookCard({ book, width = 120, showMeta = false }: Props) {
 const styles = StyleSheet.create({
   card: { marginRight: spacing.sm },
   meta: { marginTop: spacing.sm, gap: 2 },
-  title: { color: colors.text, fontSize: 13, fontWeight: "600", lineHeight: 17 },
-  author: { color: colors.textMuted, fontSize: 12 },
+  title: {
+    color: colors.text,
+    fontFamily: displayFont,
+    fontSize: 15,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    lineHeight: 17,
+  },
+  author: { color: colors.textMuted, fontSize: 12, fontStyle: "italic" },
 });

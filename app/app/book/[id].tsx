@@ -15,7 +15,7 @@ import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors, displayFont, radius, spacing, typography } from "@/theme";
 import type { FeedItem } from "@/types/database";
 
 export default function BookPage() {
@@ -190,8 +190,16 @@ const styles = StyleSheet.create({
   backText: { color: colors.textMuted, fontSize: 16 },
   hero: { flexDirection: "row", gap: spacing.lg, marginBottom: spacing.lg },
   heroInfo: { flex: 1, gap: spacing.xs },
-  title: { ...typography.h2 },
-  author: { ...typography.bodyMuted, fontSize: 15 },
+  title: {
+    fontFamily: displayFont,
+    fontSize: 30,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    color: colors.text,
+    lineHeight: 30,
+  },
+  author: { ...typography.bodyMuted, fontSize: 15, fontStyle: "italic" },
   ratingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   ratingText: { color: colors.textMuted, fontSize: 13 },
   meta: { color: colors.textFaint, fontSize: 13, marginTop: spacing.xs },
@@ -231,6 +239,13 @@ const styles = StyleSheet.create({
   },
   description: { ...typography.body, lineHeight: 22 },
   reviewsHeader: { marginBottom: spacing.md },
-  sectionTitle: { ...typography.h3 },
+  sectionTitle: {
+    fontFamily: displayFont,
+    fontSize: 20,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    color: colors.text,
+  },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },
 });

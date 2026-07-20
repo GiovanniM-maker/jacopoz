@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import type { BookCard as BookCardType } from "@/types/database";
-import { COVER_ASPECT, colors, spacing } from "@/theme";
+import { COVER_ASPECT, colors, displayFont, spacing } from "@/theme";
 import { BookCover } from "./BookCover";
 
 interface Props {
@@ -42,23 +42,27 @@ const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.lg },
   title: {
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "700",
+    fontFamily: displayFont,
+    fontSize: 20,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
   list: { paddingHorizontal: spacing.lg, alignItems: "flex-end" },
   item: { flexDirection: "row", alignItems: "flex-end", marginRight: spacing.sm },
   rank: {
-    fontSize: 120,
+    fontFamily: displayFont,
+    fontSize: 132,
     fontWeight: "900",
-    color: "#2A2A2A",
-    marginRight: -22,
+    color: colors.primary,
+    marginRight: -20,
     textAlignVertical: "bottom",
-    lineHeight: 120,
-    // Outlined numeral look, Netflix-style.
-    textShadowColor: colors.textFaint,
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 1,
+    lineHeight: 132,
+    // Solid printed numeral in the spine colour.
+    textShadowColor: colors.shadow,
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 0,
   },
 });

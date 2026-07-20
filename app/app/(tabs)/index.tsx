@@ -13,7 +13,7 @@ import { BookRow } from "@/components/BookRow";
 import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors, displayFont, radius, spacing, typography } from "@/theme";
 import type { BookReco, Genre } from "@/types/database";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -113,8 +113,11 @@ const styles = StyleSheet.create({
   billboardContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, alignItems: "center" },
   billboardTitle: {
     color: colors.text,
-    fontSize: 30,
+    fontFamily: displayFont,
+    fontSize: 40,
     fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
     textAlign: "center",
     textShadowColor: colors.overlay,
     textShadowRadius: 10,
