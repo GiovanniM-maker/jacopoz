@@ -3,6 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import type { BookCard as BookCardType } from "@/types/database";
 import { COVER_ASPECT, colors, displayFont, spacing } from "@/theme";
 import { BookCover } from "./BookCover";
+import { RowHeader } from "./RowHeader";
 
 interface Props {
   title: string;
@@ -18,7 +19,7 @@ export function TopTenRow({ title, books }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
+      <RowHeader title={title} />
       <FlatList
         horizontal
         data={top}
@@ -34,23 +35,20 @@ export function TopTenRow({ title, books }: Props) {
           </Pressable>
         )}
       />
+      <View style={styles.shelf} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.lg },
-  title: {
-    color: colors.text,
-    fontFamily: displayFont,
-    fontSize: 20,
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
+  wrap: { marginBottom: spacing.xl },
   list: { paddingHorizontal: spacing.lg, alignItems: "flex-end" },
+  shelf: {
+    height: 2,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
   item: { flexDirection: "row", alignItems: "flex-end", marginRight: spacing.sm },
   rank: {
     fontFamily: displayFont,

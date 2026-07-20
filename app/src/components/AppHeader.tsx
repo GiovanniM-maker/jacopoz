@@ -1,33 +1,35 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { colors, spacing } from "@/theme";
+import { Icon } from "./ui/Icon";
 import { Wordmark } from "./Wordmark";
 
 /**
- * The app's top bar as a collana masthead: bordered "RECENSISCI" (left) and
- * "CERCA" (right) buttons flanking the TOMO wordmark, over a hard rule.
+ * The app's top bar as a collana masthead: a review icon (left) and a search
+ * icon (right), each in a hard-bordered square tile, flanking the TOMO
+ * wordmark over a hard rule.
  */
 export function AppHeader() {
   return (
     <View style={styles.bar}>
       <Pressable
-        style={styles.btn}
+        style={styles.tile}
         hitSlop={8}
         onPress={() => router.push("/create")}
         accessibilityLabel="Recensisci un libro"
       >
-        <Text style={styles.btnLabel}>Recensisci</Text>
+        <Icon name="review" color={colors.text} size={22} />
       </Pressable>
 
       <Wordmark size={24} />
 
       <Pressable
-        style={styles.btn}
+        style={styles.tile}
         hitSlop={8}
         onPress={() => router.push("/search")}
         accessibilityLabel="Cerca"
       >
-        <Text style={styles.btnLabel}>Cerca</Text>
+        <Icon name="search" color={colors.text} size={22} />
       </Pressable>
     </View>
   );
@@ -44,18 +46,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.bg,
   },
-  btn: {
+  tile: {
+    width: 40,
+    height: 36,
     borderWidth: 2,
     borderColor: colors.border,
-    paddingVertical: spacing.xs + 1,
-    paddingHorizontal: spacing.sm,
     backgroundColor: colors.surface,
-  },
-  btnLabel: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -1,7 +1,8 @@
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import type { BookCard as BookCardType } from "@/types/database";
-import { colors, displayFont, spacing } from "@/theme";
+import { colors, spacing } from "@/theme";
 import { BookCard } from "./BookCard";
+import { RowHeader } from "./RowHeader";
 
 interface Props {
   title: string;
@@ -14,7 +15,7 @@ export function BookRow({ title, books, cardWidth = 108 }: Props) {
   if (books.length === 0) return null;
   return (
     <View style={styles.wrap}>
-      <Text style={styles.title}>{title}</Text>
+      <RowHeader title={title} />
       <FlatList
         horizontal
         data={books}
@@ -23,21 +24,18 @@ export function BookRow({ title, books, cardWidth = 108 }: Props) {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => <BookCard book={item} width={cardWidth} />}
       />
+      <View style={styles.shelf} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { marginBottom: spacing.lg },
-  title: {
-    color: colors.text,
-    fontFamily: displayFont,
-    fontSize: 20,
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
+  wrap: { marginBottom: spacing.xl },
   list: { paddingHorizontal: spacing.lg },
+  shelf: {
+    height: 2,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
 });
