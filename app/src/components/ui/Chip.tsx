@@ -22,14 +22,20 @@ export function Chip({ label, selected, onPress }: Props) {
 
 const styles = StyleSheet.create({
   chip: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    borderWidth: 1,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+    borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  selected: { backgroundColor: colors.primary, borderColor: colors.primary },
-  label: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
+  selected: { backgroundColor: colors.primary, borderColor: colors.border },
+  label: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
   selectedLabel: { color: colors.onPrimary },
 });

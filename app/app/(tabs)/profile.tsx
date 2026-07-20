@@ -10,19 +10,25 @@ import { toggleLike } from "@/api/social";
 import { BookCard } from "@/components/BookCard";
 import { ReviewCard } from "@/components/ReviewCard";
 import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, radius, spacing, typography } from "@/theme";
+import { collanaMark, colors, displayFont, onBand, radius, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType, BookList } from "@/types/database";
 
 type Section = "reviews" | "lists" | "liked";
 const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
+const GOLD = colors.bands[2];
+
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: "reviews", label: "Recensioni" },
+  { key: "lists", label: "Liste" },
+  { key: "liked", label: "Piaciuti" },
+];
 
 export default function ProfileScreen() {
-  const { session, profile, signOut } = useAuth();
+  const { session, profile } = useAuth();
   const userId = session?.user.id;
   const qc = useQueryClient();
   const [section, setSection] = useState<Section>("reviews");
@@ -56,6 +62,7 @@ export default function ProfileScreen() {
 
   if (!profile) return <ScreenContainer />;
   const s = stats.data;
+  const readerNo = collanaMark(profile.username).number.padStart(3, "0");
 
   return (
     <ScreenContainer edges={["top"]}>
@@ -69,35 +76,51 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        {/* Identity + 4 stats */}
+        {/* Identity tessera */}
         <View style={styles.header}>
-          <Avatar url={profile.avatar_url} name={profile.display_name} size={80} ring />
-          <View style={styles.statsRow}>
-            <Stat label="Like" value={s?.likes_received ?? 0} />
-            <Stat label="Recensioni" value={s?.reviews ?? 0} />
-            <Stat
-              label="Follower"
-              value={s?.followers ?? profile.followers_count}
-              onPress={() => router.push(`/connections?userId=${userId}&type=followers`)}
-            />
-            <Stat
-              label="Seguiti"
-              value={s?.following ?? profile.following_count}
-              onPress={() => router.push(`/connections?userId=${userId}&type=following`)}
-            />
+          <Avatar url={profile.avatar_url} name={profile.display_name} size={72} ring />
+          <View style={styles.nameBlock}>
+            <Text style={styles.name} numberOfLines={1}>
+              {profile.display_name}
+            </Text>
+            <Text style={styles.username}>
+              @{profile.username} · lettore n° {readerNo}
+            </Text>
+            {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
           </View>
         </View>
-        <View style={styles.nameBlock}>
-          <Text style={styles.name}>{profile.display_name}</Text>
-          <Text style={styles.username}>@{profile.username}</Text>
-          {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+
+        {/* 4 stats bar with hard dividers */}
+        <View style={styles.statsBar}>
+          <Stat label="Like ric." value={s?.likes_received ?? 0} />
+          <Stat label="Recensioni" value={s?.reviews ?? 0} />
+          <Stat
+            label="Seguiti"
+            value={s?.following ?? profile.following_count}
+            onPress={() => router.push(`/connections?userId=${userId}&type=following`)}
+          />
+          <Stat
+            label="Follower"
+            value={s?.followers ?? profile.followers_count}
+            onPress={() => router.push(`/connections?userId=${userId}&type=followers`)}
+            last
+          />
         </View>
 
-        {/* IG-style section tabs */}
+        {/* Labelled section tabs */}
         <View style={styles.tabbar}>
-          <SectionTab icon="review" active={section === "reviews"} onPress={() => setSection("reviews")} />
-          <SectionTab icon="create" active={section === "lists"} onPress={() => setSection("lists")} />
-          <SectionTab icon="community" active={section === "liked"} onPress={() => setSection("liked")} />
+          {SECTIONS.map((t) => {
+            const on = section === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                style={[styles.tab, on && styles.tabOn]}
+                onPress={() => setSection(t.key)}
+              >
+                <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>{t.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {section === "reviews" ? (
@@ -186,9 +209,19 @@ export default function ProfileScreen() {
   );
 }
 
-function Stat({ label, value, onPress }: { label: string; value: number; onPress?: () => void }) {
+function Stat({
+  label,
+  value,
+  onPress,
+  last,
+}: {
+  label: string;
+  value: number;
+  onPress?: () => void;
+  last?: boolean;
+}) {
   return (
-    <Pressable style={styles.stat} onPress={onPress} disabled={!onPress}>
+    <Pressable style={[styles.stat, !last && styles.statDivider]} onPress={onPress} disabled={!onPress}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </Pressable>
@@ -214,14 +247,6 @@ function ListRow({ list, showAuthor }: { list: BookList; showAuthor?: boolean })
   );
 }
 
-function SectionTab({ icon, active, onPress }: { icon: any; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable style={[styles.tab, active && styles.tabOn]} onPress={onPress}>
-      <Icon name={icon} color={active ? colors.text : colors.textFaint} filled={active} size={24} />
-    </Pressable>
-  );
-}
-
 function SectionEmpty({ icon, title, msg }: { icon: string; title: string; msg: string }) {
   return (
     <View style={{ height: 220, width: "100%" }}>
@@ -237,73 +262,118 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  topLink: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
+  topLink: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.lg,
     paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
-  statsRow: { flexDirection: "row", flex: 1, justifyContent: "space-around" },
-  stat: { alignItems: "center" },
-  statValue: { ...typography.h3, color: colors.text, fontSize: 19 },
-  statLabel: { ...typography.caption, marginTop: 2 },
-  nameBlock: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: 2 },
-  name: { ...typography.h3 },
-  username: { ...typography.bodyMuted },
+  nameBlock: { flex: 1, gap: 3 },
+  name: {
+    fontFamily: displayFont,
+    fontSize: 26,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    color: colors.text,
+  },
+  username: { ...typography.bodyMuted, fontSize: 13, fontStyle: "italic" },
   bio: { ...typography.body, marginTop: spacing.xs },
-  tabbar: {
+  statsBar: {
     flexDirection: "row",
-    marginTop: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    marginHorizontal: spacing.lg,
+    borderTopWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: colors.border,
   },
+  stat: { flex: 1, alignItems: "center", paddingVertical: spacing.md },
+  statDivider: { borderRightWidth: 2, borderRightColor: colors.border },
+  statValue: { fontFamily: displayFont, fontSize: 24, fontWeight: "900", color: colors.text },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginTop: 4,
+  },
+  tabbar: { flexDirection: "row", marginTop: spacing.lg, marginHorizontal: spacing.lg },
   tab: {
     flex: 1,
     alignItems: "center",
     paddingVertical: spacing.md,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
+    borderWidth: 2,
+    borderRightWidth: 0,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  tabOn: { borderBottomColor: colors.primary },
+  tabOn: { backgroundColor: GOLD },
+  tabLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  tabLabelOn: { color: onBand(GOLD) },
   feed: { paddingHorizontal: spacing.lg },
   listsWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   listToggle: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm },
   ltBtn: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    borderWidth: 1,
+    borderRadius: radius.sm,
+    borderWidth: 2,
     borderColor: colors.border,
   },
-  ltBtnOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  ltLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
+  ltBtnOn: { backgroundColor: colors.primary },
+  ltLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   ltLabelOn: { color: colors.onPrimary },
   newList: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
   },
   newListIcon: {
     width: 46,
     height: 46,
     borderRadius: radius.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderStyle: "dashed",
     borderColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  newListLabel: { color: colors.primary, fontSize: 16, fontWeight: "700" },
+  newListLabel: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
   listRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
   },
   listThumb: {
@@ -311,12 +381,12 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: radius.sm,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
-  listName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  listName: { color: colors.text, fontSize: 16, fontWeight: "700" },
   listMeta: { color: colors.textFaint, fontSize: 13, marginTop: 2 },
   chev: { color: colors.textFaint, fontSize: 22 },
   grid: {

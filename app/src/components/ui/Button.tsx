@@ -38,7 +38,15 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
       {loading ? (
         <ActivityIndicator color={variant === "primary" ? colors.onPrimary : colors.text} />
       ) : (
-        <Text style={[styles.label, variant === "ghost" && styles.ghostLabel]}>{label}</Text>
+        <Text
+          style={[
+            styles.label,
+            variant === "secondary" && styles.secondaryLabel,
+            variant === "ghost" && styles.ghostLabel,
+          ]}
+        >
+          {label}
+        </Text>
       )}
     </Pressable>
   );
@@ -47,15 +55,24 @@ export function Button({ label, onPress, variant = "primary", loading, disabled,
 const styles = StyleSheet.create({
   base: {
     height: 48,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
   },
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border },
-  ghost: { backgroundColor: "transparent" },
+  secondary: { backgroundColor: colors.surface },
+  ghost: { backgroundColor: "transparent", borderColor: "transparent" },
   pressed: { opacity: 0.7 },
-  label: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
+  label: {
+    color: colors.onPrimary,
+    fontSize: 15,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  secondaryLabel: { color: colors.text },
   ghostLabel: { color: colors.primary },
 });

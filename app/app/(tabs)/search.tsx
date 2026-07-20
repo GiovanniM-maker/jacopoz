@@ -9,7 +9,7 @@ import { BookCard } from "@/components/BookCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { colors, spacing, typography } from "@/theme";
+import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
 
 type Tab = "books" | "authors" | "users";
 
@@ -108,8 +108,10 @@ export default function Search() {
               style={styles.row}
               onPress={() => router.push(`/author/${encodeURIComponent(item.author)}`)}
             >
-              <View style={styles.authorIcon}>
-                <Text style={styles.authorInitial}>{item.author[0]?.toUpperCase()}</Text>
+              <View style={[styles.authorIcon, { backgroundColor: collanaMark(item.author).band }]}>
+                <Text style={[styles.authorInitial, { color: onBand(collanaMark(item.author).band) }]}>
+                  {item.author[0]?.toUpperCase()}
+                </Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowName}>{item.author}</Text>
@@ -154,9 +156,9 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     padding: spacing.md,
     color: colors.text,
     fontSize: 16,
@@ -165,19 +167,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xl,
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
   },
   seg: { paddingVertical: spacing.md, alignItems: "center" },
-  segLabel: { color: colors.textFaint, fontSize: 15, fontWeight: "700" },
-  segLabelOn: { color: colors.text },
+  segLabel: {
+    color: colors.textFaint,
+    fontFamily: displayFont,
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  segLabelOn: { color: colors.primary },
   segBar: {
     position: "absolute",
-    bottom: -StyleSheet.hairlineWidth,
+    bottom: -2,
     left: 0,
     right: 0,
-    height: 2,
-    borderRadius: 2,
+    height: 3,
     backgroundColor: colors.primary,
   },
   grid: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
@@ -188,19 +196,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
   },
   authorIcon: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
     alignItems: "center",
     justifyContent: "center",
   },
-  authorInitial: { color: colors.primary, fontSize: 18, fontWeight: "800" },
-  rowName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  authorInitial: { fontFamily: displayFont, color: colors.primary, fontSize: 20, fontWeight: "900" },
+  rowName: { color: colors.text, fontSize: 16, fontWeight: "700" },
   rowMeta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
   chev: { color: colors.textFaint, fontSize: 22 },
 });

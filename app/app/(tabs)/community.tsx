@@ -8,7 +8,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { colors, spacing } from "@/theme";
+import { colors, displayFont, spacing } from "@/theme";
 import type { FeedItem } from "@/types/database";
 
 type Feed = "for_you" | "following";
@@ -49,7 +49,7 @@ export default function Community() {
         {(["for_you", "following"] as Feed[]).map((f) => (
           <Pressable key={f} style={styles.seg} onPress={() => setFeed(f)}>
             <Text style={[styles.segLabel, feed === f && styles.segLabelOn]}>
-              {f === "for_you" ? "Per te" : "Following"}
+              {f === "for_you" ? "Per te" : "Seguiti"}
             </Text>
             {feed === f ? <View style={styles.segBar} /> : null}
           </Pressable>
@@ -69,15 +69,15 @@ export default function Community() {
             feed === "following" ? (
               <EmptyState
                 icon="👥"
-                title="Nothing from your circle yet"
-                message="Follow readers you like — their reviews show up here."
-                action={{ label: "Discover readers", onPress: () => setFeed("for_you") }}
+                title="Ancora niente dai tuoi seguiti"
+                message="Segui i lettori che ti piacciono — le loro recensioni appaiono qui."
+                action={{ label: "Scopri lettori", onPress: () => setFeed("for_you") }}
               />
             ) : (
               <EmptyState
                 icon="💬"
-                title="The feed is warming up"
-                message="Write reviews and follow readers to bring this to life."
+                title="Il feed si sta scaldando"
+                message="Scrivi recensioni e segui lettori per dargli vita."
               />
             )
           ) : null
@@ -111,19 +111,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xl,
     paddingHorizontal: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
   },
   seg: { paddingVertical: spacing.md, alignItems: "center" },
-  segLabel: { color: colors.textFaint, fontSize: 15, fontWeight: "700" },
-  segLabelOn: { color: colors.text },
+  segLabel: {
+    color: colors.textFaint,
+    fontFamily: displayFont,
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  segLabelOn: { color: colors.primary },
   segBar: {
     position: "absolute",
-    bottom: -StyleSheet.hairlineWidth,
+    bottom: -2,
     left: 0,
     right: 0,
-    height: 2,
-    borderRadius: 2,
+    height: 3,
     backgroundColor: colors.primary,
   },
   list: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, flexGrow: 1 },

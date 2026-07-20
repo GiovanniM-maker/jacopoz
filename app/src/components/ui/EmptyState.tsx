@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, spacing, typography } from "@/theme";
+import { colors, displayFont, spacing, typography } from "@/theme";
 import { Button } from "./Button";
 
 interface Props {
@@ -24,7 +24,15 @@ export function EmptyState({ icon = "📚", title, message, action }: Props) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.sm },
   icon: { fontSize: 44, marginBottom: spacing.sm },
-  title: { ...typography.h3, textAlign: "center" },
+  title: {
+    ...typography.h3,
+    fontFamily: displayFont,
+    fontSize: 20,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    textAlign: "center",
+  },
   message: { ...typography.bodyMuted, textAlign: "center", maxWidth: 300 },
   btn: { marginTop: spacing.md, minWidth: 200 },
 });

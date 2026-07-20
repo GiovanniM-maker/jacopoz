@@ -1,20 +1,20 @@
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, Text, View } from "react-native";
-import { colors } from "@/theme";
+import { collanaMark, colors, displayFont, hardShadow, onBand, radius } from "@/theme";
 
 interface Props {
   url?: string | null;
   name: string;
   size?: number;
-  /** Instagram-style gradient ring around the avatar. */
+  /** Adds the hard "printed" offset shadow — used for the profile hero tessera. */
   ring?: boolean;
 }
 
-// Instagram's story-ring gradient.
-const RING = ["#FEDA75", "#FA7E1E", "#D62976", "#962FBF", "#4F5BD5"] as const;
-
-/** User avatar with initials fallback and an optional IG gradient ring. */
+/**
+ * A reader's avatar as a collana "tessera": a hard-bordered square. Real
+ * photos are framed; the fallback is a spine-coloured tile with the reader's
+ * condensed initials (colour derived deterministically from their name).
+ */
 export function Avatar({ url, name, size = 40, ring }: Props) {
   const initials = name
     .split(" ")
@@ -23,36 +23,38 @@ export function Avatar({ url, name, size = 40, ring }: Props) {
     .join("")
     .toUpperCase();
 
-  const inner = url ? (
-    <Image
-      source={{ uri: url }}
-      style={{ width: size, height: size, borderRadius: size / 2 }}
-      contentFit="cover"
-      transition={150}
-    />
-  ) : (
-    <View style={[styles.fallback, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={{ color: colors.text, fontSize: size * 0.4, fontWeight: "700" }}>{initials}</Text>
-    </View>
-  );
+  const { band } = collanaMark(name);
+  const border = Math.max(2, Math.round(size * 0.05));
+  const box = [
+    styles.box,
+    { width: size, height: size, borderRadius: radius.sm, borderWidth: border },
+    ring ? hardShadow : null,
+  ];
 
-  if (!ring) return inner;
-
-  const outer = size + 8;
-  return (
-    <LinearGradient
-      colors={RING}
-      start={{ x: 0, y: 1 }}
-      end={{ x: 1, y: 0 }}
-      style={{ width: outer, height: outer, borderRadius: outer / 2, alignItems: "center", justifyContent: "center" }}
-    >
-      <View style={{ backgroundColor: colors.bg, borderRadius: (size + 4) / 2, padding: 2 }}>
-        {inner}
+  if (url) {
+    return (
+      <View style={box}>
+        <Image
+          source={{ uri: url }}
+          style={{ width: "100%", height: "100%" }}
+          contentFit="cover"
+          transition={150}
+        />
       </View>
-    </LinearGradient>
+    );
+  }
+
+  return (
+    <View style={[box, { backgroundColor: band, alignItems: "center", justifyContent: "center" }]}>
+      <Text
+        style={{ color: onBand(band), fontFamily: displayFont, fontSize: size * 0.5, fontWeight: "900" }}
+      >
+        {initials}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fallback: { backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
+  box: { borderColor: colors.border, backgroundColor: colors.surfaceAlt, overflow: "hidden" },
 });

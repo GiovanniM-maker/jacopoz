@@ -1,34 +1,33 @@
 import { router } from "expo-router";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@/theme";
-import { Icon } from "./ui/Icon";
 import { Wordmark } from "./Wordmark";
 
 /**
- * The app's top bar: review a book (left), the wordmark (center), search
- * (right). Shown across the main tabs for a consistent Instagram-like chrome.
+ * The app's top bar as a collana masthead: bordered "RECENSISCI" (left) and
+ * "CERCA" (right) buttons flanking the TOMO wordmark, over a hard rule.
  */
 export function AppHeader() {
   return (
     <View style={styles.bar}>
       <Pressable
-        style={styles.side}
-        hitSlop={10}
+        style={styles.btn}
+        hitSlop={8}
         onPress={() => router.push("/create")}
-        accessibilityLabel="Review a book"
+        accessibilityLabel="Recensisci un libro"
       >
-        <Icon name="review" color={colors.text} size={24} />
+        <Text style={styles.btnLabel}>Recensisci</Text>
       </Pressable>
 
-      <Wordmark size={22} />
+      <Wordmark size={24} />
 
       <Pressable
-        style={[styles.side, styles.right]}
-        hitSlop={10}
+        style={styles.btn}
+        hitSlop={8}
         onPress={() => router.push("/search")}
-        accessibilityLabel="Search books"
+        accessibilityLabel="Cerca"
       >
-        <Icon name="search" color={colors.text} size={24} />
+        <Text style={styles.btnLabel}>Cerca</Text>
       </Pressable>
     </View>
   );
@@ -40,11 +39,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    height: 52,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    height: 56,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
     backgroundColor: colors.bg,
   },
-  side: { width: 44, alignItems: "flex-start", justifyContent: "center" },
-  right: { alignItems: "flex-end" },
+  btn: {
+    borderWidth: 2,
+    borderColor: colors.border,
+    paddingVertical: spacing.xs + 1,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  btnLabel: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
 });

@@ -15,7 +15,7 @@ import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, displayFont, radius, spacing, typography } from "@/theme";
+import { colors, displayFont, hardShadow, radius, spacing, typography } from "@/theme";
 import type { FeedItem } from "@/types/database";
 
 export default function BookPage() {
@@ -75,7 +75,7 @@ export default function BookPage() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Pressable onPress={() => router.back()} style={styles.back} hitSlop={10}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>‹ Indietro</Text>
         </Pressable>
 
         <View style={styles.hero}>
@@ -86,7 +86,7 @@ export default function BookPage() {
             <View style={styles.ratingRow}>
               <RatingStars value={bookAvgRating(b)} size={16} />
               <Text style={styles.ratingText}>
-                {bookAvgRating(b) ? `${bookAvgRating(b)} · ${b.rating_count}` : "No ratings yet"}
+                {bookAvgRating(b) ? `${bookAvgRating(b)} · ${b.rating_count}` : "Nessuna valutazione"}
               </Text>
             </View>
             {b.published_year ? <Text style={styles.meta}>{b.published_year}</Text> : null}
@@ -118,11 +118,11 @@ export default function BookPage() {
 
         {/* Primary actions */}
         <View style={styles.actions}>
-          <ActionButton icon="✍️" label="Recensisci"
+          <ActionButton icon="✍️" label="Recensisci" primary
             onPress={() => router.push(`/compose-review?bookId=${b.id}`)} />
-          <ActionButton icon="➕" label="Booklist"
+          <ActionButton icon="＋" label="Lista"
             onPress={() => router.push(`/add-to-list?bookId=${b.id}`)} />
-          <ActionButton icon={ub?.liked ? "❤️" : "🤍"} label="Like" active={!!ub?.liked}
+          <ActionButton icon={ub?.liked ? "♥" : "♡"} label="Like" active={!!ub?.liked}
             onPress={() => mutateShelf({ liked: !ub?.liked })} />
         </View>
 
@@ -139,7 +139,7 @@ export default function BookPage() {
         </View>
 
         {(reviews.data ?? []).length === 0 ? (
-          <Text style={styles.noReviews}>Be the first to review this book.</Text>
+          <Text style={styles.noReviews}>Sii il primo a recensire questo libro.</Text>
         ) : (
           (reviews.data ?? []).map((r: FeedItem) => (
             <ReviewCard
@@ -169,17 +169,38 @@ function ActionButton({
   icon,
   label,
   active = false,
+  primary = false,
   onPress,
 }: {
   icon: string;
   label: string;
   active?: boolean;
+  primary?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={[styles.action, active && styles.actionActive]} onPress={onPress}>
-      <Text style={styles.actionIcon}>{icon}</Text>
-      <Text style={[styles.actionLabel, active && styles.actionLabelActive]}>{label}</Text>
+    <Pressable
+      style={[styles.action, primary && styles.actionPrimary, active && styles.actionActive]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.actionIcon,
+          primary && styles.actionLabelPrimary,
+          active && styles.actionLabelActive,
+        ]}
+      >
+        {icon}
+      </Text>
+      <Text
+        style={[
+          styles.actionLabel,
+          primary && styles.actionLabelPrimary,
+          active && styles.actionLabelActive,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -187,7 +208,13 @@ function ActionButton({
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.lg },
   back: { paddingVertical: spacing.md },
-  backText: { color: colors.textMuted, fontSize: 16 },
+  backText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
   hero: { flexDirection: "row", gap: spacing.lg, marginBottom: spacing.lg },
   heroInfo: { flex: 1, gap: spacing.xs },
   title: {
@@ -203,27 +230,40 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   ratingText: { color: colors.textMuted, fontSize: 13 },
   meta: { color: colors.textFaint, fontSize: 13, marginTop: spacing.xs },
-  actions: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg },
+  actions: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
   action: {
     flex: 1,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.sm,
+    borderWidth: 2,
     borderColor: colors.border,
-    gap: 4,
+    gap: 6,
   },
-  actionActive: { borderColor: colors.primary, backgroundColor: colors.surfaceAlt },
-  actionIcon: { fontSize: 22 },
-  actionLabel: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
-  actionLabelActive: { color: colors.text },
+  actionPrimary: { backgroundColor: colors.primary },
+  actionActive: { backgroundColor: colors.surfaceAlt },
+  actionIcon: { fontSize: 15, color: colors.text },
+  actionLabel: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  actionLabelActive: { color: colors.star },
+  actionLabelPrimary: { color: colors.onPrimary },
   rateBox: {
     alignItems: "center",
     gap: spacing.sm,
     padding: spacing.lg,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...hardShadow,
     marginBottom: spacing.lg,
   },
   rateLabel: { ...typography.bodyMuted },
