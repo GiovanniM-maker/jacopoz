@@ -21,6 +21,7 @@ export interface ReviewCardProps {
   onPress?: () => void;
   onLike?: () => void;
   onBookPress?: () => void;
+  onAuthorPress?: () => void;
 }
 
 /** A community review, used both in the feed and on the book page. */
@@ -31,11 +32,17 @@ export function ReviewCard(props: ReviewCardProps) {
   return (
     <Pressable style={styles.card} onPress={props.onPress}>
       <View style={styles.headerRow}>
-        <Avatar url={props.authorAvatar} name={props.authorName} size={36} />
-        <View style={styles.headerText}>
-          <Text style={styles.author}>{props.authorName}</Text>
-          <Text style={styles.time}>{timeAgo(props.createdAt)}</Text>
-        </View>
+        <Pressable
+          style={styles.authorBlock}
+          onPress={props.onAuthorPress}
+          disabled={!props.onAuthorPress}
+        >
+          <Avatar url={props.authorAvatar} name={props.authorName} size={36} />
+          <View style={styles.headerText}>
+            <Text style={styles.author}>{props.authorName}</Text>
+            <Text style={styles.time}>{timeAgo(props.createdAt)}</Text>
+          </View>
+        </Pressable>
         {props.rating != null ? <RatingStars value={props.rating} size={15} /> : null}
       </View>
 
@@ -79,6 +86,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  authorBlock: { flexDirection: "row", alignItems: "center", gap: spacing.md, flex: 1 },
   headerText: { flex: 1 },
   author: { color: colors.text, fontSize: 15, fontWeight: "700" },
   time: { color: colors.textFaint, fontSize: 12 },

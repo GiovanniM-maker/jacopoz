@@ -18,6 +18,20 @@ export async function getProfileByUsername(username: string): Promise<Profile> {
   return data as Profile;
 }
 
+/** Search users by username or display name. */
+export async function searchUsers(query: string, limit = 30): Promise<Profile[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+    .order("followers_count", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as Profile[];
+}
+
 /** Permanently delete the signed-in user's account and all their data. */
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.rpc("delete_my_account");

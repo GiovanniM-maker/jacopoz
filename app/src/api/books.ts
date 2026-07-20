@@ -77,6 +77,44 @@ export async function getNewReleases(limit = 20): Promise<BookCard[]> {
   }));
 }
 
+/** Author search via the search_authors RPC. */
+export async function searchAuthors(
+  query: string,
+  limit = 30,
+): Promise<{ author: string; book_count: number }[]> {
+  if (!query.trim()) return [];
+  const { data, error } = await supabase.rpc("search_authors", { p_query: query, p_limit: limit });
+  if (error) throw error;
+  return (data ?? []) as { author: string; book_count: number }[];
+}
+
+/** Books by a specific author, as cards. */
+export async function getBooksByAuthor(author: string, limit = 40): Promise<BookCard[]> {
+  const { data, error } = await supabase
+    .from("books")
+    .select(
+      "id,title,subtitle,authors,cover_url,published_year,categories,reads_count,saves_count,likes_count,reviews_count,rating_sum,rating_count",
+    )
+    .contains("authors", [author])
+    .order("reads_count", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []).map((b) => ({
+    id: b.id,
+    title: b.title,
+    subtitle: b.subtitle,
+    authors: b.authors,
+    cover_url: b.cover_url,
+    published_year: b.published_year,
+    categories: b.categories,
+    avg_rating: b.rating_count > 0 ? Number((b.rating_sum / b.rating_count).toFixed(2)) : null,
+    reads_count: b.reads_count,
+    saves_count: b.saves_count,
+    likes_count: b.likes_count,
+    reviews_count: b.reviews_count,
+  }));
+}
+
 /** Single canonical book row. */
 export async function getBook(id: UUID): Promise<Book> {
   const { data, error } = await supabase.from("books").select("*").eq("id", id).single();

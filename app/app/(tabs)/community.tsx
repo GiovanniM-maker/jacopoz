@@ -97,6 +97,7 @@ export default function Community() {
             bookCover={item.book_cover_url}
             onPress={() => router.push(`/review/${item.review_id}`)}
             onBookPress={() => router.push(`/book/${item.book_id}`)}
+            onAuthorPress={() => router.push(`/user/${item.author_username}`)}
             onLike={() => onLike(item)}
           />
         )}

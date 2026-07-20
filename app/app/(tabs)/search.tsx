@@ -1,14 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { Dimensions, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
-import { importFromProviders, searchBooks } from "@/api/books";
+import { Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { importFromProviders, searchAuthors, searchBooks } from "@/api/books";
+import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { BookCard } from "@/components/BookCard";
+import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { colors, spacing, typography } from "@/theme";
 
-// Debounce keystrokes so we don't hit the RPC on every character.
+type Tab = "books" | "authors" | "users";
+
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -20,62 +24,117 @@ function useDebounced<T>(value: T, ms: number): T {
 
 export default function Search() {
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<Tab>("books");
   const debounced = useDebounced(query.trim(), 350);
 
-  const { data = [], isFetching, refetch } = useQuery({
-    queryKey: ["search", debounced],
+  const books = useQuery({
+    queryKey: ["search-books", debounced],
     queryFn: () => searchBooks(debounced, 30),
+    enabled: tab === "books",
+  });
+  const authors = useQuery({
+    queryKey: ["search-authors", debounced],
+    queryFn: () => searchAuthors(debounced, 30),
+    enabled: tab === "authors" && debounced.length >= 2,
+  });
+  const users = useQuery({
+    queryKey: ["search-users", debounced],
+    queryFn: () => searchUsers(debounced, 30),
+    enabled: tab === "users" && debounced.length >= 2,
   });
 
-  // When a real query returns thin local results, import from external
-  // providers in the background and refetch once so the catalog grows.
   useEffect(() => {
-    if (debounced.length >= 3) {
+    if (tab === "books" && debounced.length >= 3) {
       void track("search_performed", { q: debounced });
-      if (data.length < 5) {
-        void importFromProviders(debounced, 10).then(() => refetch());
-      }
+      if ((books.data?.length ?? 0) < 5) void importFromProviders(debounced, 10).then(() => books.refetch());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced]);
+  }, [debounced, tab]);
 
-  const numColumns = 3;
-  const cardWidth = useMemo(() => {
-    return (require("react-native").Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
-  }, []);
+  const cardWidth = useMemo(
+    () => (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3,
+    [],
+  );
 
   return (
     <ScreenContainer edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.title}>Search</Text>
         <TextInput
           style={styles.input}
-          placeholder="Title, author…"
+          placeholder="Cerca libri, autori, utenti…"
           placeholderTextColor={colors.textFaint}
           autoCapitalize="none"
           value={query}
           onChangeText={setQuery}
-          returnKeyType="search"
+          autoFocus
         />
       </View>
 
-      {data.length === 0 && !isFetching && debounced.length >= 3 ? (
-        <EmptyState
-          icon="🔍"
-          title="No books found"
-          message="Try a different title or author. We're also importing new books as you search."
+      <View style={styles.segment}>
+        {(["books", "authors", "users"] as Tab[]).map((t) => (
+          <Pressable key={t} style={styles.seg} onPress={() => setTab(t)}>
+            <Text style={[styles.segLabel, tab === t && styles.segLabelOn]}>
+              {t === "books" ? "Libri" : t === "authors" ? "Autori" : "Utenti"}
+            </Text>
+            {tab === t ? <View style={styles.segBar} /> : null}
+          </Pressable>
+        ))}
+      </View>
+
+      {tab === "books" ? (
+        <FlatList
+          data={books.data ?? []}
+          keyExtractor={(b) => b.id}
+          numColumns={3}
+          columnWrapperStyle={styles.col}
+          contentContainerStyle={styles.grid}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            debounced.length >= 3 && !books.isFetching ? (
+              <Empty msg="Nessun libro trovato. Stiamo importando nuovi titoli mentre cerchi." />
+            ) : null
+          }
+          renderItem={({ item }) => <BookCard book={item} width={cardWidth} showMeta />}
+        />
+      ) : tab === "authors" ? (
+        <FlatList
+          data={authors.data ?? []}
+          keyExtractor={(a) => a.author}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={debounced.length >= 2 ? <Empty msg="Nessun autore trovato." /> : null}
+          renderItem={({ item }) => (
+            <Pressable
+              style={styles.row}
+              onPress={() => router.push(`/author/${encodeURIComponent(item.author)}`)}
+            >
+              <View style={styles.authorIcon}>
+                <Text style={styles.authorInitial}>{item.author[0]?.toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowName}>{item.author}</Text>
+                <Text style={styles.rowMeta}>{item.book_count} libri</Text>
+              </View>
+              <Text style={styles.chev}>›</Text>
+            </Pressable>
+          )}
         />
       ) : (
         <FlatList
-          key={numColumns}
-          data={data}
-          keyExtractor={(b) => b.id}
-          numColumns={numColumns}
-          columnWrapperStyle={styles.column}
+          data={users.data ?? []}
+          keyExtractor={(u) => u.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={debounced.length >= 2 ? <Empty msg="Nessun utente trovato." /> : null}
           renderItem={({ item }) => (
-            <BookCard book={item} width={cardWidth} showMeta />
+            <Pressable style={styles.row} onPress={() => router.push(`/user/${item.username}`)}>
+              <Avatar url={item.avatar_url} name={item.display_name} size={46} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowName}>{item.display_name}</Text>
+                <Text style={styles.rowMeta}>@{item.username}</Text>
+              </View>
+              <Text style={styles.chev}>›</Text>
+            </Pressable>
           )}
         />
       )}
@@ -83,9 +142,16 @@ export default function Search() {
   );
 }
 
+function Empty({ msg }: { msg: string }) {
+  return (
+    <View style={{ height: 240 }}>
+      <EmptyState icon="🔍" title="Nessun risultato" message={msg} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.md },
-  title: typography.h1,
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -95,6 +161,46 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
   },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  column: { gap: spacing.md, marginBottom: spacing.lg },
+  segment: {
+    flexDirection: "row",
+    gap: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  seg: { paddingVertical: spacing.md, alignItems: "center" },
+  segLabel: { color: colors.textFaint, fontSize: 15, fontWeight: "700" },
+  segLabelOn: { color: colors.text },
+  segBar: {
+    position: "absolute",
+    bottom: -StyleSheet.hairlineWidth,
+    left: 0,
+    right: 0,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+  },
+  grid: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl },
+  col: { gap: spacing.md, marginBottom: spacing.lg },
+  list: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  authorIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  authorInitial: { color: colors.primary, fontSize: 18, fontWeight: "800" },
+  rowName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  rowMeta: { color: colors.textMuted, fontSize: 13, marginTop: 2 },
+  chev: { color: colors.textFaint, fontSize: 22 },
 });

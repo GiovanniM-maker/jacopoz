@@ -102,6 +102,7 @@ export default function ReviewThread() {
               likeCount={r.like_count}
               commentCount={r.comment_count}
               likedByViewer={r.viewer_has_liked}
+              onAuthorPress={() => router.push(`/user/${r.author.username}`)}
               onLike={onReviewLike}
             />
           ) : null}

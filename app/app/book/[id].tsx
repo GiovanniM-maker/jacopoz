@@ -154,6 +154,7 @@ export default function BookPage() {
               commentCount={r.comment_count}
               likedByViewer={r.viewer_has_liked}
               onPress={() => router.push(`/review/${r.review_id}`)}
+              onAuthorPress={() => router.push(`/user/${r.author_username}`)}
               onLike={() => onReviewLike(r.review_id)}
             />
           ))

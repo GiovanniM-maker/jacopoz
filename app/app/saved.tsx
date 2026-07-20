@@ -68,6 +68,7 @@ export default function Saved() {
                 likeCount={r.like_count}
                 commentCount={r.comment_count}
                 onPress={() => router.push(`/review/${r.id}`)}
+                onAuthorPress={() => router.push(`/user/${r.author.username}`)}
               />
             ))
           )
