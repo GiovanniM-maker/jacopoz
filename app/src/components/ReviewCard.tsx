@@ -4,6 +4,8 @@ import { colors, radius, spacing } from "@/theme";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "./ui/Avatar";
 import { BookCover } from "./BookCover";
+import { HeartButton } from "./HeartButton";
+import { Icon } from "./ui/Icon";
 import { RatingStars } from "./ui/RatingStars";
 
 export interface ReviewCardProps {
@@ -66,13 +68,10 @@ export function ReviewCard(props: ReviewCardProps) {
       )}
 
       <View style={styles.actions}>
-        <Pressable onPress={props.onLike} hitSlop={8} style={styles.action}>
-          <Text style={[styles.actionText, props.likedByViewer && styles.liked]}>
-            {props.likedByViewer ? "❤️" : "🤍"} {props.likeCount}
-          </Text>
-        </Pressable>
+        <HeartButton liked={!!props.likedByViewer} count={props.likeCount} onPress={props.onLike} />
         <View style={styles.action}>
-          <Text style={styles.actionText}>💬 {props.commentCount}</Text>
+          <Icon name="community" color={colors.textMuted} size={19} />
+          <Text style={styles.actionText}>{props.commentCount}</Text>
         </View>
       </View>
     </Pressable>
@@ -109,8 +108,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   spoilerText: { color: colors.accent, fontSize: 14, fontWeight: "600" },
-  actions: { flexDirection: "row", gap: spacing.xl, marginTop: spacing.md },
-  action: { flexDirection: "row", alignItems: "center" },
+  actions: { flexDirection: "row", gap: spacing.xl, marginTop: spacing.md, alignItems: "center" },
+  action: { flexDirection: "row", alignItems: "center", gap: 6 },
   actionText: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
   liked: { color: colors.text },
 });

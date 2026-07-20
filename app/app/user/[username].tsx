@@ -62,7 +62,7 @@ export default function PublicProfile() {
         </Pressable>
 
         <View style={styles.header}>
-          <Avatar url={p.avatar_url} name={p.display_name} size={72} />
+          <Avatar url={p.avatar_url} name={p.display_name} size={72} ring />
           <Text style={styles.name}>{p.display_name}</Text>
           <Text style={styles.username}>@{p.username}</Text>
           {p.bio ? <Text style={styles.bio}>{p.bio}</Text> : null}

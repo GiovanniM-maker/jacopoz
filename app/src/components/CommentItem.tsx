@@ -3,6 +3,7 @@ import type { CommentWithAuthor } from "@/types/database";
 import { colors, spacing } from "@/theme";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "./ui/Avatar";
+import { HeartButton } from "./HeartButton";
 
 interface Props {
   comment: CommentWithAuthor;
@@ -25,11 +26,12 @@ export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, 
         </Text>
         <Text style={styles.text}>{comment.body}</Text>
         <View style={styles.actions}>
-          <Pressable onPress={onLike} hitSlop={8}>
-            <Text style={[styles.action, comment.viewer_has_liked && styles.liked]}>
-              {comment.viewer_has_liked ? "❤️" : "🤍"} {comment.like_count}
-            </Text>
-          </Pressable>
+          <HeartButton
+            liked={!!comment.viewer_has_liked}
+            count={comment.like_count}
+            size={18}
+            onPress={onLike}
+          />
           {!isReply && onReply ? (
             <Pressable onPress={onReply} hitSlop={8}>
               <Text style={styles.action}>Reply{comment.reply_count ? ` (${comment.reply_count})` : ""}</Text>

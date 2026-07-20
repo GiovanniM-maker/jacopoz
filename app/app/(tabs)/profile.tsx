@@ -71,7 +71,7 @@ export default function ProfileScreen() {
 
         {/* Identity + 4 stats */}
         <View style={styles.header}>
-          <Avatar url={profile.avatar_url} name={profile.display_name} size={80} />
+          <Avatar url={profile.avatar_url} name={profile.display_name} size={80} ring />
           <View style={styles.statsRow}>
             <Stat label="Like" value={s?.likes_received ?? 0} />
             <Stat label="Recensioni" value={s?.reviews ?? 0} />
