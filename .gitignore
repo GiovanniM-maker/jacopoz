@@ -43,3 +43,7 @@ Thumbs.db
 coverage/
 app/coverage/
 tsconfig.tsbuildinfo
+
+# Python bytecode
+__pycache__/
+*.pyc
