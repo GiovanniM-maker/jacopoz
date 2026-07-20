@@ -5,7 +5,7 @@ import { deleteAccount, updateProfile } from "@/api/profile";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, radius, spacing, typography } from "@/theme";
+import { activeTheme, colors, radius, setTheme, spacing, THEMES, typography } from "@/theme";
 
 export default function Settings() {
   const { session, profile, refreshProfile, signOut } = useAuth();
@@ -86,6 +86,24 @@ export default function Settings() {
           style={styles.save}
         />
 
+        {/* Appearance / theme */}
+        <Text style={styles.section}>Aspetto</Text>
+        {THEMES.map((t) => {
+          const on = t.name === activeTheme;
+          return (
+            <Pressable key={t.name} style={styles.themeRow} onPress={() => !on && setTheme(t.name)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.themeName}>{t.label}</Text>
+                <Text style={styles.themeHint}>{t.hint}</Text>
+              </View>
+              <View style={[styles.radio, on && styles.radioOn]}>
+                {on ? <View style={styles.radioDot} /> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+        <Text style={styles.note}>Cambiando tema l'app si ricarica per applicarlo.</Text>
+
         {/* Lists & content */}
         <Text style={styles.section}>Liste e contenuti</Text>
         <Row label="➕  Crea nuova lista" onPress={() => router.push("/new-list")} />
@@ -160,7 +178,27 @@ const styles = StyleSheet.create({
   },
   rowLabel: { color: colors.text, fontSize: 16 },
   chev: { color: colors.textFaint, fontSize: 22 },
-  note: { ...typography.bodyMuted, lineHeight: 20 },
+  note: { ...typography.bodyMuted, lineHeight: 20, marginTop: spacing.sm },
+  themeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  themeName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  themeHint: { color: colors.textFaint, fontSize: 13, marginTop: 2 },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOn: { borderColor: colors.primary },
+  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.primary },
   danger: {
     borderWidth: 1,
     borderColor: colors.primary,
