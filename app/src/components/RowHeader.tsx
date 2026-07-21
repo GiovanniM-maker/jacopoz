@@ -27,7 +27,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.md,
   },
-  marker: { width: 16, height: 16, backgroundColor: colors.primary },
+  marker: {
+    width: 14,
+    height: 14,
+    backgroundColor: colors.primary,
+    // Rivista rotates the rubric square into Lucy's diamond.
+    transform: colors.diamonds ? [{ rotate: "45deg" }] : undefined,
+    marginHorizontal: colors.diamonds ? 2 : 0,
+  },
   title: {
     color: colors.text,
     fontFamily: displayFont,

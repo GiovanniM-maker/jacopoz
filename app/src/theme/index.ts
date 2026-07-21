@@ -1,9 +1,12 @@
 // =====================================================================
-// Theming. The app's look is "Collana" — a newsstand-paperback identity
-// (full print colours, hard black borders, offset shadows, condensed
-// display type). It ships in two modes plus two legacy looks:
-//   • Collana        — newsprint paper, the default (light)
-//   • Collana Notte  — night newsstand (dark mode)
+// Theming. Six selectable looks in two families plus two legacy ones:
+//   • Collana        — newsstand paperback: newsprint paper, hard black
+//                      borders, offset shadows, condensed display type
+//   • Collana Notte  — night newsstand (dark)
+//   • Rivista        — cultural magazine à la Lucy sulla cultura: pure
+//                      white, borderless soft cards, serif logo, green
+//                      #00E35B as the touch colour, diamond ratings
+//   • Rivista Notte  — the magazine's black band as a full theme (dark)
 //   • Notturno       — legacy warm-dark + brass
 //   • Social         — legacy Instagram-like light
 //
@@ -18,11 +21,15 @@ import { Platform } from "react-native";
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const COVER_ASPECT = 2 / 3;
 
-// Condensed heavy "poster" face for titles, wordmark and covers. No webfont
-// is bundled (CSP-safe): we lean on the system condensed stack, with Impact
-// as the near-universal fallback — which is itself very on-brand for pulp.
-export const displayFont = Platform.select({
+// Display faces, no bundled webfonts. Collana uses a condensed heavy
+// "poster" stack (Impact-adjacent — on-brand for pulp); Rivista uses a
+// light editorial serif à la Lucy. Resolved per active theme below.
+const CONDENSED_FONT = Platform.select({
   web: "'Haettenschweiler','Arial Narrow','Oswald','Impact','Franklin Gothic Bold',sans-serif",
+  default: undefined,
+}) as string | undefined;
+const SERIF_FONT = Platform.select({
+  web: "Georgia,'Times New Roman','Palatino Linotype',serif",
   default: undefined,
 }) as string | undefined;
 
@@ -35,29 +42,41 @@ export interface Palette {
   success: string; star: string; overlay: string;
   onPrimary: string; tabBar: string; isDark: boolean;
   radius: Radius;
-  // Collana-specific tokens (harmless defaults on the legacy themes):
-  shadow: string;        // hard offset drop-shadow colour
-  bands: string[];       // spine colours cycled across generated covers
+  shadow: string;        // drop-shadow colour (hard for collana, soft veil for rivista)
+  bands: string[];       // spine/rubric colours cycled across generated covers & avatars
   coverPaper: string;    // plate colour of a generated poster cover
   coverInk: string;      // ink colour on a generated poster cover
   wordmarkGhost: string; // offset "out-of-register" ghost behind the wordmark
+  // Family flags — let shared primitives restyle without per-file forks:
+  texture: boolean;      // halftone print dots behind screens (collana)
+  serifLogo: boolean;    // "Tomo" serif wordmark instead of condensed TOMO
+  diamonds: boolean;     // ratings drawn as ◆◇ instead of ★☆ (rivista)
+  soft: boolean;         // soft diffuse shadow instead of the hard offset one
 }
 
-export type ThemeName = "collana" | "collananotte" | "notturno" | "social";
+export type ThemeName =
+  | "collana" | "collananotte"
+  | "rivista" | "rivistanotte"
+  | "notturno" | "social";
 
 export const THEMES: { name: ThemeName; label: string; hint: string }[] = [
   { name: "collana", label: "Collana", hint: "Chiaro · edicola / tascabile" },
   { name: "collananotte", label: "Collana Notte", hint: "Scuro · edicola di notte" },
+  { name: "rivista", label: "Rivista", hint: "Chiaro · magazine, verde e rombi" },
+  { name: "rivistanotte", label: "Rivista Notte", hint: "Scuro · la banda nera" },
   { name: "notturno", label: "Notturno", hint: "Scuro ed elegante · ottone" },
   { name: "social", label: "Social", hint: "Chiaro · stile Instagram" },
 ];
 
 const SHARP: Radius = { sm: 0, md: 0, lg: 2, pill: 999 };
 const ROUND: Radius = { sm: 2, md: 4, lg: 8, pill: 999 };
+const SOFT: Radius = { sm: 8, md: 10, lg: 14, pill: 999 };
 
 // The seven collana spine colours, in light and night variants.
 const BANDS_DAY = ["#D9531E", "#1C3C86", "#E3A11F", "#BE3327", "#216F60", "#7A2E4A", "#1B1610"];
 const BANDS_NIGHT = ["#F26B34", "#3E63C8", "#E9B23A", "#E56A5A", "#3E9C86", "#A24C6C", "#C8A24A"];
+// Lucy-style rubric colours shared by both Rivista modes.
+const BANDS_RIVISTA = ["#FF008C", "#3549D3", "#4E8E79", "#FF5100", "#00E35B"];
 
 export const palettes: Record<ThemeName, Palette> = {
   // Newsprint paper + hard black ink + burnt-orange spine. The default.
@@ -69,6 +88,7 @@ export const palettes: Record<ThemeName, Palette> = {
     onPrimary: "#ECE1C8", tabBar: "#ECE1C8", isDark: false,
     radius: SHARP, shadow: "#1B1610", bands: BANDS_DAY,
     coverPaper: "#ECE1C8", coverInk: "#1B1610", wordmarkGhost: "#1C3C86",
+    texture: true, serifLogo: false, diamonds: false, soft: false,
   },
   // Night newsstand: deep warm black, paper-coloured hard borders.
   collananotte: {
@@ -79,6 +99,30 @@ export const palettes: Record<ThemeName, Palette> = {
     onPrimary: "#14110B", tabBar: "#14110B", isDark: true,
     radius: SHARP, shadow: "#000000", bands: BANDS_NIGHT,
     coverPaper: "#1E1913", coverInk: "#ECE1C8", wordmarkGhost: "#3E63C8",
+    texture: true, serifLogo: false, diamonds: false, soft: false,
+  },
+  // Cultural magazine (Lucy): pure white, borderless soft cards, serif,
+  // green as the touch colour, acid yellow as the spark.
+  rivista: {
+    bg: "#FFFFFF", surface: "#F6F6F3", surfaceAlt: "#ECEBE6", border: "#E4E4DE",
+    text: "#101010", textMuted: "#5A5A5A", textFaint: "#A3A3A3",
+    primary: "#00E35B", primaryDim: "#B8F5CF", accent: "#3549D3",
+    success: "#00A947", star: "#101010", overlay: "rgba(16,16,16,0.5)",
+    onPrimary: "#101010", tabBar: "#FFFFFF", isDark: false,
+    radius: SOFT, shadow: "rgba(16,16,16,0.16)", bands: BANDS_RIVISTA,
+    coverPaper: "#F6F6F3", coverInk: "#101010", wordmarkGhost: "transparent",
+    texture: false, serifLogo: true, diamonds: true, soft: true,
+  },
+  // The magazine's black band as a full theme.
+  rivistanotte: {
+    bg: "#0E0E0E", surface: "#1A1A1A", surfaceAlt: "#222222", border: "#2A2A2A",
+    text: "#FFFFFF", textMuted: "#9B9B9B", textFaint: "#6E6E6E",
+    primary: "#00E35B", primaryDim: "#0A5A2C", accent: "#EFFC73",
+    success: "#00E35B", star: "#FFFFFF", overlay: "rgba(0,0,0,0.65)",
+    onPrimary: "#101010", tabBar: "#0E0E0E", isDark: true,
+    radius: SOFT, shadow: "rgba(0,0,0,0.6)", bands: BANDS_RIVISTA,
+    coverPaper: "#1A1A1A", coverInk: "#FFFFFF", wordmarkGhost: "transparent",
+    texture: false, serifLogo: true, diamonds: true, soft: true,
   },
   // Legacy — warm near-black + ivory + brass.
   notturno: {
@@ -89,6 +133,7 @@ export const palettes: Record<ThemeName, Palette> = {
     onPrimary: "#17130E", tabBar: "#120F0A", isDark: true,
     radius: ROUND, shadow: "rgba(0,0,0,0.5)", bands: BANDS_DAY,
     coverPaper: "#2E2619", coverInk: "#EFE7DA", wordmarkGhost: "rgba(198,161,91,0.4)",
+    texture: false, serifLogo: false, diamonds: false, soft: true,
   },
   // Legacy — bright, Instagram-like.
   social: {
@@ -99,6 +144,7 @@ export const palettes: Record<ThemeName, Palette> = {
     onPrimary: "#FFFFFF", tabBar: "#FFFFFF", isDark: false,
     radius: ROUND, shadow: "rgba(0,0,0,0.25)", bands: BANDS_DAY,
     coverPaper: "#F1F1F1", coverInk: "#1A1A1A", wordmarkGhost: "rgba(0,149,246,0.25)",
+    texture: false, serifLogo: false, diamonds: false, soft: true,
   },
 };
 
@@ -148,6 +194,11 @@ function readInitialTheme(): ThemeName {
 export const activeTheme: ThemeName = readInitialTheme();
 export const colors: Palette = palettes[activeTheme];
 export const radius: Radius = palettes[activeTheme].radius;
+
+// Display face follows the family: editorial serif for Rivista, condensed
+// poster type everywhere else.
+export const displayFont = colors.serifLogo ? SERIF_FONT : CONDENSED_FONT;
+
 export const typography: Typography = makeTypography(palettes[activeTheme]);
 
 /** Deterministic spine colour + catalogue number for a book, from its title. */
@@ -169,14 +220,25 @@ export function onBand(hex: string): string {
   return lum > 0.6 ? "#1B1610" : "#ECE1C8";
 }
 
-/** Hard, offset drop-shadow (blur-free) — the printed "paper on paper" look. */
-export const hardShadow = {
-  shadowColor: colors.shadow,
-  shadowOffset: { width: 3, height: 4 },
-  shadowOpacity: 1,
-  shadowRadius: 0,
-  elevation: 4,
-} as const;
+/**
+ * The theme's card shadow. Collana: hard, blur-free offset — printed "paper
+ * on paper". Soft themes (Rivista & legacy): a diffuse drop instead.
+ */
+export const hardShadow = colors.soft
+  ? ({
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 1,
+      shadowRadius: 16,
+      elevation: 4,
+    } as const)
+  : ({
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 3, height: 4 },
+      shadowOpacity: 1,
+      shadowRadius: 0,
+      elevation: 4,
+    } as const);
 
 /** Persist the chosen theme and reload so the whole app adopts it. */
 export async function setTheme(name: ThemeName): Promise<void> {

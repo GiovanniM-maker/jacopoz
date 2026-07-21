@@ -7,16 +7,20 @@ interface Props {
   onChange?: (rating: number) => void; // interactive when provided
 }
 
-/** Star rating — read-only display or tappable input. */
+/**
+ * Rating — read-only display or tappable input. Stars by default; the
+ * Rivista family rates with Lucy's diamonds (◆◇) instead.
+ */
 export function RatingStars({ value, size = 18, onChange }: Props) {
   const rounded = value ? Math.round(value) : 0;
+  const [full, empty] = colors.diamonds ? ["◆", "◇"] : ["★", "☆"];
   return (
     <View style={styles.row}>
       {[1, 2, 3, 4, 5].map((i) => {
         const filled = i <= rounded;
         const star = (
           <Text style={{ fontSize: size, color: filled ? colors.star : colors.textFaint }}>
-            {filled ? "★" : "☆"}
+            {filled ? full : empty}
           </Text>
         );
         return onChange ? (

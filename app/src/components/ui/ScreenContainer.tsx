@@ -27,11 +27,11 @@ function Halftone() {
   );
 }
 
-/** Safe-area page wrapper on the collana paper, with the halftone texture. */
+/** Safe-area page wrapper; themes with `texture` get the halftone dots. */
 export function ScreenContainer({ children, padded, edges = ["top"], style }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
-      <Halftone />
+      {colors.texture ? <Halftone /> : null}
       <View style={[styles.inner, padded && { paddingHorizontal: spacing.lg }, style]}>
         {children}
       </View>
