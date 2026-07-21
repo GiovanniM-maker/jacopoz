@@ -2,8 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { getBooksByGenre, getGenres, getNewReleases, getTrendingBooks } from "@/api/books";
-import { getRecommendations } from "@/api/reco";
+import { dismissBook, getRecommendations, logRecoImpressions } from "@/api/reco";
 import { getGenrePrefs } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { AppHeader } from "@/components/AppHeader";
@@ -18,6 +19,7 @@ import type { BookReco, Genre } from "@/types/database";
 export default function Home() {
   const { session } = useAuth();
   const userId = session?.user.id;
+  const qc = useQueryClient();
 
   const recos = useQuery({ queryKey: ["recos"], queryFn: () => getRecommendations(20) });
   const trending = useQuery({ queryKey: ["trending"], queryFn: () => getTrendingBooks(20) });
@@ -32,6 +34,17 @@ export default function Home() {
   useEffect(() => {
     void track("feed_opened", { screen: "home" });
   }, []);
+
+  // CTR denominator: log which recommendations were actually shown.
+  const recoIds = (recos.data ?? []).map((b: BookReco) => b.id).join(",");
+  useEffect(() => {
+    if (recoIds) void logRecoImpressions(recoIds.split(",").slice(0, 12), "home");
+  }, [recoIds]);
+
+  async function onDismissReco(bookId: string) {
+    await dismissBook(bookId);
+    qc.invalidateQueries({ queryKey: ["recos"] });
+  }
 
   const genreName = (slug: string) =>
     genres.data?.find((g: Genre) => g.slug === slug)?.name ?? slug;
@@ -51,7 +64,7 @@ export default function Home() {
 
         <View style={styles.rows}>
           {recos.data && recos.data.length > 0 ? (
-            <BookRow title="Consigliati per te" books={recos.data} />
+            <BookRow title="Consigliati per te" books={recos.data} onDismiss={onDismissReco} />
           ) : null}
 
           <TopTenRow title="Top 10 su Tomo oggi" books={trending.data ?? []} />

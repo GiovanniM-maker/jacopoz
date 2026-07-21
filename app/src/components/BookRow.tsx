@@ -8,10 +8,12 @@ interface Props {
   title: string;
   books: BookCardType[];
   cardWidth?: number;
+  /** When set, each card gets a ✕ ("Non mi interessa") calling this. */
+  onDismiss?: (bookId: string) => void;
 }
 
-/** A Netflix-style horizontally-scrolling row of book posters. */
-export function BookRow({ title, books, cardWidth = 108 }: Props) {
+/** A horizontally-scrolling row of book posters under a rubric header. */
+export function BookRow({ title, books, cardWidth = 108, onDismiss }: Props) {
   if (books.length === 0) return null;
   return (
     <View style={styles.wrap}>
@@ -22,7 +24,13 @@ export function BookRow({ title, books, cardWidth = 108 }: Props) {
         keyExtractor={(b) => b.id}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.list}
-        renderItem={({ item }) => <BookCard book={item} width={cardWidth} />}
+        renderItem={({ item }) => (
+          <BookCard
+            book={item}
+            width={cardWidth}
+            onDismiss={onDismiss ? () => onDismiss(item.id) : undefined}
+          />
+        )}
       />
       <View style={styles.shelf} />
     </View>
