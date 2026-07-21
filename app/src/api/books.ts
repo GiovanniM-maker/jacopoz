@@ -12,6 +12,16 @@ export async function searchBooks(query: string, limit = 20, offset = 0): Promis
   return (data ?? []) as BookCard[];
 }
 
+/** Semantic neighbours from the embedding space — "Simili a questo". */
+export async function getSimilarBooks(bookId: UUID, limit = 12): Promise<BookCard[]> {
+  const { data, error } = await supabase.rpc("get_similar_books", {
+    p_book_id: bookId,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data ?? []) as BookCard[];
+}
+
 /** Popularity-with-recency row for the dashboard cold-start backstop. */
 export async function getTrendingBooks(limit = 20, offset = 0): Promise<BookCard[]> {
   const { data, error } = await supabase.rpc("get_trending_books", {

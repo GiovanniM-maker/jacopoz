@@ -3,13 +3,14 @@ import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { getBook, bookAvgRating } from "@/api/books";
+import { getBook, getSimilarBooks, bookAvgRating } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
 import { affiliateUrl } from "@/api/config";
 import { track } from "@/api/analytics";
 import { BookCover } from "@/components/BookCover";
+import { BookRow } from "@/components/BookRow";
 import { RowHeader } from "@/components/RowHeader";
 import { Chip } from "@/components/ui/Chip";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -42,6 +43,11 @@ export default function BookPage() {
     queryKey: ["affiliate", book.data?.isbn_13],
     queryFn: () => affiliateUrl(book.data?.isbn_13 ?? null),
     enabled: !!book.data,
+  });
+  const similar = useQuery({
+    queryKey: ["similar-books", id],
+    queryFn: () => getSimilarBooks(id!, 12),
+    enabled: !!id,
   });
 
   useEffect(() => {
@@ -144,6 +150,13 @@ export default function BookPage() {
           <Pressable style={styles.buyLink} onPress={onBuy}>
             <Text style={styles.buyLinkText}>Disponibile su Amazon ↗</Text>
           </Pressable>
+        ) : null}
+
+        {/* Semantic neighbours */}
+        {(similar.data ?? []).length > 0 ? (
+          <View style={styles.similar}>
+            <BookRow title="Simili a questo" books={similar.data ?? []} />
+          </View>
         ) : null}
 
         {/* Reviews */}
@@ -301,6 +314,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   description: { ...typography.body, lineHeight: 22 },
+  similar: { marginHorizontal: -spacing.lg, marginTop: spacing.lg },
   reviewsHeader: { marginTop: spacing.md },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },
 });
