@@ -53,7 +53,19 @@ export interface Book {
   reviews_count: number;
   rating_sum: number;
   rating_count: number;
+  external_rating: number | null;
+  external_ratings_count: number | null;
   created_at: string;
+}
+
+export interface ExternalReview {
+  id: UUID;
+  book_id: UUID;
+  source: "wikipedia" | "nyt" | "openlibrary";
+  source_label: string;
+  excerpt: string;
+  url: string | null;
+  license: string | null;
 }
 
 export interface UserBook {

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Book, BookCard, Genre, UUID } from "@/types/database";
+import type { Book, BookCard, ExternalReview, Genre, UUID } from "@/types/database";
 
 /** Full catalog search via the search_books RPC (FTS + trigram fallback). */
 export async function searchBooks(query: string, limit = 20, offset = 0): Promise<BookCard[]> {
@@ -10,6 +10,25 @@ export async function searchBooks(query: string, limit = 20, offset = 0): Promis
   });
   if (error) throw error;
   return (data ?? []) as BookCard[];
+}
+
+/** Attributed external voices for the "Dalla critica" section. */
+export async function getExternalReviews(bookId: UUID): Promise<ExternalReview[]> {
+  const { data, error } = await supabase
+    .from("external_reviews")
+    .select("id,book_id,source,source_label,excerpt,url,license")
+    .eq("book_id", bookId);
+  if (error) throw error;
+  return (data ?? []) as ExternalReview[];
+}
+
+/** Fire-and-forget: ask the pipeline to enrich this book (circle 2). */
+export async function requestBookEnrichment(bookId: UUID): Promise<void> {
+  try {
+    await supabase.rpc("request_book_enrichment", { p_book_id: bookId });
+  } catch {
+    // enrichment is best-effort
+  }
 }
 
 /** Semantic neighbours from the embedding space — "Simili a questo". */

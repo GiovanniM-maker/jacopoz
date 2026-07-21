@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { getBook, getSimilarBooks, bookAvgRating } from "@/api/books";
+import { getBook, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
@@ -20,7 +20,7 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing, typography } from "@/theme";
-import type { FeedItem } from "@/types/database";
+import type { ExternalReview, FeedItem } from "@/types/database";
 
 export default function BookPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -49,9 +49,18 @@ export default function BookPage() {
     queryFn: () => getSimilarBooks(id!, 12),
     enabled: !!id,
   });
+  const externals = useQuery({
+    queryKey: ["external-reviews", id],
+    queryFn: () => getExternalReviews(id!),
+    enabled: !!id,
+  });
 
   useEffect(() => {
-    if (id) void track("book_viewed", { bookId: id });
+    if (id) {
+      void track("book_viewed", { bookId: id });
+      // First view triggers the external-enrichment pipeline (circle 2).
+      void requestBookEnrichment(id);
+    }
   }, [id]);
 
   async function mutateShelf(patch: Parameters<typeof setShelf>[2]) {
@@ -108,6 +117,11 @@ export default function BookPage() {
                 {bookAvgRating(b) ? `${bookAvgRating(b)} · ${b.rating_count}` : "Nessuna valutazione"}
               </Text>
             </View>
+            {b.external_rating && b.external_ratings_count ? (
+              <Text style={styles.webRating}>
+                Web: {Number(b.external_rating).toFixed(1)}/5 · {b.external_ratings_count} voti
+              </Text>
+            ) : null}
             {b.published_year ? <Text style={styles.meta}>{b.published_year}</Text> : null}
           </View>
         </View>
@@ -152,6 +166,28 @@ export default function BookPage() {
           </Pressable>
         ) : null}
 
+        {/* Dalla critica: attributed external voices — never fake community. */}
+        {(externals.data ?? []).length > 0 ? (
+          <View style={styles.critica}>
+            <RowHeader title="Dalla critica" flush />
+            {(externals.data ?? []).map((er: ExternalReview) => (
+              <View key={er.id} style={styles.criticaCard}>
+                <Text style={styles.criticaExcerpt}>«{er.excerpt}»</Text>
+                <Pressable
+                  disabled={!er.url}
+                  onPress={() => er.url && Linking.openURL(er.url)}
+                  hitSlop={6}
+                >
+                  <Text style={styles.criticaSource}>
+                    — {er.source_label}
+                    {er.url ? " ↗" : ""}
+                  </Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {/* Semantic neighbours */}
         {(similar.data ?? []).length > 0 ? (
           <View style={styles.similar}>
@@ -165,7 +201,7 @@ export default function BookPage() {
         </View>
 
         {(reviews.data ?? []).length === 0 ? (
-          <Text style={styles.noReviews}>Sii il primo a recensire questo libro.</Text>
+          <Text style={styles.noReviews}>Ancora nessuna recensione. Sii il primo.</Text>
         ) : (
           (reviews.data ?? []).map((r: FeedItem) => (
             <ReviewCard
@@ -314,6 +350,34 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   description: { ...typography.body, lineHeight: 22 },
+  webRating: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    marginTop: 4,
+  },
+  critica: { marginTop: spacing.lg },
+  criticaCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  criticaExcerpt: { ...typography.body, fontStyle: "italic", lineHeight: 22 },
+  criticaSource: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginTop: spacing.sm,
+  },
   similar: { marginHorizontal: -spacing.lg, marginTop: spacing.lg },
   reviewsHeader: { marginTop: spacing.md },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },
