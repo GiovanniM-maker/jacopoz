@@ -2,10 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { getFollowers, getFollowing } from "@/api/profile";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { colors, spacing, typography } from "@/theme";
+import { colors, spacing } from "@/theme";
 
 export default function Connections() {
   const { userId, type } = useLocalSearchParams<{ userId: string; type: "followers" | "following" }>();
@@ -19,13 +20,7 @@ export default function Connections() {
 
   return (
     <ScreenContainer edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.back}>‹ Back</Text>
-        </Pressable>
-        <Text style={styles.title}>{isFollowers ? "Followers" : "Following"}</Text>
-        <View style={{ width: 44 }} />
-      </View>
+      <ScreenHeader title={isFollowers ? "Follower" : "Seguiti"} backFallback="/(tabs)/profile" />
 
       <FlatList
         data={q.data ?? []}
@@ -33,7 +28,11 @@ export default function Connections() {
         contentContainerStyle={{ flexGrow: 1 }}
         ListEmptyComponent={
           !q.isLoading ? (
-            <EmptyState icon="👥" title={isFollowers ? "No followers yet" : "Not following anyone"} />
+            <EmptyState
+              icon="👥"
+              title={isFollowers ? "Nessun follower" : "Nessun seguito"}
+              message={isFollowers ? "Quando qualcuno ti segue, appare qui." : "I lettori che segui appaiono qui."}
+            />
           ) : null
         }
         renderItem={({ item }) => (
@@ -51,15 +50,6 @@ export default function Connections() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  back: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3 },
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -5,6 +5,7 @@ import { getReviewedBookIds } from "@/api/reviews";
 import { getBooksInUserLists } from "@/api/lists";
 import { getShelfBooks } from "@/api/shelves";
 import { BookCard } from "@/components/BookCard";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
@@ -46,13 +47,7 @@ export default function Create() {
 
   return (
     <ScreenContainer edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.back}>‹ Indietro</Text>
-        </Pressable>
-        <Text style={styles.title}>Recensisci</Text>
-        <View style={{ width: 44 }} />
-      </View>
+      <ScreenHeader title="Recensisci" />
 
       <Pressable style={styles.searchCta} onPress={() => router.push("/search")}>
         <Icon name="search" color={colors.text} size={20} />
@@ -91,25 +86,17 @@ export default function Create() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  back: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3 },
   searchCta: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     padding: spacing.md,
     marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
   searchLabel: { color: colors.textMuted, fontSize: 15 },

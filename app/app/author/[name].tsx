@@ -5,6 +5,7 @@ import { FlatList } from "react-native";
 import { getBooksByAuthor } from "@/api/books";
 import { BookCard } from "@/components/BookCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { goBack } from "@/lib/nav";
 import { colors, displayFont, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType } from "@/types/database";
 
@@ -23,7 +24,7 @@ export default function AuthorScreen() {
   return (
     <ScreenContainer edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable onPress={() => goBack("/(tabs)/search")} hitSlop={10}>
           <Text style={styles.back}>‹ Indietro</Text>
         </Pressable>
       </View>

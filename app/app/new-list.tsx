@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { createList } from "@/api/lists";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
@@ -30,15 +31,9 @@ export default function NewList() {
   }
 
   return (
-    <ScreenContainer padded>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.cancel}>Annulla</Text>
-        </Pressable>
-        <Text style={styles.title}>Nuova lista</Text>
-        <View style={{ width: 60 }} />
-      </View>
-
+    <ScreenContainer>
+      <ScreenHeader title="Nuova lista" backFallback="/(tabs)/profile" />
+      <View style={styles.body}>
       <TextInput
         style={styles.input}
         placeholder="Nome della lista"
@@ -77,24 +72,18 @@ export default function NewList() {
         disabled={name.trim().length === 0}
         style={styles.cta}
       />
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-  },
-  cancel: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3 },
+  body: { paddingHorizontal: spacing.lg },
   input: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     padding: spacing.lg,
     color: colors.text,
     fontSize: 16,

@@ -68,11 +68,13 @@ export default function ProfileScreen() {
     <ScreenContainer edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
-          <Pressable onPress={() => router.push("/saved")} hitSlop={8}>
-            <Text style={styles.topLink}>🔖 Salvati</Text>
+          <Pressable style={styles.topTile} onPress={() => router.push("/saved")} hitSlop={8}
+            accessibilityLabel="Salvati">
+            <Icon name="bookmark" color={colors.text} size={19} />
           </Pressable>
-          <Pressable onPress={() => router.push("/settings")} hitSlop={8}>
-            <Text style={styles.topLink}>⚙ Impostazioni</Text>
+          <Pressable style={styles.topTile} onPress={() => router.push("/settings")} hitSlop={8}
+            accessibilityLabel="Impostazioni">
+            <Icon name="settings" color={colors.text} size={19} />
           </Pressable>
         </View>
 
@@ -109,12 +111,12 @@ export default function ProfileScreen() {
 
         {/* Labelled section tabs */}
         <View style={styles.tabbar}>
-          {SECTIONS.map((t) => {
+          {SECTIONS.map((t, i) => {
             const on = section === t.key;
             return (
               <Pressable
                 key={t.key}
-                style={[styles.tab, on && styles.tabOn]}
+                style={[styles.tab, i > 0 && styles.tabNotFirst, on && styles.tabOn]}
                 onPress={() => setSection(t.key)}
               >
                 <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>{t.label}</Text>
@@ -262,12 +264,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  topLink: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
+  topTile: {
+    width: 40,
+    height: 36,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   header: {
     flexDirection: "row",
@@ -290,9 +294,9 @@ const styles = StyleSheet.create({
   statsBar: {
     flexDirection: "row",
     marginHorizontal: spacing.lg,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
+    borderWidth: 2,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   stat: { flex: 1, alignItems: "center", paddingVertical: spacing.md },
   statDivider: { borderRightWidth: 2, borderRightColor: colors.border },
@@ -311,10 +315,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.md,
     borderWidth: 2,
-    borderRightWidth: 0,
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
+  tabNotFirst: { marginLeft: -2 },
   tabOn: { backgroundColor: GOLD },
   tabLabel: {
     color: colors.textMuted,

@@ -7,9 +7,9 @@ import { colors, displayFont, spacing } from "@/theme";
  * device used across the app's mastheads, so rows read as sections of the
  * periodical rather than free-floating carousels.
  */
-export function RowHeader({ title }: { title: string }) {
+export function RowHeader({ title, flush }: { title: string; flush?: boolean }) {
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, flush && { paddingHorizontal: 0 }]}>
       <View style={styles.marker} />
       <Text style={styles.title} numberOfLines={1}>
         {title}

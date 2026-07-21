@@ -8,6 +8,7 @@ import { BookCard } from "@/components/BookCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType } from "@/types/database";
@@ -58,7 +59,7 @@ export default function PublicProfile() {
   return (
     <ScreenContainer edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <Pressable onPress={() => router.back()} style={styles.back} hitSlop={10}>
+        <Pressable onPress={() => goBack()} style={styles.back} hitSlop={10}>
           <Text style={styles.backText}>‹ Indietro</Text>
         </Pressable>
 

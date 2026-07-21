@@ -7,7 +7,14 @@ export type IconName =
   | "community"
   | "profile"
   | "review"
-  | "heart";
+  | "heart"
+  | "back"
+  | "settings"
+  | "bookmark"
+  | "close"
+  | "list"
+  | "star"
+  | "trash";
 
 interface Props {
   name: IconName;
@@ -102,6 +109,88 @@ export function Icon({ name, size = 26, color, filled = false }: Props) {
             strokeLinecap="round"
             fill={fill}
           />
+        </>
+      )}
+
+      {name === "back" && (
+        <Path
+          d="M15 4.5 7.5 12l7.5 7.5"
+          stroke={stroke}
+          strokeWidth={sw + 0.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+
+      {name === "settings" && (
+        <>
+          {/* Sliders: reads as "settings" at small sizes better than a cog.
+              Square knobs — on-brand with the collana's hard corners. */}
+          <Path d="M4 7h16M4 12h16M4 17h16" stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+          <Rect x={7} y={4.8} width={4.4} height={4.4} fill={stroke} />
+          <Rect x={13} y={9.8} width={4.4} height={4.4} fill={stroke} />
+          <Rect x={5} y={14.8} width={4.4} height={4.4} fill={stroke} />
+        </>
+      )}
+
+      {name === "bookmark" && (
+        <Path
+          d="M6.5 3.5h11a1 1 0 0 1 1 1V21l-6.5-4-6.5 4V4.5a1 1 0 0 1 1-1Z"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+          fill={fill}
+        />
+      )}
+
+      {name === "close" && (
+        <Path
+          d="M6 6l12 12M18 6 6 18"
+          stroke={stroke}
+          strokeWidth={sw + 0.3}
+          strokeLinecap="round"
+        />
+      )}
+
+      {name === "list" && (
+        <>
+          <Path
+            d="M9 6h12M9 12h12M9 18h12"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+          />
+          <Rect x={3} y={4.6} width={2.8} height={2.8} fill={stroke} />
+          <Rect x={3} y={10.6} width={2.8} height={2.8} fill={stroke} />
+          <Rect x={3} y={16.6} width={2.8} height={2.8} fill={stroke} />
+        </>
+      )}
+
+      {name === "star" && (
+        <Path
+          d="m12 3 2.7 5.7 6.1.8-4.5 4.3 1.1 6.1L12 17l-5.4 2.9 1.1-6.1L3.2 9.5l6.1-.8L12 3Z"
+          stroke={stroke}
+          strokeWidth={sw}
+          strokeLinejoin="round"
+          fill={fill}
+        />
+      )}
+
+      {name === "trash" && (
+        <>
+          <Path d="M4.5 6.5h15" stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
+          <Path
+            d="M9 6V4.8A1.3 1.3 0 0 1 10.3 3.5h3.4A1.3 1.3 0 0 1 15 4.8V6"
+            stroke={stroke}
+            strokeWidth={sw}
+          />
+          <Path
+            d="M6.5 6.5 7.3 20a1.5 1.5 0 0 0 1.5 1.4h6.4a1.5 1.5 0 0 0 1.5-1.4l.8-13.5"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinejoin="round"
+          />
+          <Path d="M10 10.5v7M14 10.5v7" stroke={stroke} strokeWidth={sw} strokeLinecap="round" />
         </>
       )}
     </Svg>

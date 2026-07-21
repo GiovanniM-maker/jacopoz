@@ -17,9 +17,10 @@ import { toggleLike } from "@/api/social";
 import { getBookmarkedIds, toggleBookmark } from "@/api/bookmarks";
 import { CommentItem } from "@/components/CommentItem";
 import { ReviewCard } from "@/components/ReviewCard";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { colors, spacing, typography } from "@/theme";
+import { colors, displayFont, radius, spacing, typography } from "@/theme";
 import type { CommentWithAuthor } from "@/types/database";
 
 export default function ReviewThread() {
@@ -84,11 +85,7 @@ export default function ReviewThread() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹ Back</Text>
-          </Pressable>
-        </View>
+        <ScreenHeader title="Recensione" backFallback="/(tabs)/community" />
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {r ? (
@@ -107,7 +104,7 @@ export default function ReviewThread() {
             />
           ) : null}
 
-          <Text style={styles.commentsTitle}>Comments</Text>
+          <Text style={styles.commentsTitle}>Commenti</Text>
           {(comments.data ?? []).map((c: CommentWithAuthor) => (
             <View key={c.id}>
               <CommentItem
@@ -123,7 +120,7 @@ export default function ReviewThread() {
             </View>
           ))}
           {(comments.data ?? []).length === 0 ? (
-            <Text style={styles.noComments}>No comments yet. Start the conversation.</Text>
+            <Text style={styles.noComments}>Ancora nessun commento. Inizia tu la conversazione.</Text>
           ) : null}
           <View style={{ height: spacing.xl }} />
         </ScrollView>
@@ -131,7 +128,7 @@ export default function ReviewThread() {
         <View style={styles.composer}>
           {replyTo ? (
             <View style={styles.replyBanner}>
-              <Text style={styles.replyText}>Replying to {replyTo.author.display_name}</Text>
+              <Text style={styles.replyText}>Risposta a {replyTo.author.display_name}</Text>
               <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
                 <Text style={styles.replyCancel}>✕</Text>
               </Pressable>
@@ -140,7 +137,7 @@ export default function ReviewThread() {
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
-              placeholder={replyTo ? "Write a reply…" : "Add a comment…"}
+              placeholder={replyTo ? "Scrivi una risposta…" : "Aggiungi un commento…"}
               placeholderTextColor={colors.textFaint}
               value={text}
               onChangeText={setText}
@@ -149,9 +146,9 @@ export default function ReviewThread() {
             <Pressable
               onPress={onPost}
               disabled={posting || text.trim().length === 0}
-              style={styles.send}
+              style={[styles.send, (posting || text.trim().length === 0) && { opacity: 0.5 }]}
             >
-              <Text style={styles.sendText}>Post</Text>
+              <Text style={styles.sendText}>Invia</Text>
             </Pressable>
           </View>
         </View>
@@ -184,13 +181,20 @@ function ReplyList({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  topBar: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  back: { color: colors.textMuted, fontSize: 16 },
-  content: { paddingHorizontal: spacing.lg },
-  commentsTitle: { ...typography.h3, marginTop: spacing.lg, marginBottom: spacing.sm },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
+  commentsTitle: {
+    fontFamily: displayFont,
+    fontSize: 18,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    color: colors.text,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   noComments: { ...typography.bodyMuted, marginTop: spacing.md },
   composer: {
-    borderTopWidth: 1,
+    borderTopWidth: 2,
     borderTopColor: colors.border,
     padding: spacing.md,
     backgroundColor: colors.surface,
@@ -201,19 +205,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingBottom: spacing.sm,
   },
-  replyText: { color: colors.textMuted, fontSize: 13 },
+  replyText: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
   replyCancel: { color: colors.textMuted, fontSize: 16 },
   inputRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm },
   input: {
     flex: 1,
     maxHeight: 100,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 20,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     color: colors.text,
     fontSize: 15,
   },
-  send: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  sendText: { color: colors.primary, fontWeight: "700", fontSize: 15 },
+  send: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  sendText: {
+    color: colors.onPrimary,
+    fontWeight: "800",
+    fontSize: 12,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
 });

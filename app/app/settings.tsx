@@ -2,7 +2,9 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { deleteAccount, updateProfile } from "@/api/profile";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
 import { activeTheme, colors, radius, setTheme, spacing, THEMES, typography } from "@/theme";
@@ -48,13 +50,7 @@ export default function Settings() {
 
   return (
     <ScreenContainer edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.back}>‹ Indietro</Text>
-        </Pressable>
-        <Text style={styles.title}>Impostazioni</Text>
-        <View style={{ width: 60 }} />
-      </View>
+      <ScreenHeader title="Impostazioni" backFallback="/(tabs)/profile" />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         {/* Profile */}
@@ -106,8 +102,8 @@ export default function Settings() {
 
         {/* Lists & content */}
         <Text style={styles.section}>Liste e contenuti</Text>
-        <Row label="➕  Crea nuova lista" onPress={() => router.push("/new-list")} />
-        <Row label="🔖  Elementi salvati" onPress={() => router.push("/saved")} />
+        <Row icon="create" label="Crea nuova lista" onPress={() => router.push("/new-list")} />
+        <Row icon="bookmark" label="Elementi salvati" onPress={() => router.push("/saved")} />
 
         {/* Privacy */}
         <Text style={styles.section}>Privacy</Text>
@@ -119,9 +115,10 @@ export default function Settings() {
         {/* Danger zone */}
         <Text style={[styles.section, { color: colors.primary }]}>Zona pericolosa</Text>
         <Pressable style={styles.danger} onPress={onDelete}>
+          <Icon name="trash" color={colors.primary} size={18} />
           <Text style={styles.dangerText}>Elimina account e tutti i dati</Text>
         </Pressable>
-        <Row label="Esci" onPress={signOut} />
+        <Row icon="back" label="Esci" onPress={signOut} />
 
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
@@ -129,9 +126,14 @@ export default function Settings() {
   );
 }
 
-function Row({ label, onPress }: { label: string; onPress: () => void }) {
+function Row({ icon, label, onPress }: { icon?: IconName; label: string; onPress: () => void }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
+      {icon ? (
+        <View style={styles.rowIcon}>
+          <Icon name={icon} color={colors.text} size={18} />
+        </View>
+      ) : null}
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.chev}>›</Text>
     </Pressable>
@@ -139,15 +141,6 @@ function Row({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  back: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3 },
   body: { paddingHorizontal: spacing.lg },
   section: {
     ...typography.caption,
@@ -171,12 +164,21 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: spacing.md,
     paddingVertical: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  rowLabel: { color: colors.text, fontSize: 16 },
+  rowIcon: {
+    width: 34,
+    height: 30,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowLabel: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "600" },
   chev: { color: colors.textFaint, fontSize: 22 },
   note: { ...typography.bodyMuted, lineHeight: 20, marginTop: spacing.sm },
   themeRow: {
@@ -191,21 +193,31 @@ const styles = StyleSheet.create({
   radio: {
     width: 22,
     height: 22,
-    borderRadius: 11,
     borderWidth: 2,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  radioOn: { borderColor: colors.primary },
-  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: colors.primary },
+  radioOn: { borderColor: colors.border },
+  radioDot: { width: 10, height: 10, backgroundColor: colors.primary },
   danger: {
-    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.sm,
+    borderWidth: 2,
+    borderStyle: "dashed",
     borderColor: colors.primary,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     padding: spacing.lg,
     alignItems: "center",
+    justifyContent: "center",
     marginTop: spacing.sm,
   },
-  dangerText: { color: colors.primary, fontSize: 16, fontWeight: "700" },
+  dangerText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
 });

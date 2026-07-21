@@ -20,15 +20,16 @@ export default function TabsLayout() {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
           borderTopWidth: 2,
-          height: 60,
+          height: 66,
         },
-        tabBarItemStyle: { paddingTop: 6, paddingBottom: 6 },
+        tabBarItemStyle: { paddingTop: 8, paddingBottom: 4 },
         tabBarLabelStyle: {
           fontFamily: displayFont,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: "900",
           letterSpacing: 1,
           textTransform: "uppercase",
+          marginTop: 2,
         },
       }}
     >

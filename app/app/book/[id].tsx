@@ -10,12 +10,15 @@ import { toggleLike } from "@/api/social";
 import { affiliateUrl } from "@/api/config";
 import { track } from "@/api/analytics";
 import { BookCover } from "@/components/BookCover";
+import { RowHeader } from "@/components/RowHeader";
 import { Chip } from "@/components/ui/Chip";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { colors, displayFont, hardShadow, radius, spacing, typography } from "@/theme";
+import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing, typography } from "@/theme";
 import type { FeedItem } from "@/types/database";
 
 export default function BookPage() {
@@ -56,6 +59,8 @@ export default function BookPage() {
   if (!book.data) return <ScreenContainer />;
   const b = book.data;
   const ub = userBook.data;
+  const mark = collanaMark(b.title);
+  const bandInk = onBand(mark.band);
   const isRead = ub?.status === "read";
   const isSaved = ub?.status === "want_to_read";
 
@@ -74,9 +79,17 @@ export default function BookPage() {
     <ScreenContainer edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} style={styles.back} hitSlop={10}>
+        <Pressable onPress={() => goBack()} style={styles.back} hitSlop={10}>
           <Text style={styles.backText}>‹ Indietro</Text>
         </Pressable>
+
+        {/* Collana band: this book is an issue of the series. */}
+        <View style={[styles.colBand, { backgroundColor: mark.band }]}>
+          <Text style={[styles.colBandText, { color: bandInk }]} numberOfLines={1}>
+            Tomo · {b.categories[0] ?? "Libro"}
+          </Text>
+          <Text style={[styles.colBandText, { color: bandInk }]}>N°{mark.number}</Text>
+        </View>
 
         <View style={styles.hero}>
           <BookCover url={b.cover_url} title={b.title} width={130} />
@@ -118,11 +131,11 @@ export default function BookPage() {
 
         {/* Primary actions */}
         <View style={styles.actions}>
-          <ActionButton icon="✍️" label="Recensisci" primary
+          <ActionButton icon="review" label="Recensisci" primary
             onPress={() => router.push(`/compose-review?bookId=${b.id}`)} />
-          <ActionButton icon="＋" label="Lista"
+          <ActionButton icon="create" label="Lista"
             onPress={() => router.push(`/add-to-list?bookId=${b.id}`)} />
-          <ActionButton icon={ub?.liked ? "♥" : "♡"} label="Like" active={!!ub?.liked}
+          <ActionButton icon="heart" label="Like" active={!!ub?.liked}
             onPress={() => mutateShelf({ liked: !ub?.liked })} />
         </View>
 
@@ -135,7 +148,7 @@ export default function BookPage() {
 
         {/* Reviews */}
         <View style={styles.reviewsHeader}>
-          <Text style={styles.sectionTitle}>Recensioni della community</Text>
+          <RowHeader title="Recensioni" flush />
         </View>
 
         {(reviews.data ?? []).length === 0 ? (
@@ -172,26 +185,19 @@ function ActionButton({
   primary = false,
   onPress,
 }: {
-  icon: string;
+  icon: IconName;
   label: string;
   active?: boolean;
   primary?: boolean;
   onPress: () => void;
 }) {
+  const tint = primary ? colors.onPrimary : active ? colors.star : colors.text;
   return (
     <Pressable
       style={[styles.action, primary && styles.actionPrimary, active && styles.actionActive]}
       onPress={onPress}
     >
-      <Text
-        style={[
-          styles.actionIcon,
-          primary && styles.actionLabelPrimary,
-          active && styles.actionLabelActive,
-        ]}
-      >
-        {icon}
-      </Text>
+      <Icon name={icon} color={tint} size={16} filled={active} />
       <Text
         style={[
           styles.actionLabel,
@@ -214,6 +220,24 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 1,
     textTransform: "uppercase",
+  },
+  colBand: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  colBandText: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    flexShrink: 1,
   },
   hero: { flexDirection: "row", gap: spacing.lg, marginBottom: spacing.lg },
   heroInfo: { flex: 1, gap: spacing.xs },
@@ -245,7 +269,6 @@ const styles = StyleSheet.create({
   },
   actionPrimary: { backgroundColor: colors.primary },
   actionActive: { backgroundColor: colors.surfaceAlt },
-  actionIcon: { fontSize: 15, color: colors.text },
   actionLabel: {
     color: colors.text,
     fontSize: 11,
@@ -278,14 +301,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   description: { ...typography.body, lineHeight: 22 },
-  reviewsHeader: { marginBottom: spacing.md },
-  sectionTitle: {
-    fontFamily: displayFont,
-    fontSize: 20,
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    color: colors.text,
-  },
+  reviewsHeader: { marginTop: spacing.md },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },
 });

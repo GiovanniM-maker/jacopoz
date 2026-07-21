@@ -10,11 +10,13 @@ import {
   unfollowList,
 } from "@/api/lists";
 import { BookCard } from "@/components/BookCard";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { colors, spacing, typography } from "@/theme";
+import { colors, displayFont, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType } from "@/types/database";
 
 const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
@@ -50,15 +52,15 @@ export default function ListDetail() {
 
   function onDelete() {
     if (!id) return;
-    Alert.alert("Delete list?", "This can't be undone.", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Eliminare la lista?", "L'azione è irreversibile.", [
+      { text: "Annulla", style: "cancel" },
       {
-        text: "Delete",
+        text: "Elimina",
         style: "destructive",
         onPress: async () => {
           await deleteList(id);
           qc.invalidateQueries({ queryKey: ["lists", session?.user.id] });
-          router.back();
+          goBack("/(tabs)/profile");
         },
       },
     ]);
@@ -69,18 +71,14 @@ export default function ListDetail() {
 
   return (
     <ScreenContainer edges={["top"]}>
+      <ScreenHeader
+        title="Booklist"
+        backFallback="/(tabs)/profile"
+        rightIcon={isOwner ? "trash" : undefined}
+        rightColor={colors.primary}
+        onRightPress={isOwner ? onDelete : undefined}
+      />
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.top}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={styles.back}>‹ Back</Text>
-          </Pressable>
-          {isOwner ? (
-            <Pressable onPress={onDelete} hitSlop={10}>
-              <Text style={styles.delete}>Delete</Text>
-            </Pressable>
-          ) : null}
-        </View>
-
         <View style={styles.header}>
           <Text style={styles.name}>{l.name}</Text>
           {l.description ? <Text style={styles.desc}>{l.description}</Text> : null}
@@ -101,7 +99,7 @@ export default function ListDetail() {
 
         {(books.data ?? []).length === 0 ? (
           <View style={{ height: 260 }}>
-            <EmptyState icon="📄" title="Empty list" message="Add books from any book page." />
+            <EmptyState icon="📄" title="Lista vuota" message="Aggiungi libri da qualsiasi scheda libro." />
           </View>
         ) : (
           <View style={styles.grid}>
@@ -117,16 +115,20 @@ export default function ListDetail() {
 }
 
 const styles = StyleSheet.create({
-  top: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  header: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.xs,
   },
-  back: { color: colors.textMuted, fontSize: 16 },
-  delete: { color: colors.primary, fontSize: 15, fontWeight: "600" },
-  header: { paddingHorizontal: spacing.lg, marginBottom: spacing.lg, gap: spacing.xs },
-  name: { ...typography.h1 },
+  name: {
+    fontFamily: displayFont,
+    fontSize: 30,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    color: colors.text,
+  },
   desc: { ...typography.body, color: colors.textMuted },
   meta: { ...typography.caption, marginTop: spacing.xs },
   followBtn: { marginTop: spacing.md, alignSelf: "flex-start", minWidth: 150 },

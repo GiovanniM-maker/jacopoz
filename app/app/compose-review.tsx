@@ -3,9 +3,11 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { getMyReview, upsertReview } from "@/api/reviews";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
 import { colors, radius, spacing, typography } from "@/theme";
 
@@ -42,27 +44,21 @@ export default function ComposeReview() {
     qc.invalidateQueries({ queryKey: ["book", bookId] });
     qc.invalidateQueries({ queryKey: ["feed"] });
     setSaving(false);
-    router.back();
+    goBack("/(tabs)/community");
   }
 
   return (
-    <ScreenContainer padded>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.cancel}>Cancel</Text>
-        </Pressable>
-        <Text style={styles.title}>{existing.data ? "Edit review" : "Write a review"}</Text>
-        <View style={{ width: 50 }} />
-      </View>
-
+    <ScreenContainer>
+      <ScreenHeader title={existing.data ? "Modifica recensione" : "Scrivi recensione"} />
+      <View style={styles.body}>
       <View style={styles.rateRow}>
-        <Text style={styles.label}>Rating</Text>
+        <Text style={styles.label}>La tua valutazione</Text>
         <RatingStars value={rating} size={30} onChange={setRating} />
       </View>
 
       <TextInput
         style={styles.textArea}
-        placeholder="What did you think? A single line is fine, or go deep…"
+        placeholder="Che cosa ne pensi? Basta una riga, o vai in profondità…"
         placeholderTextColor={colors.textFaint}
         multiline
         value={body}
@@ -72,7 +68,7 @@ export default function ComposeReview() {
       />
 
       <View style={styles.spoilerRow}>
-        <Text style={styles.label}>Contains spoilers</Text>
+        <Text style={styles.label}>Contiene spoiler</Text>
         <Switch
           value={spoilers}
           onValueChange={setSpoilers}
@@ -81,32 +77,40 @@ export default function ComposeReview() {
       </View>
 
       <Button
-        label={existing.data ? "Update review" : "Post review"}
+        label={existing.data ? "Aggiorna recensione" : "Pubblica recensione"}
         onPress={onSubmit}
         loading={saving}
         disabled={body.trim().length === 0}
         style={styles.submit}
       />
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
+  body: { flex: 1, paddingHorizontal: spacing.lg },
+  rateRow: {
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: spacing.sm,
+    marginVertical: spacing.lg,
     paddingVertical: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
-  cancel: { color: colors.textMuted, fontSize: 16 },
-  title: { ...typography.h3 },
-  rateRow: { alignItems: "center", gap: spacing.sm, marginVertical: spacing.lg },
-  label: { ...typography.bodyMuted },
+  label: {
+    ...typography.bodyMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
   textArea: {
     minHeight: 160,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    borderRadius: radius.sm,
+    borderWidth: 2,
     borderColor: colors.border,
     padding: spacing.lg,
     color: colors.text,

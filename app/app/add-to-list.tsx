@@ -9,6 +9,7 @@ import {
   getUserLists,
   removeBookFromList,
 } from "@/api/lists";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
@@ -55,25 +56,19 @@ export default function AddToList() {
   }
 
   return (
-    <ScreenContainer padded>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.close}>Done</Text>
-        </Pressable>
-        <Text style={styles.title}>Add to list</Text>
-        <View style={{ width: 44 }} />
-      </View>
-
+    <ScreenContainer>
+      <ScreenHeader title="Aggiungi a lista" />
+      <View style={styles.body}>
       <View style={styles.createRow}>
         <TextInput
           style={styles.input}
-          placeholder="New list name…"
+          placeholder="Nome nuova lista…"
           placeholderTextColor={colors.textFaint}
           value={newName}
           onChangeText={setNewName}
         />
         <Button
-          label="Create"
+          label="Crea"
           onPress={onCreate}
           loading={creating}
           disabled={newName.trim().length === 0}
@@ -86,7 +81,7 @@ export default function AddToList() {
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
           {(lists.data ?? []).length === 0 ? (
-            <Text style={styles.empty}>No lists yet. Create your first above.</Text>
+            <Text style={styles.empty}>Nessuna lista. Crea la prima qui sopra.</Text>
           ) : (
             (lists.data ?? []).map((l: BookList) => {
               const inList = contained.data?.has(l.id) ?? false;
@@ -95,8 +90,8 @@ export default function AddToList() {
                   <View style={styles.rowInfo}>
                     <Text style={styles.rowName}>{l.name}</Text>
                     <Text style={styles.rowMeta}>
-                      {l.book_count} {l.book_count === 1 ? "book" : "books"}
-                      {l.is_public ? "" : " · private"}
+                      {l.book_count} {l.book_count === 1 ? "libro" : "libri"}
+                      {l.is_public ? "" : " · privata"}
                     </Text>
                   </View>
                   <View style={[styles.check, inList && styles.checkOn]}>
@@ -108,51 +103,45 @@ export default function AddToList() {
           )}
         </ScrollView>
       )}
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-  },
-  close: { color: colors.primary, fontSize: 16, fontWeight: "700" },
-  title: { ...typography.h3 },
+  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   createRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
   input: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     color: colors.text,
     fontSize: 15,
   },
-  createBtn: { height: 44, paddingHorizontal: spacing.lg },
+  createBtn: { height: 48, paddingHorizontal: spacing.lg },
   empty: { ...typography.bodyMuted, textAlign: "center", marginTop: spacing.xl },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
   },
   rowInfo: { flex: 1 },
-  rowName: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  rowName: { color: colors.text, fontSize: 16, fontWeight: "700" },
   rowMeta: { color: colors.textFaint, fontSize: 13, marginTop: 2 },
   check: {
     width: 26,
     height: 26,
-    borderRadius: 13,
     borderWidth: 2,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkOn: { backgroundColor: colors.primary },
   checkMark: { color: colors.onPrimary, fontWeight: "800" },
 });

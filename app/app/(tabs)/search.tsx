@@ -8,7 +8,9 @@ import { track } from "@/api/analytics";
 import { BookCard } from "@/components/BookCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { goBack } from "@/lib/nav";
 import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
 
 type Tab = "books" | "authors" | "users";
@@ -59,6 +61,9 @@ export default function Search() {
   return (
     <ScreenContainer edges={["top"]}>
       <View style={styles.header}>
+        <Pressable style={styles.backTile} hitSlop={8} onPress={() => goBack()} accessibilityLabel="Indietro">
+          <Icon name="back" color={colors.text} size={20} />
+        </Pressable>
         <TextInput
           style={styles.input}
           placeholder="Cerca libri, autori, utenti…"
@@ -153,13 +158,31 @@ function Empty({ msg }: { msg: string }) {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.md },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  backTile: {
+    width: 44,
+    height: 48,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   input: {
+    flex: 1,
+    height: 48,
     backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: colors.border,
     borderRadius: radius.sm,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
     color: colors.text,
     fontSize: 16,
   },
