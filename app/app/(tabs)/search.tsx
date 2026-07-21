@@ -88,6 +88,7 @@ export default function Search() {
 
       {tab === "books" ? (
         <FlatList
+          key="books-grid"
           data={books.data ?? []}
           keyExtractor={(b) => b.id}
           numColumns={3}
@@ -103,6 +104,7 @@ export default function Search() {
         />
       ) : tab === "authors" ? (
         <FlatList
+          key="authors-list"
           data={authors.data ?? []}
           keyExtractor={(a) => a.author}
           contentContainerStyle={styles.list}
@@ -128,6 +130,7 @@ export default function Search() {
         />
       ) : (
         <FlatList
+          key="users-list"
           data={users.data ?? []}
           keyExtractor={(u) => u.id}
           contentContainerStyle={styles.list}
