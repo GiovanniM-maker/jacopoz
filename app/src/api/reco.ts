@@ -23,9 +23,11 @@ export async function logRecoImpressions(
     const { data: auth } = await supabase.auth.getUser();
     const uid = auth.user?.id;
     if (!uid || bookIds.length === 0) return;
+    // Position logged with each impression → CTR can be corrected for
+    // rank bias (top slots get clicked regardless of relevance).
     await supabase
       .from("reco_impressions")
-      .insert(bookIds.map((book_id) => ({ user_id: uid, book_id, surface })));
+      .insert(bookIds.map((book_id, i) => ({ user_id: uid, book_id, surface, position: i })));
   } catch {
     // never surface metrics failures
   }
