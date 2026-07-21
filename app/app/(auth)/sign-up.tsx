@@ -74,9 +74,20 @@ export default function SignUp() {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-          <Button label="Sign up" onPress={onSignUp} loading={loading} />
+          <Button label="Registrati" onPress={onSignUp} loading={loading} />
+          <Text style={styles.legal}>
+            Registrandoti accetti i{" "}
+            <Link href="/legal/terms">
+              <Text style={styles.legalLink}>Termini di servizio</Text>
+            </Link>{" "}
+            e l'
+            <Link href="/legal/privacy">
+              <Text style={styles.legalLink}>Informativa privacy</Text>
+            </Link>
+            .
+          </Text>
           <Link href="/(auth)/sign-in" style={styles.link}>
-            <Text style={styles.linkText}>Already have an account? Sign in</Text>
+            <Text style={styles.linkText}>Hai già un account? Accedi</Text>
           </Link>
         </View>
       </KeyboardAvoidingView>
@@ -101,4 +112,6 @@ const styles = StyleSheet.create({
   notice: { color: colors.success, fontSize: 14 },
   link: { alignSelf: "center", marginTop: spacing.md },
   linkText: { color: colors.textMuted, fontSize: 14 },
+  legal: { color: colors.textFaint, fontSize: 12, textAlign: "center", lineHeight: 17 },
+  legalLink: { color: colors.textMuted, fontSize: 12, textDecorationLine: "underline" },
 });

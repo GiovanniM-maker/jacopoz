@@ -13,6 +13,7 @@ interface Props {
   onLike?: () => void;
   onReply?: () => void;
   onSave?: () => void;
+  onReport?: () => void;
   onPress?: () => void;
 }
 
@@ -21,7 +22,7 @@ interface Props {
  * avatar, bold author + uppercase timestamp, and micro-actions. Replies are
  * indented behind a dashed thread rule.
  */
-export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, onPress }: Props) {
+export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, onReport, onPress }: Props) {
   return (
     <Pressable style={[styles.row, isReply && styles.reply]} onPress={onPress} disabled={!onPress}>
       <Avatar url={comment.author.avatar_url} name={comment.author.display_name} size={30} />
@@ -53,6 +54,11 @@ export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, 
               <Text style={[styles.action, saved && styles.savedOn]}>
                 {saved ? "Salvato" : "Salva"}
               </Text>
+            </Pressable>
+          ) : null}
+          {onReport ? (
+            <Pressable onPress={onReport} hitSlop={8} style={styles.reportBtn}>
+              <Icon name="flag" color={colors.textFaint} size={14} />
             </Pressable>
           ) : null}
         </View>
@@ -97,4 +103,5 @@ const styles = StyleSheet.create({
   },
   saveBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
   savedOn: { color: colors.primary },
+  reportBtn: { marginLeft: "auto" },
 });

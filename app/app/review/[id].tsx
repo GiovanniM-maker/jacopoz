@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { addComment, getComments, getReplies } from "@/api/comments";
+import { blockUser, getBlockedIds, reportContent } from "@/api/moderation";
 import { getReview } from "@/api/reviews";
 import { toggleLike } from "@/api/social";
 import { getBookmarkedIds, toggleBookmark } from "@/api/bookmarks";
@@ -19,6 +20,7 @@ import { CommentItem } from "@/components/CommentItem";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { confirmDialog } from "@/lib/confirm";
 import { useAuth } from "@/store/auth";
 import { colors, displayFont, radius, spacing, typography } from "@/theme";
 import type { CommentWithAuthor } from "@/types/database";
@@ -32,6 +34,8 @@ export default function ReviewThread() {
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<CommentWithAuthor | null>(null);
   const [posting, setPosting] = useState(false);
+  const [modMenu, setModMenu] = useState(false);
+  const [reported, setReported] = useState(false);
 
   const review = useQuery({
     queryKey: ["review", id, userId],
@@ -48,6 +52,38 @@ export default function ReviewThread() {
     queryFn: () => getBookmarkedIds(userId!, "comment"),
     enabled: !!userId,
   });
+  const blocked = useQuery({
+    queryKey: ["blocked-ids", userId],
+    queryFn: getBlockedIds,
+    enabled: !!userId,
+  });
+
+  async function onReportReview() {
+    if (!id) return;
+    setModMenu(false);
+    await reportContent("review", id);
+    setReported(true);
+  }
+
+  async function onBlockAuthor() {
+    const authorId = review.data?.author?.id;
+    if (!authorId) return;
+    setModMenu(false);
+    const ok = await confirmDialog(
+      "Bloccare questo lettore?",
+      "Non vedrai più le sue recensioni e i suoi commenti. Puoi sbloccarlo dal suo profilo.",
+      "Blocca",
+    );
+    if (!ok) return;
+    await blockUser(authorId);
+    qc.invalidateQueries({ queryKey: ["feed"] });
+    qc.invalidateQueries({ queryKey: ["blocked-ids", userId] });
+  }
+
+  async function onReportComment(commentId: string) {
+    await reportContent("comment", commentId);
+    qc.invalidateQueries({ queryKey: ["comments", id, userId] });
+  }
 
   async function onSaveComment(commentId: string) {
     if (!userId) return;
@@ -85,7 +121,27 @@ export default function ReviewThread() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScreenHeader title="Recensione" backFallback="/(tabs)/community" />
+        <ScreenHeader
+          title="Recensione"
+          backFallback="/(tabs)/community"
+          rightIcon="flag"
+          rightColor={reported ? colors.primary : colors.textMuted}
+          onRightPress={() => setModMenu((v) => !v)}
+        />
+
+        {modMenu ? (
+          <View style={styles.modMenu}>
+            <Pressable style={styles.modRow} onPress={onReportReview}>
+              <Text style={styles.modLabel}>Segnala questa recensione</Text>
+            </Pressable>
+            <Pressable style={[styles.modRow, { borderBottomWidth: 0 }]} onPress={onBlockAuthor}>
+              <Text style={styles.modLabel}>Blocca l'autore</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {reported ? (
+          <Text style={styles.reportedNote}>Segnalazione inviata — grazie, la esamineremo.</Text>
+        ) : null}
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {r ? (
@@ -105,7 +161,9 @@ export default function ReviewThread() {
           ) : null}
 
           <Text style={styles.commentsTitle}>Commenti</Text>
-          {(comments.data ?? []).map((c: CommentWithAuthor) => (
+          {(comments.data ?? [])
+            .filter((c: CommentWithAuthor) => !blocked.data?.has(c.author.id))
+            .map((c: CommentWithAuthor) => (
             <View key={c.id}>
               <CommentItem
                 comment={c}
@@ -113,6 +171,7 @@ export default function ReviewThread() {
                 onLike={() => onCommentLike(c.id)}
                 onReply={() => setReplyTo(c)}
                 onSave={() => onSaveComment(c.id)}
+                onReport={() => onReportComment(c.id)}
               />
               {c.reply_count > 0 ? (
                 <ReplyList parentId={c.id} viewerId={userId} onLike={onCommentLike} />
@@ -181,6 +240,27 @@ function ReplyList({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  modMenu: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  modRow: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modLabel: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  reportedNote: {
+    ...typography.caption,
+    color: colors.success,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   commentsTitle: {
     fontFamily: displayFont,

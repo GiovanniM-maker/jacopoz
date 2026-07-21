@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { blockUser, isBlocked, reportContent, unblockUser } from "@/api/moderation";
 import { getProfileByUsername, getProfileStats } from "@/api/profile";
 import { getShelfBooks } from "@/api/shelves";
 import { followUser, isFollowing, unfollowUser } from "@/api/social";
+import { confirmDialog } from "@/lib/confirm";
 import { BookCard } from "@/components/BookCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +45,33 @@ export default function PublicProfile() {
     queryFn: () => isFollowing(targetId!),
     enabled: !!targetId && !isSelf,
   });
+  const blocked = useQuery({
+    queryKey: ["is-blocked", targetId],
+    queryFn: () => isBlocked(targetId!),
+    enabled: !!targetId && !isSelf,
+  });
+
+  async function onToggleBlock() {
+    if (!targetId) return;
+    if (blocked.data) {
+      await unblockUser(targetId);
+    } else {
+      const ok = await confirmDialog(
+        "Bloccare questo lettore?",
+        "Non vedrai più le sue recensioni e i suoi commenti.",
+        "Blocca",
+      );
+      if (!ok) return;
+      await blockUser(targetId);
+    }
+    qc.invalidateQueries({ queryKey: ["is-blocked", targetId] });
+    qc.invalidateQueries({ queryKey: ["feed"] });
+  }
+
+  async function onReport() {
+    if (!targetId) return;
+    await reportContent("user", targetId);
+  }
 
   async function onToggleFollow() {
     if (!targetId) return;
@@ -69,12 +98,23 @@ export default function PublicProfile() {
           <Text style={styles.username}>@{p.username} · lettore n° {readerNo}</Text>
           {p.bio ? <Text style={styles.bio}>{p.bio}</Text> : null}
           {!isSelf ? (
-            <Button
-              label={following.data ? "Seguito" : "Segui"}
-              variant={following.data ? "secondary" : "primary"}
-              onPress={onToggleFollow}
-              style={styles.followBtn}
-            />
+            <>
+              <Button
+                label={following.data ? "Seguito" : "Segui"}
+                variant={following.data ? "secondary" : "primary"}
+                onPress={onToggleFollow}
+                style={styles.followBtn}
+              />
+              <View style={styles.modRow}>
+                <Pressable onPress={onReport} hitSlop={8}>
+                  <Text style={styles.modLink}>Segnala</Text>
+                </Pressable>
+                <Text style={styles.modDot}>·</Text>
+                <Pressable onPress={onToggleBlock} hitSlop={8}>
+                  <Text style={styles.modLink}>{blocked.data ? "Sblocca" : "Blocca"}</Text>
+                </Pressable>
+              </View>
+            </>
           ) : null}
         </View>
 
@@ -147,6 +187,15 @@ const styles = StyleSheet.create({
   username: { ...typography.bodyMuted, fontSize: 13, fontStyle: "italic" },
   bio: { ...typography.body, textAlign: "center", paddingHorizontal: spacing.xl, marginTop: spacing.sm },
   followBtn: { marginTop: spacing.md, minWidth: 180 },
+  modRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
+  modLink: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  modDot: { color: colors.textFaint },
   statsBar: {
     flexDirection: "row",
     marginHorizontal: spacing.lg,

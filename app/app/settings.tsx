@@ -1,11 +1,12 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { deleteAccount, updateProfile } from "@/api/profile";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { confirmDialog } from "@/lib/confirm";
 import { useAuth } from "@/store/auth";
 import { activeTheme, colors, radius, setTheme, spacing, THEMES, typography } from "@/theme";
 
@@ -27,25 +28,18 @@ export default function Settings() {
     setTimeout(() => setSaved(false), 2000);
   }
 
-  function onDelete() {
-    Alert.alert(
+  async function onDelete() {
+    const ok = await confirmDialog(
       "Eliminare l'account?",
       "Verranno cancellati per sempre profilo, recensioni, commenti, liste e tutti i tuoi dati. L'azione è irreversibile.",
-      [
-        { text: "Annulla", style: "cancel" },
-        {
-          text: "Elimina tutto",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteAccount();
-            } finally {
-              await signOut();
-            }
-          },
-        },
-      ],
+      "Elimina tutto",
     );
+    if (!ok) return;
+    try {
+      await deleteAccount();
+    } finally {
+      await signOut();
+    }
   }
 
   return (
@@ -106,11 +100,13 @@ export default function Settings() {
         <Row icon="bookmark" label="Elementi salvati" onPress={() => router.push("/saved")} />
 
         {/* Privacy */}
-        <Text style={styles.section}>Privacy</Text>
+        <Text style={styles.section}>Privacy e termini</Text>
         <Text style={styles.note}>
           Profilo, recensioni e liste pubbliche sono visibili agli altri lettori. Puoi rendere privata
           una lista quando la crei o modifichi. Le liste private restano visibili solo a te.
         </Text>
+        <Row icon="list" label="Informativa privacy" onPress={() => router.push("/legal/privacy")} />
+        <Row icon="list" label="Termini di servizio" onPress={() => router.push("/legal/terms")} />
 
         {/* Danger zone */}
         <Text style={[styles.section, { color: colors.primary }]}>Zona pericolosa</Text>

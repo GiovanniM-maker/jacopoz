@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   deleteList,
   followList,
@@ -14,6 +14,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { confirmDialog } from "@/lib/confirm";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
 import { colors, displayFont, spacing, typography } from "@/theme";
@@ -50,20 +51,13 @@ export default function ListDetail() {
     qc.invalidateQueries({ queryKey: ["list", id] });
   }
 
-  function onDelete() {
+  async function onDelete() {
     if (!id) return;
-    Alert.alert("Eliminare la lista?", "L'azione è irreversibile.", [
-      { text: "Annulla", style: "cancel" },
-      {
-        text: "Elimina",
-        style: "destructive",
-        onPress: async () => {
-          await deleteList(id);
-          qc.invalidateQueries({ queryKey: ["lists", session?.user.id] });
-          goBack("/(tabs)/profile");
-        },
-      },
-    ]);
+    const ok = await confirmDialog("Eliminare la lista?", "L'azione è irreversibile.", "Elimina");
+    if (!ok) return;
+    await deleteList(id);
+    qc.invalidateQueries({ queryKey: ["lists", session?.user.id] });
+    goBack("/(tabs)/profile");
   }
 
   if (!list.data) return <ScreenContainer />;
