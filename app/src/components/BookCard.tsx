@@ -1,9 +1,20 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { BookCard as BookCardType } from "@/types/database";
+import { getBook } from "@/api/books";
+import { queryClient } from "@/lib/queryClient";
 import { colors, displayFont, spacing } from "@/theme";
 import { BookCover } from "./BookCover";
 import { Icon } from "./ui/Icon";
+
+/** Warm the book-detail cache before the tap completes → instant open. */
+function prefetchBook(id: string) {
+  void queryClient.prefetchQuery({
+    queryKey: ["book", id],
+    queryFn: () => getBook(id),
+    staleTime: 60_000,
+  });
+}
 
 interface Props {
   book: BookCardType;
@@ -19,6 +30,7 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Pro
   return (
     <Pressable
       style={[styles.card, { width }]}
+      onPressIn={() => prefetchBook(book.id)}
       onPress={() => router.push(`/book/${book.id}`)}
     >
       {onDismiss ? (

@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "echo \"root install skipped — app deps install in buildCommand\"",
-  "buildCommand": "cd app && npm install && npx expo export -p web",
+  "buildCommand": "cd app && npm install && npx expo export -p web && node scripts/inject-pwa.mjs",
   "outputDirectory": "app/dist",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
@@ -12,6 +12,12 @@
       "source": "/_expo/static/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
       ]
     }
   ]

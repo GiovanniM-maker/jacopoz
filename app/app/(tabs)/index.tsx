@@ -24,7 +24,8 @@ export default function Home() {
   const recos = useQuery({ queryKey: ["recos"], queryFn: () => getRecommendations(20) });
   const trending = useQuery({ queryKey: ["trending"], queryFn: () => getTrendingBooks(20) });
   const newReleases = useQuery({ queryKey: ["new-releases"], queryFn: () => getNewReleases(20) });
-  const genres = useQuery({ queryKey: ["genres"], queryFn: getGenres });
+  // Genres are static reference data — cache for a day, never re-fetch on nav.
+  const genres = useQuery({ queryKey: ["genres"], queryFn: getGenres, staleTime: 86_400_000 });
   const prefs = useQuery({
     queryKey: ["genre-prefs", userId],
     queryFn: () => getGenrePrefs(userId!),
