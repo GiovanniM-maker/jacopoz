@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { Wordmark } from "@/components/Wordmark";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { colors, spacing, typography } from "@/theme";
 
 export default function SignIn() {
@@ -71,6 +72,7 @@ export default function SignIn() {
             <Link href="/(auth)/sign-up" style={styles.link}>
               <Text style={styles.linkText}>Nuovo qui? Crea un account</Text>
             </Link>
+            <InstallPrompt />
           </View>
         </View>
       </KeyboardAvoidingView>

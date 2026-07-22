@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { deleteAccount, updateProfile } from "@/api/profile";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { confirmDialog } from "@/lib/confirm";
+import { canInstall, isIos, onInstallChange, promptInstall } from "@/lib/pwaInstall";
 import { useAuth } from "@/store/auth";
 import { activeTheme, colors, radius, setTheme, spacing, THEMES, typography } from "@/theme";
 
@@ -17,6 +18,23 @@ export default function Settings() {
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [installable, setInstallable] = useState(canInstall());
+
+  useEffect(() => {
+    setInstallable(canInstall());
+    return onInstallChange(() => setInstallable(canInstall()));
+  }, []);
+
+  async function onInstall() {
+    const ok = await promptInstall();
+    if (!ok && isIos()) {
+      await confirmDialog(
+        "Installa Tomo",
+        "Tocca Condividi in fondo a Safari, poi «Aggiungi a Home».",
+        "Ho capito",
+      );
+    }
+  }
 
   async function onSaveProfile() {
     if (!userId) return;
@@ -93,6 +111,9 @@ export default function Settings() {
           );
         })}
         <Text style={styles.note}>Cambiando tema l'app si ricarica per applicarlo.</Text>
+        {installable ? (
+          <Row icon="download" label="Installa l'app sul dispositivo" onPress={onInstall} />
+        ) : null}
 
         {/* Lists & content */}
         <Text style={styles.section}>Liste e contenuti</Text>

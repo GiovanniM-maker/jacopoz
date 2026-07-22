@@ -15,7 +15,8 @@ export type IconName =
   | "list"
   | "star"
   | "trash"
-  | "flag";
+  | "flag"
+  | "download";
 
 interface Props {
   name: IconName;
@@ -142,6 +143,25 @@ export function Icon({ name, size = 26, color, filled = false }: Props) {
           strokeLinejoin="round"
           fill={fill}
         />
+      )}
+
+      {name === "download" && (
+        <>
+          <Path
+            d="M12 3v11m0 0 4-4m-4 4-4-4"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M5 17v2a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2"
+            stroke={stroke}
+            strokeWidth={sw}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
       )}
 
       {name === "close" && (
