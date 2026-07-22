@@ -188,11 +188,11 @@ export default function BookPage() {
                 <Text style={styles.buyLinkText}>Compra su Amazon ↗</Text>
               </Pressable>
             </>
-          ) : (
+          ) : readInfo.isLoading ? null : (
             <>
-              {!readInfo.isLoading ? (
-                <Text style={styles.notFree}>Non disponibile gratuitamente</Text>
-              ) : null}
+              <View style={styles.readBtnDisabled}>
+                <Text style={styles.readBtnDisabledText}>Non disponibile gratuitamente</Text>
+              </View>
               <Pressable style={styles.buyBtn} onPress={onBuyAmazon}>
                 <Text style={styles.buyBtnText}>Compra su Amazon ↗</Text>
               </Pressable>
@@ -409,13 +409,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: "uppercase",
   },
-  notFree: {
+  readBtnDisabled: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+  },
+  readBtnDisabledText: {
     color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
+    fontSize: 13,
+    fontWeight: "800",
     letterSpacing: 0.6,
     textTransform: "uppercase",
-    textAlign: "center",
   },
   buyLink: { alignItems: "center", paddingVertical: spacing.sm },
   buyLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
