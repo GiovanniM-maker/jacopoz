@@ -360,6 +360,44 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook) {
   return book;
 }
 
+// --- Instant embedding -------------------------------------------------
+// Mirror of the SQL book_embedding_text(): the string we embed.
+function embeddingText(b: any): string {
+  return (
+    `${b.title ?? ""} — ${(b.authors ?? []).join(", ")}. ` +
+    `${(b.categories ?? []).join(", ")}. ${b.description ?? ""}`
+  ).slice(0, 1500);
+}
+
+// Embed freshly-imported books synchronously so a just-searched title is
+// recommendable immediately, instead of waiting for the 5-minute cron. Uses
+// the same model/params as the cron (512-dim). Best-effort: on any failure
+// the book simply keeps embedding=null and the cron picks it up as before.
+async function embedNewBooks(supabase: any, books: any[]): Promise<void> {
+  const need = books.filter((b) => b && b.embedding == null);
+  const key = Deno.env.get("OPENROUTER_API_KEY");
+  if (!need.length || !key) return;
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "openai/text-embedding-3-small",
+        input: need.map(embeddingText),
+        dimensions: 512,
+      }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const rows = (data.data ?? [])
+      .filter((d: any) => need[d.index])
+      .map((d: any) => ({ id: need[d.index].id, e: d.embedding }));
+    if (rows.length) await supabase.rpc("set_book_embeddings", { p_rows: rows });
+  } catch {
+    // cron fallback covers it
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -411,6 +449,9 @@ Deno.serve(async (req) => {
       seen.add(k);
       books.push(await upsertCanonical(supabase, nb));
     }
+
+    // Make the just-imported titles instantly recommendable.
+    await embedNewBooks(supabase, books);
 
     return new Response(JSON.stringify({ books }), {
       headers: { "content-type": "application/json" },
