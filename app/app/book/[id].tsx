@@ -8,6 +8,7 @@ import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
 import { affiliateUrl } from "@/api/config";
+import { getReadInfo, amazonUrl } from "@/api/reading";
 import { track } from "@/api/analytics";
 import { BookCover } from "@/components/BookCover";
 import { BookRow } from "@/components/BookRow";
@@ -44,6 +45,14 @@ export default function BookPage() {
     queryFn: () => affiliateUrl(book.data?.isbn_13 ?? null),
     enabled: !!book.data,
   });
+  // Free-read availability: matches the book to Project Gutenberg on demand
+  // (and repairs classic author names as a side effect).
+  const readInfo = useQuery({
+    queryKey: ["read-info", id],
+    queryFn: () => getReadInfo(id!),
+    enabled: !!id,
+    staleTime: 1000 * 60 * 60,
+  });
   const similar = useQuery({
     queryKey: ["similar-books", id],
     queryFn: () => getSimilarBooks(id!, 12),
@@ -79,10 +88,12 @@ export default function BookPage() {
   const isRead = ub?.status === "read";
   const isSaved = ub?.status === "want_to_read";
 
-  async function onBuy() {
-    if (!affiliate.data) return;
-    void track("affiliate_click", { bookId: id });
-    Linking.openURL(affiliate.data);
+  async function onBuyAmazon() {
+    // Prefer the affiliate URL when we have one (ISBN-backed); otherwise fall
+    // back to a plain Amazon books search so every book has a buy path.
+    const url = affiliate.data ?? amazonUrl(b);
+    void track("affiliate_click", { bookId: id, affiliate: !!affiliate.data });
+    Linking.openURL(url);
   }
 
   async function onReviewLike(reviewId: string) {
@@ -159,12 +170,35 @@ export default function BookPage() {
             onPress={() => mutateShelf({ liked: !ub?.liked })} />
         </View>
 
-        {/* Amazon — kept in reserve, secondary link */}
-        {affiliate.data ? (
-          <Pressable style={styles.buyLink} onPress={onBuy}>
-            <Text style={styles.buyLinkText}>Disponibile su Amazon ↗</Text>
-          </Pressable>
-        ) : null}
+        {/* Read / buy — free public-domain read when we have it, Amazon always. */}
+        <View style={styles.readBox}>
+          {readInfo.data?.readable && readInfo.data.gutenberg_id ? (
+            <>
+              <Pressable
+                style={styles.readBtn}
+                onPress={() => {
+                  void track("read_open", { bookId: id });
+                  router.push(`/read/${readInfo.data!.gutenberg_id}?bookId=${b.id}`);
+                }}
+              >
+                <Icon name="review" color={colors.onPrimary} size={16} />
+                <Text style={styles.readBtnText}>Leggi gratis</Text>
+              </Pressable>
+              <Pressable style={styles.buyLink} onPress={onBuyAmazon}>
+                <Text style={styles.buyLinkText}>Compra su Amazon ↗</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {!readInfo.isLoading ? (
+                <Text style={styles.notFree}>Non disponibile gratuitamente</Text>
+              ) : null}
+              <Pressable style={styles.buyBtn} onPress={onBuyAmazon}>
+                <Text style={styles.buyBtnText}>Compra su Amazon ↗</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
 
         {/* Dalla critica: attributed external voices — never fake community. */}
         {(externals.data ?? []).length > 0 ? (
@@ -339,7 +373,51 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   rateLabel: { ...typography.bodyMuted },
-  buyLink: { alignItems: "center", paddingVertical: spacing.sm, marginBottom: spacing.lg },
+  readBox: { gap: spacing.sm, marginBottom: spacing.lg },
+  readBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    ...hardShadow,
+  },
+  readBtnText: {
+    color: colors.onPrimary,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  buyBtn: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  buyBtnText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+  },
+  notFree: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  buyLink: { alignItems: "center", paddingVertical: spacing.sm },
   buyLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
   synopsis: { marginBottom: spacing.lg },

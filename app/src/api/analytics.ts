@@ -15,6 +15,8 @@ export type AnalyticsEvent =
   | "comment_created"
   | "user_followed"
   | "affiliate_click"
+  | "read_open"
+  | "read_progress"
   | "feed_opened";
 
 /**

@@ -58,6 +58,7 @@ function RootNavigator() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="book/[id]" options={{ presentation: "card" }} />
+      <Stack.Screen name="read/[id]" />
       <Stack.Screen name="review/[id]" />
       <Stack.Screen name="compose-review" options={{ presentation: "modal" }} />
       <Stack.Screen name="add-to-list" options={{ presentation: "modal" }} />

@@ -55,6 +55,8 @@ export interface Book {
   rating_count: number;
   external_rating: number | null;
   external_ratings_count: number | null;
+  gutenberg_id: number | null;
+  free_read_url: string | null;
   created_at: string;
 }
 

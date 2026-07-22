@@ -28,7 +28,25 @@ interface NormalizedBook {
   isbn_13: string | null;
   isbn_10: string | null;
   categories: string[];
+  gutenberg_id: number | null;
+  free_read_url: string | null;
   providerIds: { provider: "google_books" | "open_library"; external_id: string }[];
+}
+
+// Study guides / summaries / notes pollute book search — never a real book.
+const JUNK_TITLE =
+  /\b(cliffs?notes?|sparknotes?|study guide|summary|summaries|analysis of|a guide to|workbook|quicklet|shmoop|notes on|reading group guide|companion to|the unofficial)\b/i;
+
+function isJunk(title: string, authors: string[]): boolean {
+  if (JUNK_TITLE.test(title)) return true;
+  if (authors.some((a) => /cliffs|sparknotes|bookrags|shmoop/i.test(a))) return true;
+  return false;
+}
+
+// "Dostoyevsky, Fyodor" -> "Fyodor Dostoyevsky".
+function flipName(name: string): string {
+  const p = name.split(",");
+  return p.length === 2 ? `${p[1].trim()} ${p[0].trim()}` : name.trim();
 }
 
 // Map noisy provider category strings onto our controlled genre slugs.
@@ -96,8 +114,47 @@ function normalizeGoogleVolume(v: any): NormalizedBook | null {
     isbn_13: isbn13,
     isbn_10: isbn10,
     categories: mapCategories(info.categories ?? []),
+    gutenberg_id: null,
+    free_read_url: null,
     providerIds: v.id ? [{ provider: "google_books", external_id: v.id }] : [],
   };
+}
+
+// --- Project Gutenberg (Gutendex) — clean canonical data for classics --
+async function gutendexSearch(query: string, limit: number): Promise<NormalizedBook[]> {
+  const res = await fetch(`https://gutendex.com/books?search=${encodeURIComponent(query)}`, {
+    headers: { "User-Agent": "TomoBeta/1.0" },
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.results ?? [])
+    .slice(0, limit)
+    .map((r: any): NormalizedBook | null => {
+      if (!r.title || !(r.authors?.length)) return null;
+      const fmt = r.formats ?? {};
+      const textUrl =
+        fmt["text/plain; charset=utf-8"] || fmt["text/plain; charset=us-ascii"] ||
+        fmt["text/plain"] || null;
+      const author = r.authors[0];
+      const year = author?.death_year ?? author?.birth_year ?? null;
+      return {
+        title: r.title,
+        subtitle: null,
+        authors: r.authors.map((a: any) => flipName(a.name)),
+        description: null,
+        cover_url: fmt["image/jpeg"] ?? null,
+        published_year: year,
+        page_count: null,
+        language: (r.languages ?? [])[0] ?? null,
+        isbn_13: null,
+        isbn_10: null,
+        categories: mapCategories(r.subjects ?? []),
+        gutenberg_id: r.id,
+        free_read_url: textUrl,
+        providerIds: [],
+      };
+    })
+    .filter(Boolean) as NormalizedBook[];
 }
 
 async function googleBooksSearch(query: string, limit: number): Promise<NormalizedBook[]> {
@@ -136,6 +193,8 @@ async function openLibraryByIsbn(isbn: string): Promise<NormalizedBook | null> {
     isbn_13: isbn.length === 13 ? isbn : null,
     isbn_10: isbn.length === 10 ? isbn : null,
     categories: mapCategories((rec.subjects ?? []).map((s: any) => s.name)),
+    gutenberg_id: null,
+    free_read_url: null,
     providerIds: [{ provider: "open_library", external_id: `ISBN:${isbn}` }],
   };
 }
@@ -172,6 +231,8 @@ async function openLibrarySearch(query: string, limit: number): Promise<Normaliz
         isbn_13: isbn13,
         isbn_10: null,
         categories: mapCategories(d.subject ?? []),
+        gutenberg_id: null,
+        free_read_url: null,
         providerIds: d.key ? [{ provider: "open_library", external_id: d.key }] : [],
       };
     })
@@ -211,12 +272,25 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook) {
         isbn_13: nb.isbn_13,
         isbn_10: nb.isbn_10,
         categories: nb.categories,
+        gutenberg_id: nb.gutenberg_id,
+        free_read_url: nb.free_read_url,
+        gutenberg_checked_at: nb.gutenberg_id ? new Date().toISOString() : null,
         dedup_key: dedupKey(nb.title, nb.authors),
       })
       .select("*")
       .single();
     if (error) throw error;
     book = data;
+  } else if (nb.gutenberg_id && !existing.gutenberg_id) {
+    // Enrich an existing row with the free-read link discovered via Gutenberg.
+    await supabase
+      .from("books")
+      .update({
+        gutenberg_id: nb.gutenberg_id,
+        free_read_url: nb.free_read_url,
+        gutenberg_checked_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
   }
 
   // 2) Record provider ids (idempotent) so future lookups resolve instantly.
@@ -253,11 +327,16 @@ Deno.serve(async (req) => {
       const nb = v ? normalizeGoogleVolume(v) : null;
       if (nb) normalized = [nb];
     } else if (body.query) {
-      // Google Books first (richer descriptions), Open Library as a reliable
-      // fallback when Google returns nothing (common without an API key).
+      // Gutenberg first — clean canonical data for public-domain classics
+      // (correct author, free to read). Then Google Books (richer modern
+      // metadata), Open Library as the always-available fallback.
       const q = String(body.query);
       const n = Number(body.limit ?? 10);
-      normalized = await googleBooksSearch(q, n);
+      const [guten, google] = await Promise.all([
+        gutendexSearch(q, Math.min(n, 5)),
+        googleBooksSearch(q, n),
+      ]);
+      normalized = [...guten, ...google];
       if (normalized.length === 0) normalized = await openLibrarySearch(q, n);
     } else {
       return new Response(JSON.stringify({ error: "provide isbn, googleVolumeId or query" }), {
@@ -267,9 +346,14 @@ Deno.serve(async (req) => {
     }
 
     const books = [];
+    const seen = new Set<string>();
     for (const nb of normalized) {
-      // Skip junk rows with no author or title.
+      // Skip rows with no author/title, and study guides / summaries.
       if (!nb.title || nb.authors.length === 0) continue;
+      if (isJunk(nb.title, nb.authors)) continue;
+      const k = dedupKey(nb.title, nb.authors);
+      if (seen.has(k)) continue; // Gutenberg + Google dupes of the same work
+      seen.add(k);
       books.push(await upsertCanonical(supabase, nb));
     }
 
