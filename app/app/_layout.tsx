@@ -20,8 +20,9 @@ function useAuthGate() {
     const group = segments[0];
     const inAuth = group === "(auth)";
     const inOnboarding = group === "onboarding";
-    // Legal pages must be readable before signing up.
-    if (group === "legal") return;
+    // Legal pages must be readable before signing up; the password-reset
+    // landing page must not be hijacked by the boot redirect.
+    if (group === "legal" || group === "reset-password") return;
     // The boot/landing route ("/") has no segment. Signed-in users must be
     // forwarded off it (and off the auth/onboarding stacks) into the app —
     // otherwise they sit on the index spinner forever. Deep links elsewhere

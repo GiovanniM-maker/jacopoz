@@ -64,9 +64,12 @@ export default function SignIn() {
               onChangeText={setPassword}
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button label="Sign in" onPress={onSignIn} loading={loading} />
+            <Button label="Accedi" onPress={onSignIn} loading={loading} />
+            <Link href="/(auth)/forgot-password" style={styles.link}>
+              <Text style={styles.linkText}>Password dimenticata?</Text>
+            </Link>
             <Link href="/(auth)/sign-up" style={styles.link}>
-              <Text style={styles.linkText}>New here? Create an account</Text>
+              <Text style={styles.linkText}>Nuovo qui? Crea un account</Text>
             </Link>
           </View>
         </View>
