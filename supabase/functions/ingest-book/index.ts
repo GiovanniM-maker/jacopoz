@@ -36,17 +36,72 @@ interface NormalizedBook {
 // Study guides / summaries / notes pollute book search — never a real book.
 const JUNK_TITLE =
   /\b(cliffs?notes?|sparknotes?|study guide|summary|summaries|analysis of|a guide to|workbook|quicklet|shmoop|notes on|reading group guide|companion to|the unofficial)\b/i;
+// Conference proceedings / seminars masquerading as authors.
+const JUNK_AUTHOR =
+  /\b(cliffs|sparknotes|bookrags|shmoop|semin[aá]rio|seminar|simp[oó]sio|symposium|congress|congresso|proceedings|atti del|conference)\b/i;
 
 function isJunk(title: string, authors: string[]): boolean {
   if (JUNK_TITLE.test(title)) return true;
-  if (authors.some((a) => /cliffs|sparknotes|bookrags|shmoop/i.test(a))) return true;
+  if (authors.some((a) => JUNK_AUTHOR.test(a))) return true;
+  // Author strings carrying a year-in-parens are almost always event records
+  // ("Seminário … (1985 Rio de Janeiro)"), never a person.
+  if (authors.some((a) => /\(\s*(1[5-9]\d\d|20\d\d)\b/.test(a))) return true;
   return false;
 }
 
-// "Dostoyevsky, Fyodor" -> "Fyodor Dostoyevsky".
+// Cyrillic → Latin, leaning to the forms an Italian reader recognises
+// (Dostoevskij, not Dostoyevsky). Italian users don't want "Фёдор".
+const CYR: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "ë", ж: "ž", з: "z",
+  и: "i", й: "j", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r",
+  с: "s", т: "t", у: "u", ф: "f", х: "ch", ц: "c", ч: "č", ш: "š", щ: "šč",
+  ъ: "", ы: "y", ь: "", э: "e", ю: "ju", я: "ja",
+};
+function hasCyrillic(s: string): boolean {
+  return /[Ѐ-ӿ]/.test(s);
+}
+function translit(s: string): string {
+  let out = "";
+  for (const ch of s) {
+    const low = ch.toLowerCase();
+    const mapped = CYR[low];
+    if (mapped === undefined) { out += ch; continue; }
+    out += ch === low ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1);
+  }
+  return out;
+}
+// Russian patronymic (…ovič / …evič / …ovna / …ična) — checked on the
+// transliterated form and dropped, so we show the familiar
+// "Fëdor Dostoevskij" rather than the full three-part name.
+const PATRONYMIC = /(ovi[čc]|evi[čc]|ovna|evna|i[čc]na)$/i;
+
+// "Dostoyevsky, Fyodor" -> "Fyodor Dostoyevsky"; Cyrillic -> Latin;
+// drops a Russian patronymic when present.
 function flipName(name: string): string {
   const p = name.split(",");
-  return p.length === 2 ? `${p[1].trim()} ${p[0].trim()}` : name.trim();
+  let n = p.length === 2 ? `${p[1].trim()} ${p[0].trim()}` : name.trim();
+  if (hasCyrillic(n)) {
+    n = translit(n);
+    const parts = n.split(/\s+/);
+    if (parts.length === 3 && PATRONYMIC.test(parts[1])) parts.splice(1, 1);
+    n = parts.join(" ");
+  }
+  return n;
+}
+
+// Apply flipName to every author, dropping blanks and duplicates.
+function normalizeAuthors(names: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of names) {
+    const n = flipName(raw);
+    if (!n) continue;
+    const k = n.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(n);
+  }
+  return out;
 }
 
 // Map noisy provider category strings onto our controlled genre slugs.
@@ -103,7 +158,7 @@ function normalizeGoogleVolume(v: any): NormalizedBook | null {
   return {
     title: info.title,
     subtitle: info.subtitle ?? null,
-    authors: info.authors ?? [],
+    authors: normalizeAuthors(info.authors ?? []),
     description: info.description ?? null,
     cover_url:
       info.imageLinks?.thumbnail?.replace("http://", "https://").replace("&edge=curl", "") ??
@@ -140,7 +195,7 @@ async function gutendexSearch(query: string, limit: number): Promise<NormalizedB
       return {
         title: r.title,
         subtitle: null,
-        authors: r.authors.map((a: any) => flipName(a.name)),
+        authors: normalizeAuthors(r.authors.map((a: any) => a.name)),
         description: null,
         cover_url: fmt["image/jpeg"] ?? null,
         published_year: year,
@@ -184,7 +239,7 @@ async function openLibraryByIsbn(isbn: string): Promise<NormalizedBook | null> {
   return {
     title: rec.title,
     subtitle: rec.subtitle ?? null,
-    authors: (rec.authors ?? []).map((a: any) => a.name),
+    authors: normalizeAuthors((rec.authors ?? []).map((a: any) => a.name)),
     description: typeof rec.notes === "string" ? rec.notes : null,
     cover_url: rec.cover?.large ?? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`,
     published_year: Number.isFinite(year) ? year : null,
@@ -218,7 +273,7 @@ async function openLibrarySearch(query: string, limit: number): Promise<Normaliz
       return {
         title: d.title,
         subtitle: null,
-        authors: d.author_name ?? [],
+        authors: normalizeAuthors(d.author_name ?? []),
         description: null,
         cover_url: d.cover_i
           ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg`
