@@ -32,6 +32,7 @@ export interface Genre {
   slug: string;
   name: string;
   sort_order: number;
+  parent_slug: string | null;
 }
 
 export interface Book {
