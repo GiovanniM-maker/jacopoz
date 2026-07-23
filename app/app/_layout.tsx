@@ -69,6 +69,7 @@ function RootNavigator() {
       <Stack.Screen name="settings" />
       <Stack.Screen name="user/[username]" />
       <Stack.Screen name="author/[name]" />
+      <Stack.Screen name="genre/[slug]" />
     </Stack>
   );
 }

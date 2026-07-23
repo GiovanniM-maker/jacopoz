@@ -149,7 +149,7 @@ export default function BookPage() {
         {b.categories.length > 0 ? (
           <View style={styles.chips}>
             {b.categories.map((c: string) => (
-              <Chip key={c} label={c} />
+              <Chip key={c} label={c} onPress={() => router.push(`/genre/${encodeURIComponent(c)}`)} />
             ))}
           </View>
         ) : null}

@@ -4,7 +4,13 @@ import { useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { getBooksByGenre, getGenres, getNewReleases, getTrendingBooks } from "@/api/books";
-import { dismissBook, getRecommendations, logRecoImpressions } from "@/api/reco";
+import {
+  dismissBook,
+  getFreeReadsForYou,
+  getPaidDiscoveries,
+  getRecommendations,
+  logRecoImpressions,
+} from "@/api/reco";
 import { getGenrePrefs } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { AppHeader } from "@/components/AppHeader";
@@ -22,6 +28,8 @@ export default function Home() {
   const qc = useQueryClient();
 
   const recos = useQuery({ queryKey: ["recos"], queryFn: () => getRecommendations(20) });
+  const freeReads = useQuery({ queryKey: ["free-reads"], queryFn: () => getFreeReadsForYou(15) });
+  const paidPicks = useQuery({ queryKey: ["paid-discoveries"], queryFn: () => getPaidDiscoveries(15) });
   const trending = useQuery({ queryKey: ["trending"], queryFn: () => getTrendingBooks(20) });
   const newReleases = useQuery({ queryKey: ["new-releases"], queryFn: () => getNewReleases(20) });
   // Genres are static reference data — cache for a day, never re-fetch on nav.
@@ -68,7 +76,15 @@ export default function Home() {
             <BookRow title="Consigliati per te" books={recos.data} onDismiss={onDismissReco} />
           ) : null}
 
+          {(freeReads.data ?? []).length > 0 ? (
+            <BookRow title="Gratis, consigliati per te" books={freeReads.data ?? []} />
+          ) : null}
+
           <TopTenRow title="Top 10 su Tomo oggi" books={trending.data ?? []} />
+
+          {(paidPicks.data ?? []).length > 0 ? (
+            <BookRow title="Nuove scoperte · a pagamento" books={paidPicks.data ?? []} />
+          ) : null}
 
           {(prefs.data ?? []).map((slug: string) => (
             <GenreRow key={slug} slug={slug} title={genreName(slug)} />

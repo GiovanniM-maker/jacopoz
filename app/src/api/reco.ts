@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { BookReco, UUID } from "@/types/database";
+import type { BookCard, BookReco, UUID } from "@/types/database";
 
 /** Personalized recommendations (semantic + heuristic blend) via RPC. */
 export async function getRecommendations(limit = 20, offset = 0): Promise<BookReco[]> {
@@ -9,6 +9,26 @@ export async function getRecommendations(limit = 20, offset = 0): Promise<BookRe
   });
   if (error) throw error;
   return (data ?? []) as BookReco[];
+}
+
+/** Taste-ranked FREE reads (readable in-app now). */
+export async function getFreeReadsForYou(limit = 15): Promise<BookCard[]> {
+  const { data, error } = await supabase.rpc("get_reco_by_availability", {
+    p_free: true,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data ?? []) as BookCard[];
+}
+
+/** Taste-ranked PAID discoveries (newer titles, buy via Amazon). */
+export async function getPaidDiscoveries(limit = 15): Promise<BookCard[]> {
+  const { data, error } = await supabase.rpc("get_reco_by_availability", {
+    p_free: false,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data ?? []) as BookCard[];
 }
 
 /**
