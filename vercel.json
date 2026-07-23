@@ -5,6 +5,7 @@
   "buildCommand": "cd app && npm install && npx expo export -p web && node scripts/inject-pwa.mjs",
   "outputDirectory": "app/dist",
   "rewrites": [
+    { "source": "/algoritmo", "destination": "/algoritmo.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
