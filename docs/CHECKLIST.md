@@ -1,23 +1,35 @@
 # Tomo — Checklist di implementazione
 
 Checklist viva delle cose da fare, in ordine di priorità. Aggiornata a fine
-sessione "reader + import + PWA". Le voci ✅ sono già in produzione.
+sessione "catalogo + scaffali + icona". Le voci ✅ sono già in produzione.
 
 Legenda effort: **S** = poche ore · **M** = 1–2 giorni · **L** = settimana+.
 
 ---
 
-## ✅ Fatto (questa sessione)
+## ✅ Fatto
 
+**Lettura & catalogo**
 - [x] Lettore in-app per libri di pubblico dominio (scroll, progresso salvato, 90% → "letto")
-- [x] Link Amazon su **ogni** libro (affiliato quando c'è ISBN, altrimenti ricerca)
-- [x] Badge "Leggi gratis" / "Non disponibile gratuitamente" sulla pagina libro
+- [x] Link Amazon su **ogni** libro; badge "Leggi gratis" / "Non disponibile gratuitamente"
 - [x] Nomi autori normalizzati (cirillico → latino, patronimico rimosso) su tutte le fonti
 - [x] Filtro spazzatura (atti di convegni/seminari, guide di studio)
-- [x] Backfill Gutenberg: **1.096 libri** con lettura gratis, tutti i generi
-- [x] PWA installabile: banner al login + voce in Impostazioni + istruzioni iOS
 - [x] Import automatico su ricerca a vuoto (Gutenberg + Google + Open Library)
 - [x] Embedding **sincrono** all'import → libro cercato subito raccomandabile
+- [x] Espansione catalogo guidata dalla ricerca (autore + soggetto correlati)
+- [x] **Seed massivo Project Gutenberg curato**: catalogo 35k → **67k libri**, gratis leggibili ~1.1k → **33k**
+
+**Scoperta & profilazione**
+- [x] Onboarding a 2 step: generi + **sottogeneri** (36) e "libri che hai letto" + voti (semina il vettore di gusto)
+- [x] Righe home "Gratis, consigliati per te" e "Nuove scoperte · a pagamento"
+- [x] Tag categoria cliccabili → pagina Sezione; **sottogeneri navigabili** (chip + ricerca per nome)
+- [x] **Scaffali stile Goodreads**: Voglio leggere / Sto leggendo / Letto / **Non finito (DNF)**, controllo a segmenti sul libro + sezione "Scaffali" nel profilo
+- [x] Fix ricerca onboarding (locale-first, import in background, niente blocco)
+
+**Piattaforma**
+- [x] PWA installabile: banner al login + voce in Impostazioni + istruzioni iOS
+- [x] Nuova **icona app** (lettermark "T" vermiglio, stile pulp)
+- [x] Documento algoritmo su `/algoritmo` (protetto da password, AES-256)
 
 ---
 
@@ -38,8 +50,8 @@ Cose economiche che migliorano il prodotto prima di cercare utenti.
 - [ ] **Tag affiliazione Amazon** (Associates) sui libri più letti, non su tutti — **S**
 - [ ] Migliorare il match Gutenberg cross-lingua (ora l'edizione IT non trova il testo EN) — **M**
 - [ ] Segnalibro/più posizioni di lettura per lo stesso libro — **S**
-- [ ] Onboarding: rendere più forte il taste-picker (cold-start del reco) — **M**
 - [ ] Empty-state curati su feed/ricerca/profilo quando è tutto vuoto — **S**
+- [ ] Tagging dei libri a livello di **sottogenere** (oggi i libri hanno solo il genere madre) — **M**
 
 ---
 
