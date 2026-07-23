@@ -176,3 +176,17 @@ export async function importFromProviders(query: string, limit = 10): Promise<vo
     // ignore — catalog stays as-is
   }
 }
+
+/**
+ * Grow the catalog *around* a search: imports the searched books plus a
+ * cluster of related titles (same author / same subject). Fire-and-forget,
+ * runs in the background so it never blocks the results the user sees —
+ * next time this corner of the catalog is richer for search and reco.
+ */
+export async function expandCatalog(query: string, limit = 10): Promise<void> {
+  try {
+    await supabase.functions.invoke("ingest-book", { body: { query, limit, expand: true } });
+  } catch {
+    // best-effort catalog growth
+  }
+}

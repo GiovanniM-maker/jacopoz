@@ -398,6 +398,50 @@ async function embedNewBooks(supabase: any, books: any[]): Promise<void> {
   }
 }
 
+// Upsert a batch of normalized books, skipping junk and cross-source dupes.
+// `seen` is shared so callers can avoid re-importing the same work twice.
+async function upsertMany(
+  supabase: any,
+  list: NormalizedBook[],
+  seen: Set<string>,
+  cap = Infinity,
+): Promise<any[]> {
+  const out: any[] = [];
+  for (const nb of list) {
+    if (out.length >= cap) break;
+    if (!nb.title || nb.authors.length === 0) continue;
+    if (isJunk(nb.title, nb.authors)) continue;
+    const k = dedupKey(nb.title, nb.authors);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(await upsertCanonical(supabase, nb));
+  }
+  return out;
+}
+
+// Grow the catalog around a search: pull books *related* to the ones just
+// imported — other works by the same author, and titles in the same
+// subject — so the "cluster" around a searched book fills in for next time.
+// Public-domain related titles arrive free-to-read via Gutenberg.
+async function gatherRelated(baseBooks: any[]): Promise<NormalizedBook[]> {
+  const authors = new Set<string>();
+  const cats = new Set<string>();
+  for (const b of baseBooks.slice(0, 3)) {
+    (b.authors ?? []).slice(0, 1).forEach((a: string) => a && authors.add(a));
+    (b.categories ?? []).slice(0, 1).forEach((c: string) => c && cats.add(c));
+  }
+  const tasks: Promise<NormalizedBook[]>[] = [];
+  for (const a of [...authors].slice(0, 2)) {
+    tasks.push(googleBooksSearch(`inauthor:"${a}"`, 10));
+    tasks.push(gutendexSearch(a.split(/\s+/).slice(-1)[0], 5)); // same author on Gutenberg
+  }
+  for (const c of [...cats].slice(0, 1)) {
+    tasks.push(openLibrarySearch(c, 10));
+  }
+  const settled = await Promise.all(tasks.map((t) => t.catch(() => [] as NormalizedBook[])));
+  return settled.flat();
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -438,22 +482,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    const books = [];
     const seen = new Set<string>();
-    for (const nb of normalized) {
-      // Skip rows with no author/title, and study guides / summaries.
-      if (!nb.title || nb.authors.length === 0) continue;
-      if (isJunk(nb.title, nb.authors)) continue;
-      const k = dedupKey(nb.title, nb.authors);
-      if (seen.has(k)) continue; // Gutenberg + Google dupes of the same work
-      seen.add(k);
-      books.push(await upsertCanonical(supabase, nb));
-    }
+    const books = await upsertMany(supabase, normalized, seen);
 
     // Make the just-imported titles instantly recommendable.
     await embedNewBooks(supabase, books);
 
-    return new Response(JSON.stringify({ books }), {
+    // Catalog expansion: pull the cluster of related books around this
+    // search (same author / same subject). Capped, and its embeddings run
+    // too, so the reco engine has more to work with next time. Best-effort.
+    let related: any[] = [];
+    if (body.expand && books.length) {
+      try {
+        const rel = await gatherRelated(books);
+        related = await upsertMany(supabase, rel, seen, 30);
+        await embedNewBooks(supabase, related);
+      } catch {
+        // expansion is best-effort; never fail the base import
+      }
+    }
+
+    return new Response(JSON.stringify({ books, related: related.length }), {
       headers: { "content-type": "application/json" },
     });
   } catch (err) {

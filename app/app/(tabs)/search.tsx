@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { importFromProviders, searchAuthors, searchBooks } from "@/api/books";
+import { expandCatalog, importFromProviders, searchAuthors, searchBooks } from "@/api/books";
 import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { BookCard } from "@/components/BookCard";
@@ -48,7 +48,11 @@ export default function Search() {
   useEffect(() => {
     if (tab === "books" && debounced.length >= 3) {
       void track("search_performed", { q: debounced });
+      // Thin local results → import the direct matches now (fast, refetch).
       if ((books.data?.length ?? 0) < 5) void importFromProviders(debounced, 10).then(() => books.refetch());
+      // Always grow the catalog around this search in the background:
+      // related titles (same author / subject) fill in for next time.
+      void expandCatalog(debounced, 10);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, tab]);
