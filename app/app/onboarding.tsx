@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { getGenres, searchBooks, importFromProviders } from "@/api/books";
 import { getFreeReadsForYou } from "@/api/reco";
 import { setShelf } from "@/api/shelves";
@@ -153,16 +153,25 @@ function BooksStep({
   const results = useQuery({
     queryKey: ["onb-search", debounced],
     queryFn: () => searchBooks(debounced, 20),
-    enabled: debounced.length >= 3,
+    enabled: debounced.length >= 2,
+    placeholderData: keepPreviousData, // no blank flash between searches
   });
 
-  // Import from providers when local search is thin.
+  // If the local catalog is thin for this query, import from providers in the
+  // BACKGROUND — never blocks the input or the results already shown. Runs at
+  // most once per query.
+  const importedFor = useRef<string>("");
   useEffect(() => {
-    if (debounced.length >= 3 && (results.data?.length ?? 0) < 5) {
+    if (
+      debounced.length >= 2 &&
+      importedFor.current !== debounced &&
+      !results.isFetching &&
+      (results.data?.length ?? 0) < 5
+    ) {
+      importedFor.current = debounced;
       void importFromProviders(debounced, 10).then(() => results.refetch());
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced]);
+  }, [debounced, results.data, results.isFetching]);
 
   // Live preview: once a couple of books are in, show what we'd suggest.
   const preview = useQuery({
@@ -174,7 +183,8 @@ function BooksStep({
   async function addBook(book: BookCard) {
     if (read.has(book.id)) return;
     setRead((prev) => new Map(prev).set(book.id, { book, rating: null }));
-    setQuery("");
+    // Keep the query so the user can keep adding from the same results; the
+    // just-added book is filtered out of the list below.
     await setShelf(userId, book.id, { status: "read", rating: null });
   }
   async function rate(bookId: string, rating: number) {
@@ -218,19 +228,32 @@ function BooksStep({
       />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.lg }}>
-        {/* Search results */}
-        {debounced.length >= 3 && (results.data ?? []).length > 0 ? (
+        {/* Search results — local-first, already-added books filtered out */}
+        {debounced.length >= 2 ? (
           <View style={styles.results}>
-            {(results.data ?? []).slice(0, 8).map((b: BookCard) => (
-              <Pressable key={b.id} style={styles.resultRow} onPress={() => addBook(b)}>
-                <BookCover url={b.cover_url} title={b.title} width={34} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.resultTitle} numberOfLines={1}>{b.title}</Text>
-                  <Text style={styles.resultAuthor} numberOfLines={1}>{b.authors[0] ?? ""}</Text>
+            {(() => {
+              const rows = (results.data ?? []).filter((b: BookCard) => !read.has(b.id)).slice(0, 8);
+              if (rows.length > 0) {
+                return rows.map((b: BookCard) => (
+                  <Pressable key={b.id} style={styles.resultRow} onPress={() => addBook(b)}>
+                    <BookCover url={b.cover_url} title={b.title} width={34} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.resultTitle} numberOfLines={1}>{b.title}</Text>
+                      <Text style={styles.resultAuthor} numberOfLines={1}>{b.authors[0] ?? ""}</Text>
+                    </View>
+                    <Text style={styles.add}>＋</Text>
+                  </Pressable>
+                ));
+              }
+              return (
+                <View style={styles.searchHint}>
+                  <ActivityIndicator color={colors.primary} size="small" />
+                  <Text style={styles.searchHintText}>
+                    {results.isFetching ? "Cerco…" : "Importo nuovi titoli…"}
+                  </Text>
                 </View>
-                <Text style={styles.add}>＋</Text>
-              </Pressable>
-            ))}
+              );
+            })()}
           </View>
         ) : null}
 
@@ -317,6 +340,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   results: { gap: 2, marginBottom: spacing.lg },
+  searchHint: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.md },
+  searchHintText: { color: colors.textMuted, fontSize: 14, fontStyle: "italic" },
   resultRow: {
     flexDirection: "row",
     alignItems: "center",
