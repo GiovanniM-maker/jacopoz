@@ -9,30 +9,35 @@ import { getShelfBooks } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
 import { BookCard } from "@/components/BookCard";
 import { ReviewCard } from "@/components/ReviewCard";
+import { SHELF_LABELS } from "@/components/ShelfControl";
 import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, onBand, radius, spacing, typography } from "@/theme";
-import type { BookCard as BookCardType, BookList } from "@/types/database";
+import type { BookCard as BookCardType, BookList, ShelfStatus } from "@/types/database";
 
-type Section = "reviews" | "lists" | "liked";
+type Section = "shelves" | "reviews" | "lists" | "liked";
 const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
 const GOLD = colors.bands[2];
 
 const SECTIONS: { key: Section; label: string }[] = [
+  { key: "shelves", label: "Scaffali" },
   { key: "reviews", label: "Recensioni" },
   { key: "lists", label: "Liste" },
   { key: "liked", label: "Piaciuti" },
 ];
 
+const SHELF_ORDER: ShelfStatus[] = ["want_to_read", "reading", "read", "dnf"];
+
 export default function ProfileScreen() {
   const { session, profile } = useAuth();
   const userId = session?.user.id;
   const qc = useQueryClient();
-  const [section, setSection] = useState<Section>("reviews");
+  const [section, setSection] = useState<Section>("shelves");
   const [listTab, setListTab] = useState<"mine" | "followed">("mine");
+  const [shelfTab, setShelfTab] = useState<ShelfStatus>("read");
 
   const stats = useQuery({
     queryKey: ["stats", userId],
@@ -58,6 +63,11 @@ export default function ProfileScreen() {
     queryKey: ["shelf", userId, "liked"],
     queryFn: () => getShelfBooks(userId!, { liked: true }),
     enabled: !!userId && section === "liked",
+  });
+  const shelf = useQuery({
+    queryKey: ["shelf", userId, shelfTab],
+    queryFn: () => getShelfBooks(userId!, { status: shelfTab }),
+    enabled: !!userId && section === "shelves",
   });
 
   if (!profile) return <ScreenContainer />;
@@ -124,6 +134,37 @@ export default function ProfileScreen() {
             );
           })}
         </View>
+
+        {section === "shelves" ? (
+          <View style={styles.listsWrap}>
+            <View style={styles.shelfToggle}>
+              {SHELF_ORDER.map((st) => (
+                <Pressable
+                  key={st}
+                  style={[styles.shBtn, shelfTab === st && styles.shBtnOn]}
+                  onPress={() => setShelfTab(st)}
+                >
+                  <Text style={[styles.shLabel, shelfTab === st && styles.shLabelOn]} numberOfLines={2}>
+                    {SHELF_LABELS[st]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {(shelf.data ?? []).length === 0 ? (
+              <SectionEmpty
+                icon="📚"
+                title={`Nessun libro in "${SHELF_LABELS[shelfTab]}"`}
+                msg="Apri un libro e scegli il suo scaffale per riempirlo."
+              />
+            ) : (
+              <View style={styles.gridFlush}>
+                {(shelf.data ?? []).map((b: BookCardType) => (
+                  <BookCard key={b.id} book={b} width={CARD_W} showMeta />
+                ))}
+              </View>
+            )}
+          </View>
+        ) : null}
 
         {section === "reviews" ? (
           <View style={styles.feed}>
@@ -330,6 +371,32 @@ const styles = StyleSheet.create({
   tabLabelOn: { color: onBand(GOLD) },
   feed: { paddingHorizontal: spacing.lg },
   listsWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  shelfToggle: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.md },
+  shBtn: {
+    flexGrow: 1,
+    flexBasis: "22%",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 46,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radius.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  shBtnOn: { backgroundColor: colors.primary },
+  shLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  shLabelOn: { color: colors.onPrimary },
+  gridFlush: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, paddingTop: spacing.xs },
   listToggle: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm },
   ltBtn: {
     paddingVertical: spacing.xs,

@@ -6,7 +6,7 @@
 
 export type UUID = string;
 
-export type ShelfStatus = "want_to_read" | "reading" | "read";
+export type ShelfStatus = "want_to_read" | "reading" | "read" | "dnf";
 export type ContentStatus = "visible" | "hidden" | "removed";
 export type LikeableType = "review" | "comment";
 export type BookmarkType = "review" | "comment";

@@ -17,6 +17,7 @@ import { Chip } from "@/components/ui/Chip";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
+import { ShelfControl } from "@/components/ShelfControl";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
@@ -153,6 +154,12 @@ export default function BookPage() {
             ))}
           </View>
         ) : null}
+
+        {/* Reading state — the primary taste signal */}
+        <View style={styles.shelfBox}>
+          <Text style={styles.shelfLabel}>Il tuo scaffale</Text>
+          <ShelfControl value={ub?.status} onChange={(s) => mutateShelf({ status: s })} />
+        </View>
 
         {/* Personal rating */}
         <View style={styles.rateBox}>
@@ -361,6 +368,12 @@ const styles = StyleSheet.create({
   },
   actionLabelActive: { color: colors.star },
   actionLabelPrimary: { color: colors.onPrimary },
+  shelfBox: { gap: spacing.sm, marginBottom: spacing.lg },
+  shelfLabel: {
+    ...typography.caption,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
   rateBox: {
     alignItems: "center",
     gap: spacing.sm,
