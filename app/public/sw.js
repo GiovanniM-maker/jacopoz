@@ -28,6 +28,45 @@ function isStatic(url) {
   );
 }
 
+// ---- Web Push ---------------------------------------------------------
+// Payload shape (from the send-push Edge Function):
+//   { title, body, url, tag }
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_e) {
+    data = { title: "Tomo", body: event.data ? event.data.text() : "" };
+  }
+  const title = data.title || "Tomo";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || "",
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: data.tag || "tomo",
+      data: { url: data.url || "/" },
+    }),
+  );
+});
+
+// Focus an existing tab (or open one) and route to the notification's target.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if ("focus" in client) {
+          client.navigate(target);
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    }),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;

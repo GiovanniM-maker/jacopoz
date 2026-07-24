@@ -85,7 +85,13 @@ non solo consultare libri. In ordine di leva (vedi analisi in chat).
       share sheet (`inviteFriend`) + lettori suggeriti con follow inline
 - [x] **Notifiche di ritorno in-app**: like/commento/follow → riga notifica (trigger DB
       `0032`, campanella con badge non-letti, inbox `/notifications`)
-      · manca ancora il **push PWA** vero (VAPID) — prossimo step
+- [x] **Push PWA vero (VAPID)**: `0033` push_subscriptions + trigger `dispatch_push` →
+      Edge Function `send-push` (npm:web-push, firma VAPID + cifratura payload) →
+      service worker mostra la notifica e apre la schermata giusta. Pulsante "Attiva le
+      notifiche" nell'inbox; re-sync silenzioso al login. Pipeline server testata end-to-end
+      (`{"sent":0}` senza device registrati). Chiavi: pubblica nel client, privata +
+      dispatch secret nei secret Edge/Vault (mai nel repo).
+      · **Su iPhone il push funziona solo se l'app è aggiunta alla schermata Home** (iOS 16.4+)
 
 **Il feed come prodotto principale (non le liste)**
 - [x] **Striscia "Lettori attivi"** (storie stile IG) in cima al tab **Feed**: avatar dei

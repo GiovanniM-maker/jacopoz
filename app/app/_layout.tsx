@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { queryClient } from "@/lib/queryClient";
+import { syncPushIfGranted } from "@/lib/push";
 import { AuthProvider, useAuth } from "@/store/auth";
 import { colors } from "@/theme";
 
@@ -41,8 +42,14 @@ function useAuthGate() {
 }
 
 function RootNavigator() {
-  const { loading } = useAuth();
+  const { loading, session } = useAuth();
   useAuthGate();
+
+  // If the user already granted push permission, keep their device
+  // subscription fresh (endpoints rotate). Never prompts.
+  useEffect(() => {
+    if (session) void syncPushIfGranted();
+  }, [session]);
 
   if (loading) {
     return (
