@@ -16,10 +16,19 @@
 // no per-file refactor. Changing the theme persists the choice and reloads.
 // =====================================================================
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { Dimensions, Platform } from "react-native";
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const COVER_ASPECT = 2 / 3;
+
+// Tablet/desktop: keep content in a centred, readable column instead of
+// stretching edge-to-edge. Screens wrap in ScreenContainer (which caps to
+// this), and grids size their cards off contentWidth() rather than the raw
+// window width.
+export const MAX_CONTENT = 820;
+export function contentWidth(): number {
+  return Math.min(Dimensions.get("window").width, MAX_CONTENT);
+}
 
 // Display faces, no bundled webfonts. Collana uses a condensed heavy
 // "poster" stack (Impact-adjacent — on-brand for pulp); Rivista uses a
@@ -55,60 +64,34 @@ export interface Palette {
 }
 
 export type ThemeName =
-  | "collana" | "collananotte"
   | "rivista" | "rivistanotte"
-  | "notturno" | "social";
+  | "notturno";
 
 export const THEMES: { name: ThemeName; label: string; hint: string }[] = [
-  { name: "collana", label: "Collana", hint: "Chiaro · edicola / tascabile" },
-  { name: "collananotte", label: "Collana Notte", hint: "Scuro · edicola di notte" },
-  { name: "rivista", label: "Rivista", hint: "Chiaro · magazine, verde e rombi" },
+  { name: "rivista", label: "Rivista", hint: "Chiaro · magazine, ottone e rombi" },
   { name: "rivistanotte", label: "Rivista Notte", hint: "Scuro · la banda nera" },
   { name: "notturno", label: "Notturno", hint: "Scuro ed elegante · ottone" },
-  { name: "social", label: "Social", hint: "Chiaro · stile Instagram" },
 ];
 
 const SHARP: Radius = { sm: 0, md: 0, lg: 2, pill: 999 };
 const ROUND: Radius = { sm: 2, md: 4, lg: 8, pill: 999 };
 const SOFT: Radius = { sm: 8, md: 10, lg: 14, pill: 999 };
 
-// The seven collana spine colours, in light and night variants.
+// Warm spine colours cycled across generated covers & avatars (Notturno).
 const BANDS_DAY = ["#D9531E", "#1C3C86", "#E3A11F", "#BE3327", "#216F60", "#7A2E4A", "#1B1610"];
-const BANDS_NIGHT = ["#F26B34", "#3E63C8", "#E9B23A", "#E56A5A", "#3E9C86", "#A24C6C", "#C8A24A"];
-// Lucy-style rubric colours shared by both Rivista modes.
-const BANDS_RIVISTA = ["#FF008C", "#3549D3", "#4E8E79", "#FF5100", "#00E35B"];
+// Lucy-style rubric colours shared by both Rivista modes. The acid green was
+// swapped for brass to match the brass touch colour.
+const BANDS_RIVISTA = ["#FF008C", "#3549D3", "#4E8E79", "#FF5100", "#C49A2B"];
 
 export const palettes: Record<ThemeName, Palette> = {
-  // Newsprint paper + hard black ink + burnt-orange spine. The default.
-  collana: {
-    bg: "#ECE1C8", surface: "#E4D6B6", surfaceAlt: "#D9C7A0", border: "#1B1610",
-    text: "#1B1610", textMuted: "#4A3F30", textFaint: "#8A7A5E",
-    primary: "#D9531E", primaryDim: "#E8A57F", accent: "#1C3C86",
-    success: "#216F60", star: "#BE3327", overlay: "rgba(27,22,16,0.55)",
-    onPrimary: "#ECE1C8", tabBar: "#ECE1C8", isDark: false,
-    radius: SHARP, shadow: "#1B1610", bands: BANDS_DAY,
-    coverPaper: "#ECE1C8", coverInk: "#1B1610", wordmarkGhost: "#1C3C86",
-    texture: true, serifLogo: false, diamonds: false, soft: false,
-  },
-  // Night newsstand: deep warm black, paper-coloured hard borders.
-  collananotte: {
-    bg: "#14110B", surface: "#1E1913", surfaceAlt: "#2A2217", border: "#E7DCC2",
-    text: "#ECE1C8", textMuted: "#B6A888", textFaint: "#7C6F57",
-    primary: "#F26B34", primaryDim: "#7A3A1E", accent: "#E3A11F",
-    success: "#4FA98E", star: "#E56A5A", overlay: "rgba(0,0,0,0.6)",
-    onPrimary: "#14110B", tabBar: "#14110B", isDark: true,
-    radius: SHARP, shadow: "#000000", bands: BANDS_NIGHT,
-    coverPaper: "#1E1913", coverInk: "#ECE1C8", wordmarkGhost: "#3E63C8",
-    texture: true, serifLogo: false, diamonds: false, soft: false,
-  },
   // Cultural magazine (Lucy): pure white, borderless soft cards, serif,
-  // green as the touch colour, acid yellow as the spark.
+  // brass as the touch colour, diamond ratings. The default.
   rivista: {
     bg: "#FFFFFF", surface: "#F6F6F3", surfaceAlt: "#ECEBE6", border: "#E4E4DE",
     text: "#101010", textMuted: "#5A5A5A", textFaint: "#A3A3A3",
-    primary: "#00E35B", primaryDim: "#B8F5CF", accent: "#3549D3",
+    primary: "#C49A2B", primaryDim: "#EAD9A8", accent: "#3549D3",
     success: "#00A947", star: "#101010", overlay: "rgba(16,16,16,0.5)",
-    onPrimary: "#101010", tabBar: "#FFFFFF", isDark: false,
+    onPrimary: "#FFFFFF", tabBar: "#FFFFFF", isDark: false,
     radius: SOFT, shadow: "rgba(16,16,16,0.16)", bands: BANDS_RIVISTA,
     coverPaper: "#F6F6F3", coverInk: "#101010", wordmarkGhost: "transparent",
     texture: false, serifLogo: true, diamonds: true, soft: true,
@@ -117,14 +100,14 @@ export const palettes: Record<ThemeName, Palette> = {
   rivistanotte: {
     bg: "#0E0E0E", surface: "#1A1A1A", surfaceAlt: "#222222", border: "#2A2A2A",
     text: "#FFFFFF", textMuted: "#9B9B9B", textFaint: "#6E6E6E",
-    primary: "#00E35B", primaryDim: "#0A5A2C", accent: "#EFFC73",
-    success: "#00E35B", star: "#FFFFFF", overlay: "rgba(0,0,0,0.65)",
+    primary: "#D2A93A", primaryDim: "#5A4A22", accent: "#EFFC73",
+    success: "#00A947", star: "#FFFFFF", overlay: "rgba(0,0,0,0.65)",
     onPrimary: "#101010", tabBar: "#0E0E0E", isDark: true,
     radius: SOFT, shadow: "rgba(0,0,0,0.6)", bands: BANDS_RIVISTA,
     coverPaper: "#1A1A1A", coverInk: "#FFFFFF", wordmarkGhost: "transparent",
     texture: false, serifLogo: true, diamonds: true, soft: true,
   },
-  // Legacy — warm near-black + ivory + brass.
+  // Warm near-black + ivory + brass — elegant dark reading mode.
   notturno: {
     bg: "#17130E", surface: "#221C15", surfaceAlt: "#2E2619", border: "#342A1D",
     text: "#EFE7DA", textMuted: "#A99A82", textFaint: "#766A56",
@@ -133,17 +116,6 @@ export const palettes: Record<ThemeName, Palette> = {
     onPrimary: "#17130E", tabBar: "#120F0A", isDark: true,
     radius: ROUND, shadow: "rgba(0,0,0,0.5)", bands: BANDS_DAY,
     coverPaper: "#2E2619", coverInk: "#EFE7DA", wordmarkGhost: "rgba(198,161,91,0.4)",
-    texture: false, serifLogo: false, diamonds: false, soft: true,
-  },
-  // Legacy — bright, Instagram-like.
-  social: {
-    bg: "#FAFAFA", surface: "#FFFFFF", surfaceAlt: "#F1F1F1", border: "#DBDBDB",
-    text: "#1A1A1A", textMuted: "#737373", textFaint: "#B0B0B0",
-    primary: "#0095F6", primaryDim: "#B2DFFC", accent: "#0095F6",
-    success: "#2E9E5B", star: "#FFB800", overlay: "rgba(0,0,0,0.5)",
-    onPrimary: "#FFFFFF", tabBar: "#FFFFFF", isDark: false,
-    radius: ROUND, shadow: "rgba(0,0,0,0.25)", bands: BANDS_DAY,
-    coverPaper: "#F1F1F1", coverInk: "#1A1A1A", wordmarkGhost: "rgba(0,149,246,0.25)",
     texture: false, serifLogo: false, diamonds: false, soft: true,
   },
 };
@@ -177,7 +149,7 @@ function makeTypography(c: Palette): Typography {
 }
 
 const STORAGE_KEY = "tomo.theme";
-const DEFAULT: ThemeName = "collana";
+const DEFAULT: ThemeName = "rivista";
 
 // Read the saved theme synchronously at startup (web localStorage). On native
 // this is unavailable, so it starts at the default and applies on next launch.
