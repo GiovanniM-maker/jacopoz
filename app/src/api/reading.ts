@@ -37,13 +37,33 @@ export async function saveReadProgress(bookId: UUID, percent: number): Promise<v
   }
 }
 
-export async function getReadProgress(bookId: UUID): Promise<number> {
+export interface ReadState {
+  percent: number;
+  bookmark: number | null;
+}
+
+export async function getReadProgress(bookId: UUID): Promise<ReadState> {
   const { data } = await supabase
     .from("book_read_progress")
-    .select("percent")
+    .select("percent, bookmark_percent")
     .eq("book_id", bookId)
     .maybeSingle();
-  return data ? Number(data.percent) : 0;
+  return {
+    percent: data ? Number(data.percent) : 0,
+    bookmark: data?.bookmark_percent != null ? Number(data.bookmark_percent) : null,
+  };
+}
+
+/** Drop (or clear, with null) a deliberate bookmark at a scroll position. */
+export async function saveBookmark(bookId: UUID, percent: number | null): Promise<void> {
+  try {
+    await supabase.rpc("save_bookmark", {
+      p_book_id: bookId,
+      p_percent: percent == null ? null : Math.round(percent),
+    });
+  } catch {
+    // best-effort
+  }
 }
 
 /**
