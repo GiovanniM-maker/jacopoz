@@ -1,7 +1,7 @@
 # Tomo — Checklist di implementazione
 
 Checklist viva delle cose da fare, in ordine di priorità. Aggiornata a fine
-sessione "catalogo + scaffali + icona". Le voci ✅ sono già in produzione.
+sessione "qualità dati + temi + velocità". Le voci ✅ sono già in produzione.
 
 Legenda effort: **S** = poche ore · **M** = 1–2 giorni · **L** = settimana+.
 
@@ -26,10 +26,27 @@ Legenda effort: **S** = poche ore · **M** = 1–2 giorni · **L** = settimana+.
 - [x] **Scaffali stile Goodreads**: Voglio leggere / Sto leggendo / Letto / **Non finito (DNF)**, controllo a segmenti sul libro + sezione "Scaffali" nel profilo
 - [x] Fix ricerca onboarding (locale-first, import in background, niente blocco)
 
-**Piattaforma**
+**Qualità dati & lettura**
+- [x] **Copertine**: 94% dei libri (backfill Gutenberg + fallback poster su immagini rotte)
+- [x] **Sinossi**: pipeline arricchimento riempie la descrizione (Open Library + Wikipedia), su apertura + notturno
+- [x] **Segnalibro** deliberato nel lettore (pulsante flottante + marcatore + "riprendi dal segnalibro")
+
+**Piattaforma & UI**
 - [x] PWA installabile: banner al login + voce in Impostazioni + istruzioni iOS
-- [x] Nuova **icona app** (lettermark "T" vermiglio, stile pulp)
+- [x] Nuova **icona app** (lettermark "T" vermiglio)
 - [x] Documento algoritmo su `/algoritmo` (protetto da password, AES-256)
+- [x] **Temi ridotti a 3** (Rivista default, Rivista Notte, Notturno); secondario **verde → ottone**
+- [x] **Responsive tablet/desktop** (colonna centrata max 820px, card ridimensionate)
+- [x] **Velocità**: cron "warm vectors" — reco da ~1s (freddo) a ~3-60ms (caldo); ricerca 80ms, feed 76ms già ok
+
+---
+
+## 🚦 Bloccante velocità (paghi tu, ma è IL fix)
+
+- [ ] **Upgrade compute Supabase** (istanza più grande, più RAM) — **~10-25€/mese** — **S (in dashboard)**
+      → l'indice vettoriale (138 MB) starebbe stabilmente in RAM: consigli/"simili" sempre ~3ms,
+      niente più cache fredda. È la causa radice della lentezza percepita. Il cron "warm vectors"
+      è solo un cerotto.
 
 ---
 
@@ -49,9 +66,34 @@ Cose economiche che migliorano il prodotto prima di cercare utenti.
 - [ ] **Standard Ebooks** come seconda fonte pubblico dominio (impaginazione migliore dei classici) — **M**
 - [ ] **Tag affiliazione Amazon** (Associates) sui libri più letti, non su tutti — **S**
 - [ ] Migliorare il match Gutenberg cross-lingua (ora l'edizione IT non trova il testo EN) — **M**
-- [ ] Segnalibro/più posizioni di lettura per lo stesso libro — **S**
+- [ ] **Segnalibri multipli** per lo stesso libro (ora è uno solo) — **S**
 - [ ] Empty-state curati su feed/ricerca/profilo quando è tutto vuoto — **S**
 - [ ] Tagging dei libri a livello di **sottogenere** (oggi i libri hanno solo il genere madre) — **M**
+- [ ] Chiave **API Google Books** per sinossi/copertine complete (la abiliti tu) — **S**
+
+---
+
+## 📣 Crescita & Social — "deve essere un social, non un catalogo"
+
+Il nord del progetto: portare persone e farle **interagire** (à la Instagram),
+non solo consultare libri. In ordine di leva (vedi analisi in chat).
+
+**Il ciclo virale (fai per primo)**
+- [ ] **Condivisione bella all'esterno**: card/immagine auto-generata di una recensione o
+      di uno scaffale (stile "Letterboxd/Spotify Wrapped") da postare su IG/WhatsApp — **M**
+- [ ] **Inviti**: link personale + "porta un amico"; onboarding che trova gli amici — **M**
+- [ ] **Notifiche di ritorno**: qualcuno ha commentato/messo like/ti segue → push (PWA) — **M**
+
+**Il feed come prodotto principale (non le liste)**
+- [ ] Il **Feed** diventa la home reale: recensioni degli amici + attività, non solo scaffali — **M**
+- [ ] Azioni social a un tap sotto ogni post: like, commento, "anch'io lo voglio leggere" — **S**
+- [ ] Profili pubblici forti: identità di lettore (generi, statistiche, scaffali in vetrina) — **M**
+- [ ] **Formati brevi**: micro-recensione / "shelfie" / citazione con sfondo — il TikTok dei libri — **M**
+
+**Portare i primi utenti (go-to-market)**
+- [ ] Nicchia di partenza: **BookTok/Bookstagram IT** (dark romance, romantasy) — community calde — **—**
+- [ ] Seed di contenuti veri (recensioni reali) perché il feed non sia vuoto al lancio — **M**
+- [ ] Creator/micro-influencer del libro come primi ambasciatori — **—**
 
 ---
 
@@ -71,7 +113,7 @@ Hanno senso solo con traffico reale — non prima.
 
 ## 🧠 Algoritmo (miglioramenti offerti, opzionali)
 
-- [ ] Two-stage funnel per `get_recommendations` (oggi ~327ms su 35k libri; serve a volume) — **M**
+- [ ] Cache dei consigli per-utente (tabella precalcolata) invece di cosine live ad ogni home — **M**
 - [ ] Ricerca semantica ibrida (testo + vettore) invece di sola FTS — **M**
 - [ ] Slot di esplorazione tarati sui dati reali una volta raccolti i primi segnali — **S**
 
