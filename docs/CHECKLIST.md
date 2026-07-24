@@ -88,8 +88,10 @@ non solo consultare libri. In ordine di leva (vedi analisi in chat).
       · manca ancora il **push PWA** vero (VAPID) — prossimo step
 
 **Il feed come prodotto principale (non le liste)**
-- [~] **Anteprima** Feed-first home come schermata separata (`feed-home`) da confrontare
-      senza sostituire la home attuale — decidere se promuoverla
+- [x] **Striscia "Lettori attivi"** (storie stile IG) in cima al tab **Feed**: avatar dei
+      lettori → tocchi → entri nel profilo. Sopra "Per te / Seguiti", scorrono insieme.
+      (Deciso: si tiene l'estetica del Feed attuale; l'anteprima `feed-home` separata è
+      stata rimossa, se ne è preso solo il pezzo delle storie.)
 - [ ] Il **Feed** diventa la home reale: recensioni degli amici + attività, non solo scaffali — **M**
 - [ ] Azioni social a un tap sotto ogni post: like, commento, "anch'io lo voglio leggere" — **S**
 - [ ] Profili pubblici forti: identità di lettore (generi, statistiche, scaffali in vetrina) — **M**

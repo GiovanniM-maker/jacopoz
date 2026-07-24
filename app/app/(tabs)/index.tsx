@@ -69,11 +69,6 @@ export default function Home() {
           <Text style={styles.mastheadText}>Anno I · N°07</Text>
         </View>
 
-        {/* Preview entry: the Feed-first home concept, side by side with this one. */}
-        <Pressable style={styles.betaPill} onPress={() => router.push("/feed-home")}>
-          <Text style={styles.betaPillText}>✦ Prova la nuova Home a Feed →</Text>
-        </Pressable>
-
         {hero ? <IssueHero book={hero} /> : null}
 
         <View style={styles.rows}>
@@ -163,22 +158,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800",
     letterSpacing: 2,
-    textTransform: "uppercase",
-  },
-  betaPill: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    alignItems: "center",
-  },
-  betaPillText: {
-    color: colors.onPrimary,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.5,
     textTransform: "uppercase",
   },
   issue: {
