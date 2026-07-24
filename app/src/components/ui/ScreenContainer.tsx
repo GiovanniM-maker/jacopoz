@@ -1,7 +1,7 @@
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import Svg, { Circle, Defs, Pattern, Rect } from "react-native-svg";
-import { colors, spacing } from "@/theme";
+import { colors, MAX_CONTENT, spacing } from "@/theme";
 
 interface Props {
   children?: React.ReactNode;
@@ -41,5 +41,6 @@ export function ScreenContainer({ children, padded, edges = ["top"], style }: Pr
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  inner: { flex: 1 },
+  // Centred, width-capped column so tablets/desktop don't stretch content.
+  inner: { flex: 1, width: "100%", maxWidth: MAX_CONTENT, alignSelf: "center" },
 });

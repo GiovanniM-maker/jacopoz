@@ -1,16 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo } from "react";
-import { Dimensions, FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { getBooksByGenre, getGenres, importFromProviders, searchBooks } from "@/api/books";
 import { BookCard } from "@/components/BookCard";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { colors, displayFont, spacing, typography } from "@/theme";
+import { contentWidth, colors, displayFont, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType, Genre } from "@/types/database";
 
-const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
+const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 /**
  * A genre or subgenre section, reached from a book's category tags or from a

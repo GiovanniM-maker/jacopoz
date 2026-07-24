@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { expandCatalog, importFromProviders, searchAuthors, searchBooks } from "@/api/books";
 import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
-import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
+import { contentWidth, collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
 
 type Tab = "books" | "authors" | "users";
 
@@ -60,7 +60,7 @@ export default function Search() {
   }, [debounced, tab]);
 
   const cardWidth = useMemo(
-    () => (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3,
+    () => (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3,
     [],
   );
 

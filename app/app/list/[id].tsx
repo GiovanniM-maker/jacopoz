@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   deleteList,
   followList,
@@ -17,10 +17,10 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { confirmDialog } from "@/lib/confirm";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { colors, displayFont, spacing, typography } from "@/theme";
+import { contentWidth, colors, displayFont, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType } from "@/types/database";
 
-const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
+const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 export default function ListDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();

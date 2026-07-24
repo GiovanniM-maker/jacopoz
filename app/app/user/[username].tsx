@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { blockUser, isBlocked, reportContent, unblockUser } from "@/api/moderation";
 import { getProfileByUsername, getProfileStats } from "@/api/profile";
 import { getShelfBooks } from "@/api/shelves";
@@ -12,10 +12,10 @@ import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { collanaMark, colors, displayFont, spacing, typography } from "@/theme";
+import { contentWidth, collanaMark, colors, displayFont, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType } from "@/types/database";
 
-const CARD_W = (Dimensions.get("window").width - spacing.lg * 2 - spacing.md * 2) / 3;
+const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 export default function PublicProfile() {
   const { username } = useLocalSearchParams<{ username: string }>();
