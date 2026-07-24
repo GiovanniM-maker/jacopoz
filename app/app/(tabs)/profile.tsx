@@ -78,14 +78,20 @@ export default function ProfileScreen() {
     <ScreenContainer edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
-          <Pressable style={styles.topTile} onPress={() => router.push("/saved")} hitSlop={8}
-            accessibilityLabel="Salvati">
-            <Icon name="bookmark" color={colors.text} size={19} />
+          <Pressable style={styles.topTile} onPress={() => router.push("/find-friends")} hitSlop={8}
+            accessibilityLabel="Trova lettori">
+            <Icon name="community" color={colors.text} size={19} />
           </Pressable>
-          <Pressable style={styles.topTile} onPress={() => router.push("/settings")} hitSlop={8}
-            accessibilityLabel="Impostazioni">
-            <Icon name="settings" color={colors.text} size={19} />
-          </Pressable>
+          <View style={styles.topRight}>
+            <Pressable style={styles.topTile} onPress={() => router.push("/saved")} hitSlop={8}
+              accessibilityLabel="Salvati">
+              <Icon name="bookmark" color={colors.text} size={19} />
+            </Pressable>
+            <Pressable style={styles.topTile} onPress={() => router.push("/settings")} hitSlop={8}
+              accessibilityLabel="Impostazioni">
+              <Icon name="settings" color={colors.text} size={19} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Identity tessera */}
@@ -301,10 +307,12 @@ function SectionEmpty({ icon, title, msg }: { icon: string; title: string; msg: 
 const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+  topRight: { flexDirection: "row", gap: spacing.sm },
   topTile: {
     width: 40,
     height: 36,

@@ -32,6 +32,31 @@ export async function searchUsers(query: string, limit = 30): Promise<Profile[]>
   return (data ?? []) as Profile[];
 }
 
+/**
+ * Readers to suggest following: the most active accounts the current user
+ * doesn't already follow (and isn't). Ranked by review activity, then
+ * followers. Powers the "Trova lettori" screen — the discovery half of the
+ * social loop. Overfetches then filters client-side so a handful of already
+ * followed accounts never empties the list.
+ */
+export async function getSuggestedReaders(limit = 20): Promise<Profile[]> {
+  const { data: sess } = await supabase.auth.getSession();
+  const me = sess.session?.user.id;
+
+  let followed: string[] = [];
+  if (me) followed = (await getFollowing(me)).map((u) => u.id);
+  const exclude = new Set<string>([...(me ? [me] : []), ...followed]);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("followers_count", { ascending: false })
+    .order("books_read_count", { ascending: false })
+    .limit(limit + exclude.size + 10);
+  if (error) throw error;
+  return ((data ?? []) as Profile[]).filter((p) => !exclude.has(p.id)).slice(0, limit);
+}
+
 /** Permanently delete the signed-in user's account and all their data. */
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.rpc("delete_my_account");

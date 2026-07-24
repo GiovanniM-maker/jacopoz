@@ -79,12 +79,17 @@ Il nord del progetto: portare persone e farle **interagire** (à la Instagram),
 non solo consultare libri. In ordine di leva (vedi analisi in chat).
 
 **Il ciclo virale (fai per primo)**
-- [ ] **Condivisione bella all'esterno**: card/immagine auto-generata di una recensione o
-      di uno scaffale (stile "Letterboxd/Spotify Wrapped") da postare su IG/WhatsApp — **M**
-- [ ] **Inviti**: link personale + "porta un amico"; onboarding che trova gli amici — **M**
-- [ ] **Notifiche di ritorno**: qualcuno ha commentato/messo like/ti segue → push (PWA) — **M**
+- [x] **Condivisione bella all'esterno**: card magazine-cover auto-generata di un libro
+      (`shareBookCard`, SVG→PNG, Web Share API) da postare su IG/WhatsApp
+- [x] **Inviti + trova amici**: schermata "Trova lettori" (`find-friends`) con invito via
+      share sheet (`inviteFriend`) + lettori suggeriti con follow inline
+- [x] **Notifiche di ritorno in-app**: like/commento/follow → riga notifica (trigger DB
+      `0032`, campanella con badge non-letti, inbox `/notifications`)
+      · manca ancora il **push PWA** vero (VAPID) — prossimo step
 
 **Il feed come prodotto principale (non le liste)**
+- [~] **Anteprima** Feed-first home come schermata separata (`feed-home`) da confrontare
+      senza sostituire la home attuale — decidere se promuoverla
 - [ ] Il **Feed** diventa la home reale: recensioni degli amici + attività, non solo scaffali — **M**
 - [ ] Azioni social a un tap sotto ogni post: like, commento, "anch'io lo voglio leggere" — **S**
 - [ ] Profili pubblici forti: identità di lettore (generi, statistiche, scaffali in vetrina) — **M**
