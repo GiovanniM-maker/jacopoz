@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getBook, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
@@ -20,6 +20,7 @@ import { ReviewCard } from "@/components/ReviewCard";
 import { ShelfControl } from "@/components/ShelfControl";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
+import { shareBookCard } from "@/lib/shareCard";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing, typography } from "@/theme";
 import type { ExternalReview, FeedItem } from "@/types/database";
@@ -176,6 +177,22 @@ export default function BookPage() {
           <ActionButton icon="heart" label="Like" active={!!ub?.liked}
             onPress={() => mutateShelf({ liked: !ub?.liked })} />
         </View>
+
+        {Platform.OS === "web" ? (
+          <Pressable
+            style={styles.shareBtn}
+            onPress={() =>
+              void shareBookCard({
+                title: b.title,
+                author: b.authors[0],
+                rating: ub?.rating,
+                status: ub?.status,
+              })
+            }
+          >
+            <Text style={styles.shareBtnText}>Condividi ↗</Text>
+          </Pressable>
+        ) : null}
 
         {/* Read / buy — free public-domain read when we have it, Amazon always. */}
         <View style={styles.readBox}>
@@ -344,7 +361,23 @@ const styles = StyleSheet.create({
   ratingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   ratingText: { color: colors.textMuted, fontSize: 13 },
   meta: { color: colors.textFaint, fontSize: 13, marginTop: spacing.xs },
-  actions: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.lg },
+  actions: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm },
+  shareBtn: {
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+  },
+  shareBtnText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
   action: {
     flex: 1,
     flexDirection: "row",
