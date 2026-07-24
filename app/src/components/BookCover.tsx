@@ -1,4 +1,5 @@
 import { Image } from "expo-image";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import {
   COVER_ASPECT,
@@ -29,7 +30,12 @@ export function BookCover({ url, title, width }: Props) {
   const compact = width < 64;
   const { band, number } = collanaMark(title);
 
-  if (url) {
+  // A broken/404 cover URL must degrade to the generated poster, not an empty
+  // frame. Reset the failed flag whenever the URL changes (list recycling).
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [url]);
+
+  if (url && !failed) {
     return (
       <View style={[styles.frame, compact ? styles.frameThin : hardShadow, { width, height }]}>
         <Image
@@ -37,6 +43,7 @@ export function BookCover({ url, title, width }: Props) {
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
           transition={150}
+          onError={() => setFailed(true)}
         />
       </View>
     );
