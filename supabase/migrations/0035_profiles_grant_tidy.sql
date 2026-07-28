@@ -1,0 +1,12 @@
+-- =====================================================================
+-- 0035 — tidy up unused profiles grants (defense in depth)
+--
+-- profiles has no client INSERT/DELETE policy, so RLS already denies those
+-- (a client DELETE silently affects 0 rows, an INSERT is rejected). The
+-- leftover table-level INSERT/DELETE grants were therefore dead but untidy.
+-- Revoke them so the privilege surface matches intent and a client DELETE
+-- returns an honest error instead of a misleading 204. Profile rows are
+-- created by handle_new_user (trigger) and removed via delete_my_account
+-- (SECURITY DEFINER) / auth.users cascade — neither needs client grants.
+-- =====================================================================
+revoke insert, delete on public.profiles from authenticated, anon;
