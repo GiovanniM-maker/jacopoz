@@ -23,9 +23,10 @@ export default function Community() {
     queryFn: () => (feed === "for_you" ? getCommunityFeed(30) : getFollowingFeed(30)),
   });
 
-  // Active-readers strip (stories-like): distinct authors from the community,
-  // fetched independently so it's populated even on the "Seguiti" tab.
-  const readersQ = useQuery({ queryKey: ["feed-readers"], queryFn: () => getCommunityFeed(30) });
+  // Active-readers strip (stories-like): distinct authors from the community.
+  // Shares the "for_you" feed's cache key so it's not a duplicate RPC and stays
+  // fresh under the same ["feed"] invalidations.
+  const readersQ = useQuery({ queryKey: ["feed", "for_you"], queryFn: () => getCommunityFeed(30) });
   const readers = dedupeAuthors(readersQ.data ?? []).slice(0, 12);
 
   async function onLike(item: FeedItem) {

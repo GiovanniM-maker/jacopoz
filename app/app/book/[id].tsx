@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getBook, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
@@ -19,6 +19,7 @@ import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ShelfControl } from "@/components/ShelfControl";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { goBack } from "@/lib/nav";
 import { shareBookCard } from "@/lib/shareCard";
 import { useAuth } from "@/store/auth";
@@ -30,6 +31,7 @@ export default function BookPage() {
   const { session } = useAuth();
   const userId = session?.user.id;
   const qc = useQueryClient();
+  const shelfBusy = useRef(false);
 
   const book = useQuery({ queryKey: ["book", id], queryFn: () => getBook(id!), enabled: !!id });
   const userBook = useQuery({
@@ -76,7 +78,15 @@ export default function BookPage() {
 
   async function mutateShelf(patch: Parameters<typeof setShelf>[2]) {
     if (!userId || !id) return;
-    await setShelf(userId, id, patch);
+    // setShelf is read-modify-write; serialise so two quick taps (e.g. rating
+    // then like) can't overwrite each other with a stale snapshot.
+    if (shelfBusy.current) return;
+    shelfBusy.current = true;
+    try {
+      await setShelf(userId, id, patch);
+    } finally {
+      shelfBusy.current = false;
+    }
     qc.invalidateQueries({ queryKey: ["user-book", id, userId] });
     qc.invalidateQueries({ queryKey: ["book", id] });
     qc.invalidateQueries({ queryKey: ["shelf", userId] });
@@ -85,7 +95,16 @@ export default function BookPage() {
     qc.invalidateQueries({ queryKey: ["my-review", id, userId] });
   }
 
-  if (!book.data) return <ScreenContainer />;
+  if (book.isLoading) return <LoadingScreen backFallback="/(tabs)" />;
+  if (book.isError) return <ErrorScreen backFallback="/(tabs)" onRetry={() => book.refetch()} />;
+  if (!book.data)
+    return (
+      <ErrorScreen
+        backFallback="/(tabs)"
+        title="Libro non trovato"
+        message="Questo libro non è più disponibile."
+      />
+    );
   const b = book.data;
   const ub = userBook.data;
   const mark = collanaMark(b.title);
@@ -125,8 +144,8 @@ export default function BookPage() {
         <View style={styles.hero}>
           <BookCover url={b.cover_url} title={b.title} width={130} />
           <View style={styles.heroInfo}>
-            <Text style={styles.title}>{b.title}</Text>
-            <Text style={styles.author}>{b.authors.join(", ")}</Text>
+            <Text style={styles.title} numberOfLines={3}>{b.title}</Text>
+            <Text style={styles.author} numberOfLines={2}>{b.authors.join(", ")}</Text>
             <View style={styles.ratingRow}>
               <RatingStars value={bookAvgRating(b)} size={16} />
               <Text style={styles.ratingText}>

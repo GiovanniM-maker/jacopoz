@@ -24,8 +24,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function loadProfile(userId: string) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    setProfile((data as Profile) ?? null);
+    // Right after sign-up the profile row is created by a DB trigger and may
+    // not be visible on the first read — retry once before giving up, and use
+    // maybeSingle so a transient error/empty result doesn't throw.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      if (data) {
+        setProfile(data as Profile);
+        return;
+      }
+      if (attempt === 0 && (error || !data)) {
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+    setProfile(null);
   }
 
   useEffect(() => {

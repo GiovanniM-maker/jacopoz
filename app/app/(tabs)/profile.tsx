@@ -14,6 +14,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { LoadingScreen } from "@/components/ui/ScreenState";
 import { useAuth } from "@/store/auth";
 import { MAX_CONTENT, collanaMark, colors, displayFont, onBand, radius, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType, BookList, ShelfStatus } from "@/types/database";
@@ -73,7 +74,7 @@ export default function ProfileScreen() {
     enabled: !!userId && section === "shelves",
   });
 
-  if (!profile) return <ScreenContainer />;
+  if (!profile) return <LoadingScreen header={false} />;
   const s = stats.data;
   const readerNo = collanaMark(profile.username).number.padStart(3, "0");
 

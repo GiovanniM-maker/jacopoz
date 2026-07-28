@@ -32,7 +32,7 @@ export default function Search() {
   const books = useQuery({
     queryKey: ["search-books", debounced],
     queryFn: () => searchBooks(debounced, 30),
-    enabled: tab === "books",
+    enabled: tab === "books" && debounced.length >= 2,
   });
   const authors = useQuery({
     queryKey: ["search-authors", debounced],
@@ -45,19 +45,34 @@ export default function Search() {
     enabled: tab === "users" && debounced.length >= 2,
   });
 
-  // Guard so background catalog work runs at most once per distinct query.
+  // Grow the catalog around each distinct query at most once (background).
   const grownFor = useRef<string>("");
   useEffect(() => {
     if (tab === "books" && debounced.length >= 3 && grownFor.current !== debounced) {
       grownFor.current = debounced;
       void track("search_performed", { q: debounced });
-      // Thin local results → import the direct matches now (fast, refetch).
-      if ((books.data?.length ?? 0) < 5) void importFromProviders(debounced, 10).then(() => books.refetch());
-      // Grow the catalog around this search in the background (related titles).
       void expandCatalog(debounced, 10);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, tab]);
+
+  // Import direct matches from providers ONLY once the local search has settled
+  // and actually came back thin — not blindly on every keystroke.
+  const importedFor = useRef<string>("");
+  useEffect(() => {
+    if (
+      tab === "books" &&
+      debounced.length >= 3 &&
+      !books.isFetching &&
+      books.isSuccess &&
+      (books.data?.length ?? 0) < 5 &&
+      importedFor.current !== debounced
+    ) {
+      importedFor.current = debounced;
+      void importFromProviders(debounced, 10).then(() => books.refetch());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debounced, tab, books.isFetching, books.isSuccess, books.data]);
 
   const cardWidth = useMemo(
     () => (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3,

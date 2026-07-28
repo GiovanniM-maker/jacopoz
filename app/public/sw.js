@@ -3,7 +3,10 @@
 //   • /_expo/static/* and image/font assets → cache-first (hashed, immutable)
 //   • navigations (HTML) → network-first, fall back to cached shell offline
 //   • Supabase API and auth → never cached (always network)
-const CACHE = "tomo-v1";
+// __BUILD_ID__ is replaced at build time (scripts/inject-pwa.mjs) so every
+// deploy gets a fresh cache name → the activate handler purges the old one and
+// stale assets never linger.
+const CACHE = "tomo-__BUILD_ID__";
 const SHELL = "/";
 
 self.addEventListener("install", (event) => {

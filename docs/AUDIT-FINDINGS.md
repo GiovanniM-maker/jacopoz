@@ -124,6 +124,33 @@ sicurezza client ed edge functions, UX/PWA/accessibilità. Legenda:
 
 ---
 
+## Seconda tornata di fix (robustezza & PWA)
+
+Risolti dal backlog ⏳:
+
+- ✅ **Schermate bianche** → nuovo componente `ScreenState` (loading + errore con
+  "Riprova", header sempre montato) applicato a `book/[id]`, `user/[username]`,
+  `list/[id]`, `profile`. Niente più pagine vuote da cui non si esce.
+- ✅ **`auth.loadProfile`** ora ritenta (gestisce la race post-registrazione) e
+  usa `maybeSingle` invece di degradare a profilo nullo.
+- ✅ **Doppio tap**: follow (`user/[username]`) via `useMutation` ottimistica con
+  `isPending` + invalidazione `stats`; bookmark idempotente (unique-violation
+  ignorata); shelf serializzato (guard in-flight) così rating/like non "tornano".
+- ✅ **Aggiornamento service worker**: nome cache versionato per build
+  (`inject-pwa` stampa un build id) + `registration.update()` al ritorno in
+  focus → le PWA installate ricevono i deploy nuovi (niente auto-reload, per
+  evitare loop su iOS).
+- ✅ **Ricerca**: niente più import ad ogni tasto (parte solo quando i risultati
+  locali sono davvero pochi *dopo* il fetch) + niente 30 libri a caso con
+  termine vuoto (soglia ≥ 2).
+- ✅ **`community`**: la striscia "Lettori attivi" riusa la cache di "Per te"
+  (niente RPC duplicata, si aggiorna con le stesse invalidazioni).
+- ✅ **Accessibilità (parziale)**: `accessibilityLabel` su like/segnala/stelle,
+  touch target portati a 44px; `numberOfLines` sul titolo libro.
+
+Restano nel backlog: `onboarding`/`settings` error-check, ripristino posizione
+lettura, safe-area inferiore, sweep a11y completo, banner offline, `algoritmo.html`.
+
 ## Aree verificate e pulite
 
 - **Nessun secret** nel repo, nella history git, né nel bundle web (private key

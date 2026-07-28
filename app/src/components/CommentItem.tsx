@@ -57,7 +57,13 @@ export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, 
             </Pressable>
           ) : null}
           {onReport ? (
-            <Pressable onPress={onReport} hitSlop={8} style={styles.reportBtn}>
+            <Pressable
+              onPress={onReport}
+              hitSlop={12}
+              style={styles.reportBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Segnala commento"
+            >
               <Icon name="flag" color={colors.textFaint} size={14} />
             </Pressable>
           ) : null}

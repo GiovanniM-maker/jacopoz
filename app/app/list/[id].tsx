@@ -14,6 +14,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { confirmDialog } from "@/lib/confirm";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
@@ -60,7 +61,12 @@ export default function ListDetail() {
     goBack("/(tabs)/profile");
   }
 
-  if (!list.data) return <ScreenContainer />;
+  if (list.isLoading) return <LoadingScreen backFallback="/(tabs)/profile" />;
+  if (list.isError) return <ErrorScreen backFallback="/(tabs)/profile" onRetry={() => list.refetch()} />;
+  if (!list.data)
+    return (
+      <ErrorScreen backFallback="/(tabs)/profile" title="Lista non trovata" message="Questa lista non esiste più." />
+    );
   const l = list.data;
 
   return (

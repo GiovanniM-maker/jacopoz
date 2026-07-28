@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { blockUser, isBlocked, reportContent, unblockUser } from "@/api/moderation";
@@ -10,6 +10,7 @@ import { BookCard } from "@/components/BookCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
 import { contentWidth, collanaMark, colors, displayFont, spacing, typography } from "@/theme";
@@ -73,15 +74,25 @@ export default function PublicProfile() {
     await reportContent("user", targetId);
   }
 
-  async function onToggleFollow() {
-    if (!targetId) return;
-    if (following.data) await unfollowUser(targetId);
-    else await followUser(targetId);
-    qc.invalidateQueries({ queryKey: ["is-following", targetId] });
-    qc.invalidateQueries({ queryKey: ["profile-by-username", username] });
-  }
+  // Optimistic follow toggle guarded against double-taps (a second insert would
+  // violate the follows PK). isPending disables the button while in flight.
+  const followMut = useMutation({
+    mutationFn: () => (following.data ? unfollowUser(targetId!) : followUser(targetId!)),
+    onMutate: () => qc.setQueryData(["is-following", targetId], !following.data),
+    onError: () => qc.setQueryData(["is-following", targetId], following.data),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["is-following", targetId] });
+      qc.invalidateQueries({ queryKey: ["stats", targetId] });
+      qc.invalidateQueries({ queryKey: ["profile-by-username", username] });
+    },
+  });
 
-  if (!profile.data) return <ScreenContainer />;
+  if (profile.isLoading) return <LoadingScreen backFallback="/(tabs)" />;
+  if (profile.isError) return <ErrorScreen backFallback="/(tabs)" onRetry={() => profile.refetch()} />;
+  if (!profile.data)
+    return (
+      <ErrorScreen backFallback="/(tabs)" title="Profilo non trovato" message="Questo lettore non esiste più." />
+    );
   const p = profile.data;
   const readerNo = collanaMark(p.username).number.padStart(3, "0");
 
@@ -102,7 +113,8 @@ export default function PublicProfile() {
               <Button
                 label={following.data ? "Seguito" : "Segui"}
                 variant={following.data ? "secondary" : "primary"}
-                onPress={onToggleFollow}
+                onPress={() => followMut.mutate()}
+                disabled={followMut.isPending}
                 style={styles.followBtn}
               />
               <View style={styles.modRow}>
