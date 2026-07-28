@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { colors, displayFont } from "@/theme";
 
@@ -9,6 +10,9 @@ function tabIcon(name: IconName) {
 }
 
 export default function TabsLayout() {
+  // Extend the bar into the home-indicator area so labels aren't overlapped in
+  // an installed PWA / on notched iPhones.
+  const insets = useSafeAreaInsets();
   return (
     <Tabs
       screenOptions={{
@@ -20,7 +24,8 @@ export default function TabsLayout() {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
           borderTopWidth: 2,
-          height: 66,
+          height: 66 + insets.bottom,
+          paddingBottom: insets.bottom,
         },
         tabBarItemStyle: { paddingTop: 8, paddingBottom: 4 },
         tabBarLabelStyle: {

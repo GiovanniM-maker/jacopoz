@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { queryClient } from "@/lib/queryClient";
 import { syncPushIfGranted } from "@/lib/push";
 import { AuthProvider, useAuth } from "@/store/auth";
@@ -91,6 +92,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <StatusBar style="light" />
+            <OfflineBanner />
             <RootNavigator />
           </AuthProvider>
         </QueryClientProvider>

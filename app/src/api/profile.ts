@@ -98,10 +98,13 @@ export async function saveOnboarding(userId: UUID, genreSlugs: string[]): Promis
       .insert(genreSlugs.map((slug) => ({ user_id: userId, genre_slug: slug })));
     if (error) throw error;
   }
-  await supabase
+  // Must succeed: onboarded_at is what lets the user out of the onboarding
+  // gate. If it silently failed, they'd be looping back here forever.
+  const { error: profErr } = await supabase
     .from("profiles")
     .update({ onboarded_at: new Date().toISOString() })
     .eq("id", userId);
+  if (profErr) throw profErr;
   void track("onboarding_completed", { genres: genreSlugs.length });
 }
 

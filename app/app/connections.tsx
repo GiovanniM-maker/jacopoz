@@ -38,9 +38,9 @@ export default function Connections() {
         renderItem={({ item }) => (
           <Pressable style={styles.row} onPress={() => router.push(`/user/${item.username}`)}>
             <Avatar url={item.avatar_url} name={item.display_name} size={44} />
-            <View>
-              <Text style={styles.name}>{item.display_name}</Text>
-              <Text style={styles.username}>@{item.username}</Text>
+            <View style={styles.nameWrap}>
+              <Text style={styles.name} numberOfLines={1}>{item.display_name}</Text>
+              <Text style={styles.username} numberOfLines={1}>@{item.username}</Text>
             </View>
           </Pressable>
         )}
@@ -57,6 +57,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+  nameWrap: { flex: 1 },
   name: { color: colors.text, fontSize: 16, fontWeight: "600" },
   username: { color: colors.textMuted, fontSize: 13 },
 });

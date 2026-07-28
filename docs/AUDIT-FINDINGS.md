@@ -148,8 +148,25 @@ Risolti dal backlog ⏳:
 - ✅ **Accessibilità (parziale)**: `accessibilityLabel` su like/segnala/stelle,
   touch target portati a 44px; `numberOfLines` sul titolo libro.
 
-Restano nel backlog: `onboarding`/`settings` error-check, ripristino posizione
-lettura, safe-area inferiore, sweep a11y completo, banner offline, `algoritmo.html`.
+## Terza tornata (chiusura backlog)
+
+- ✅ **`onboarding`/`settings` error-check**: `saveOnboarding` propaga l'errore su
+  `onboarded_at` (niente più loop di onboarding); `settings` mostra un errore e
+  fa `signOut` solo se la cancellazione account è andata a buon fine; il salva
+  profilo non resta più bloccato in loading.
+- ✅ **Ripristino posizione di lettura**: il lettore ora popola le dimensioni da
+  `onLayout`/`onContentSizeChange` (non solo dallo scroll), così all'apertura
+  riprende dal punto giusto e mostra "Riprendi dal segnalibro".
+- ✅ **Banner offline** globale (web) quando la connessione cade.
+- ✅ **Safe-area inferiore**: la tab bar si estende sotto l'home indicator (niente
+  più etichette coperte in PWA su iPhone).
+- ✅ **Accessibilità** (ulteriore): label sull'azione destra dell'header,
+  `numberOfLines` sui nomi nelle liste connessioni.
+
+Resta come **decisione del prodotto** (non un bug): `public/algoritmo.html` è un
+documento cifrato servito pubblicamente — se contiene qualcosa di sensibile,
+usare una passphrase ad alta entropia o toglierlo dal build pubblico. Minori
+rimasti: sweep a11y esaustivo, safe-area del composer commenti.
 
 ## Aree verificate e pulite
 

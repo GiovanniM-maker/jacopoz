@@ -18,6 +18,7 @@ export default function Settings() {
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [installable, setInstallable] = useState(canInstall());
 
   useEffect(() => {
@@ -39,11 +40,17 @@ export default function Settings() {
   async function onSaveProfile() {
     if (!userId) return;
     setSaving(true);
-    await updateProfile(userId, { display_name: displayName.trim(), bio: bio.trim() || null });
-    await refreshProfile();
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError(null);
+    try {
+      await updateProfile(userId, { display_name: displayName.trim(), bio: bio.trim() || null });
+      await refreshProfile();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError("Non è stato possibile salvare le modifiche. Riprova.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function onDelete() {
@@ -53,11 +60,15 @@ export default function Settings() {
       "Elimina tutto",
     );
     if (!ok) return;
+    // Only sign out if the deletion actually succeeded — otherwise the user
+    // would think the account is gone while their data is still on the server.
     try {
       await deleteAccount();
-    } finally {
-      await signOut();
+    } catch {
+      setError("Non è stato possibile eliminare l'account. Riprova o contattaci.");
+      return;
     }
+    await signOut();
   }
 
   return (
@@ -93,6 +104,7 @@ export default function Settings() {
           loading={saving}
           style={styles.save}
         />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         {/* Appearance / theme */}
         <Text style={styles.section}>Aspetto</Text>
@@ -178,6 +190,7 @@ const styles = StyleSheet.create({
   },
   area: { minHeight: 84 },
   save: { marginTop: spacing.lg },
+  errorText: { color: colors.accent, fontSize: 13, marginTop: spacing.sm, textAlign: "center" },
   row: {
     flexDirection: "row",
     alignItems: "center",

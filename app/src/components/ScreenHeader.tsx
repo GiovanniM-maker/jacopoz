@@ -38,7 +38,13 @@ export function ScreenHeader({ title, backFallback, rightIcon, rightColor, onRig
       {right ? (
         right
       ) : rightIcon && onRightPress ? (
-        <Pressable style={styles.tile} hitSlop={8} onPress={onRightPress}>
+        <Pressable
+          style={styles.tile}
+          hitSlop={12}
+          onPress={onRightPress}
+          accessibilityRole="button"
+          accessibilityLabel="Azioni"
+        >
           <Icon name={rightIcon} color={rightColor ?? colors.text} size={20} />
         </Pressable>
       ) : (
