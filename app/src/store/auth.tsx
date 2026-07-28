@@ -4,6 +4,7 @@
 // =====================================================================
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/types/database";
 
@@ -80,6 +81,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       signOut: async () => {
         await supabase.auth.signOut();
+        // Drop every cached query so the next user never sees the previous
+        // user's feed, recommendations, or notification badge.
+        queryClient.clear();
       },
     }),
     [session, profile, loading],

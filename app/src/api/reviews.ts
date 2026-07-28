@@ -89,12 +89,13 @@ export async function upsertReview(
 
   // Sync the canonical rating onto the shelf (drives book average rating).
   if (input.rating != null) {
-    await supabase
+    const { error: ubErr } = await supabase
       .from("user_books")
       .upsert(
         { user_id: userId, book_id: bookId, rating: input.rating },
         { onConflict: "user_id,book_id" },
       );
+    if (ubErr) throw ubErr;
   }
 
   void track("review_created", { bookId, hasRating: input.rating != null });

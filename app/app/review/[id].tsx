@@ -117,12 +117,19 @@ export default function ReviewThread() {
   async function onPost() {
     if (!userId || !id || text.trim().length === 0) return;
     setPosting(true);
-    await addComment(userId, id, text.trim(), replyTo?.id);
-    setText("");
-    setReplyTo(null);
-    qc.invalidateQueries({ queryKey: ["comments", id, userId] });
-    qc.invalidateQueries({ queryKey: ["review", id, userId] });
-    setPosting(false);
+    const parentId = replyTo?.id;
+    try {
+      await addComment(userId, id, text.trim(), parentId);
+      setText("");
+      setReplyTo(null);
+      qc.invalidateQueries({ queryKey: ["comments", id, userId] });
+      qc.invalidateQueries({ queryKey: ["review", id, userId] });
+      if (parentId) qc.invalidateQueries({ queryKey: ["replies", parentId, userId] });
+    } catch {
+      // keep the text so nothing is lost; surfacing via the disabled state.
+    } finally {
+      setPosting(false);
+    }
   }
 
   const r = review.data;

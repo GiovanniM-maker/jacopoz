@@ -77,15 +77,18 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/rest/") || url.pathname.startsWith("/auth/")) return;
 
   if (req.mode === "navigate") {
-    // Network-first: fresh HTML when online, cached shell when offline.
+    // Network-first: fresh HTML when online, cached shell when offline. Only
+    // cache a genuine 2xx response; never overwrite the shell with an error.
     event.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(SHELL, copy)).catch(() => {});
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(SHELL, copy)).catch(() => {});
+          }
           return res;
         })
-        .catch(() => caches.match(SHELL)),
+        .catch(() => caches.match(SHELL).then((r) => r || fetch(req))),
     );
     return;
   }
@@ -97,8 +100,15 @@ self.addEventListener("fetch", (event) => {
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            // Guard against caching a fallback page: after an atomic deploy a
+            // stale asset URL returns 200 text/html (the SPA rewrite), which
+            // cached under a .js URL would execute as HTML → permanent blank
+            // screen. Only cache real, non-HTML, same-name assets.
+            const ct = res.headers.get("content-type") || "";
+            if (res.ok && !ct.includes("text/html")) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            }
             return res;
           }),
       ),

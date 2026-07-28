@@ -3,13 +3,13 @@ export function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   const diff = Date.now() - then;
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "now";
+  if (mins < 1) return "ora";
   if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  if (days < 7) return `${days}g`;
+  return new Date(iso).toLocaleDateString("it-IT", { month: "short", day: "numeric" });
 }
 
 /** 1200 -> "1.2k". */

@@ -34,7 +34,12 @@ export async function setShelf(
   // If nothing meaningful remains, delete the ghost row.
   if (!next.status && !next.liked && next.rating == null) {
     if (existing) {
-      await supabase.from("user_books").delete().eq("user_id", userId).eq("book_id", bookId);
+      const { error: delErr } = await supabase
+        .from("user_books")
+        .delete()
+        .eq("user_id", userId)
+        .eq("book_id", bookId);
+      if (delErr) throw delErr;
       void track("shelf_removed", { bookId });
     }
     return null;
@@ -44,7 +49,9 @@ export async function setShelf(
     user_id: userId,
     book_id: bookId,
     ...next,
-    finished_at: next.status === "read" ? new Date().toISOString() : (existing?.finished_at ?? null),
+    // Stamp finished_at only on the first transition to "read"; never
+    // overwrite an existing date on unrelated edits (like/rating changes).
+    finished_at: next.status === "read" ? (existing?.finished_at ?? new Date().toISOString()) : null,
     started_at:
       next.status === "reading" && !existing?.started_at
         ? new Date().toISOString()
@@ -62,11 +69,12 @@ export async function setShelf(
   // score on a book's page always matches the score in its review — a single
   // per-user rating, editable from either place.
   if (patch.rating !== undefined) {
-    await supabase
+    const { error: revErr } = await supabase
       .from("reviews")
       .update({ rating: next.rating })
       .eq("user_id", userId)
       .eq("book_id", bookId);
+    if (revErr) throw revErr;
   }
 
   if (patch.status !== undefined) void track("shelf_added", { bookId, status: next.status });

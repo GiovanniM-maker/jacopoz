@@ -50,7 +50,7 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Pro
             {book.title}
           </Text>
           <Text style={styles.author} numberOfLines={1}>
-            {book.authors[0] ?? "Unknown"}
+            {book.authors[0] ?? "Autore ignoto"}
           </Text>
         </View>
       ) : null}

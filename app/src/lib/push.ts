@@ -69,10 +69,12 @@ export async function enablePush(): Promise<PushState> {
   if (perm === "default") perm = await Notification.requestPermission();
   if (perm !== "granted") return perm as PushState;
   try {
-    await subscribeAndSave();
+    const ok = await subscribeAndSave();
+    // Permission granted but the device couldn't be registered server-side —
+    // report "default" so the UI keeps offering to try again.
+    if (!ok) return "default";
   } catch {
-    // subscription can fail (e.g. not installed to Home on iOS) — permission
-    // is still granted; surfacing that is enough.
+    return "default";
   }
   return "granted";
 }

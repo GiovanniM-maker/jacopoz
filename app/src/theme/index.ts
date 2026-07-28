@@ -88,10 +88,10 @@ export const palettes: Record<ThemeName, Palette> = {
   // brass as the touch colour, diamond ratings. The default.
   rivista: {
     bg: "#FFFFFF", surface: "#F6F6F3", surfaceAlt: "#ECEBE6", border: "#E4E4DE",
-    text: "#101010", textMuted: "#5A5A5A", textFaint: "#A3A3A3",
+    text: "#101010", textMuted: "#5A5A5A", textFaint: "#767676",
     primary: "#C49A2B", primaryDim: "#EAD9A8", accent: "#3549D3",
     success: "#00A947", star: "#101010", overlay: "rgba(16,16,16,0.5)",
-    onPrimary: "#FFFFFF", tabBar: "#FFFFFF", isDark: false,
+    onPrimary: "#101010", tabBar: "#FFFFFF", isDark: false,
     radius: SOFT, shadow: "rgba(16,16,16,0.16)", bands: BANDS_RIVISTA,
     coverPaper: "#F6F6F3", coverInk: "#101010", wordmarkGhost: "transparent",
     texture: false, serifLogo: true, diamonds: true, soft: true,
