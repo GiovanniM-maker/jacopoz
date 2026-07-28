@@ -20,7 +20,7 @@ import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing } from "@/theme";
-import type { BookReco, Genre } from "@/types/database";
+import type { BookCard as BookCardType, BookReco, Genre } from "@/types/database";
 
 export default function Home() {
   const { session } = useAuth();
@@ -59,6 +59,29 @@ export default function Home() {
     genres.data?.find((g: Genre) => g.slug === slug)?.name ?? slug;
   const hero: BookReco | undefined = recos.data?.[0] ?? trending.data?.[0] ?? undefined;
 
+  // The recommendation slices (recos / free / paid) all sort the same pool, so
+  // a book easily lands in several carousels — and the hero is recos[0]. Dedupe
+  // top-to-bottom so nothing repeats down the page. Top 10 keeps its full
+  // ranking (it's a distinct ranked list) but still suppresses later repeats.
+  const seen = new Set<string>();
+  const dedupe = (list: readonly BookCardType[] | undefined): BookCardType[] => {
+    const out: BookCardType[] = [];
+    for (const b of list ?? []) {
+      if (seen.has(b.id)) continue;
+      seen.add(b.id);
+      out.push(b);
+    }
+    return out;
+  };
+  if (hero) seen.add(hero.id);
+  const recoRow = dedupe(recos.data);
+  const freeRow = dedupe(freeReads.data);
+  const trendingRow: BookCardType[] = trending.data ?? [];
+  trendingRow.forEach((b) => seen.add(b.id));
+  const paidRow = dedupe(paidPicks.data);
+  const newRow = dedupe(newReleases.data);
+  const genreExclude = Array.from(seen);
+
   return (
     <ScreenContainer edges={["top"]}>
       <AppHeader />
@@ -72,25 +95,25 @@ export default function Home() {
         {hero ? <IssueHero book={hero} /> : null}
 
         <View style={styles.rows}>
-          {recos.data && recos.data.length > 0 ? (
-            <BookRow title="Consigliati per te" books={recos.data} onDismiss={onDismissReco} />
+          {recoRow.length > 0 ? (
+            <BookRow title="Consigliati per te" books={recoRow} onDismiss={onDismissReco} />
           ) : null}
 
-          {(freeReads.data ?? []).length > 0 ? (
-            <BookRow title="Gratis, consigliati per te" books={freeReads.data ?? []} />
+          {freeRow.length > 0 ? (
+            <BookRow title="Gratis, consigliati per te" books={freeRow} />
           ) : null}
 
-          <TopTenRow title="Top 10 su Tomo oggi" books={trending.data ?? []} />
+          <TopTenRow title="Top 10 su Tomo oggi" books={trendingRow} />
 
-          {(paidPicks.data ?? []).length > 0 ? (
-            <BookRow title="Nuove scoperte · a pagamento" books={paidPicks.data ?? []} />
+          {paidRow.length > 0 ? (
+            <BookRow title="Nuove scoperte · a pagamento" books={paidRow} />
           ) : null}
 
           {(prefs.data ?? []).map((slug: string) => (
-            <GenreRow key={slug} slug={slug} title={genreName(slug)} />
+            <GenreRow key={slug} slug={slug} title={genreName(slug)} exclude={genreExclude} />
           ))}
 
-          <BookRow title="Nuove uscite" books={newReleases.data ?? []} />
+          {newRow.length > 0 ? <BookRow title="Nuove uscite" books={newRow} /> : null}
           <View style={{ height: spacing.xxl }} />
         </View>
       </ScrollView>
@@ -98,9 +121,11 @@ export default function Home() {
   );
 }
 
-function GenreRow({ slug, title }: { slug: string; title: string }) {
+function GenreRow({ slug, title, exclude }: { slug: string; title: string; exclude: string[] }) {
   const q = useQuery({ queryKey: ["genre-books", slug], queryFn: () => getBooksByGenre(slug, 20) });
-  return <BookRow title={title} books={q.data ?? []} />;
+  const ex = new Set(exclude);
+  const books = (q.data ?? []).filter((b: BookCardType) => !ex.has(b.id));
+  return <BookRow title={title} books={books} />;
 }
 
 /**
