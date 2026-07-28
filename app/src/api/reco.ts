@@ -1,11 +1,18 @@
 import { supabase } from "@/lib/supabase";
 import type { BookCard, BookReco, UUID } from "@/types/database";
 
-/** Personalized recommendations (semantic + heuristic blend) via RPC. */
-export async function getRecommendations(limit = 20, offset = 0): Promise<BookReco[]> {
+/**
+ * Personalized recommendations (semantic + heuristic blend) via RPC.
+ *
+ * `seed` rotates the slate: the same seed always returns the same ordering
+ * (so paging is stable), a new seed reshuffles which good books surface. Pass
+ * a fresh seed on pull-to-refresh; keep it while scrolling.
+ */
+export async function getRecommendations(limit = 20, offset = 0, seed = 0): Promise<BookReco[]> {
   const { data, error } = await supabase.rpc("get_recommendations", {
     p_limit: limit,
     p_offset: offset,
+    p_seed: seed,
   });
   if (error) throw error;
   return (data ?? []) as BookReco[];

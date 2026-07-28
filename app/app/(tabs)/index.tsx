@@ -1,9 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useEffect } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
-import { getBooksByGenre, getGenres, getNewReleases, getTrendingBooks } from "@/api/books";
+import { getBooksByGenre, getGenres, getNewReleases, getTrendingSeeded } from "@/api/books";
 import {
   dismissBook,
   getFreeReadsForYou,
@@ -18,20 +27,41 @@ import { BookCover } from "@/components/BookCover";
 import { BookRow } from "@/components/BookRow";
 import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { BookCard } from "@/components/BookCard";
 import { useAuth } from "@/store/auth";
-import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing } from "@/theme";
+import { MAX_CONTENT, collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing } from "@/theme";
 import type { BookCard as BookCardType, BookReco, Genre } from "@/types/database";
+
+const PAGE = 18;
 
 export default function Home() {
   const { session } = useAuth();
   const userId = session?.user.id;
   const qc = useQueryClient();
+  const { width } = useWindowDimensions();
+  const cardW = Math.floor((Math.min(width, MAX_CONTENT) - spacing.lg * 2 - spacing.md * 2) / 3);
 
-  const recos = useQuery({ queryKey: ["recos"], queryFn: () => getRecommendations(20) });
+  // The seed drives rotation: same seed → same slate (stable while scrolling),
+  // new seed → a different mix. Pull-to-refresh mints a new one, which is what
+  // makes the home feel alive instead of frozen.
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
+  const [refreshing, setRefreshing] = useState(false);
+
+  const recos = useQuery({ queryKey: ["recos", seed], queryFn: () => getRecommendations(20, 0, seed) });
   const freeReads = useQuery({ queryKey: ["free-reads"], queryFn: () => getFreeReadsForYou(15) });
   const paidPicks = useQuery({ queryKey: ["paid-discoveries"], queryFn: () => getPaidDiscoveries(15) });
-  const trending = useQuery({ queryKey: ["trending"], queryFn: () => getTrendingBooks(20) });
+  const trending = useQuery({ queryKey: ["trending", seed], queryFn: () => getTrendingSeeded(20, seed) });
   const newReleases = useQuery({ queryKey: ["new-releases"], queryFn: () => getNewReleases(20) });
+
+  // The infinite tail: keeps proposing new books as you scroll, paging into the
+  // same seeded slate so nothing repeats.
+  const more = useInfiniteQuery({
+    queryKey: ["home-more", seed],
+    queryFn: ({ pageParam }) => getRecommendations(PAGE, pageParam as number, seed),
+    initialPageParam: 20,
+    getNextPageParam: (last: BookReco[], all) =>
+      last.length < PAGE ? undefined : 20 + all.length * PAGE,
+  });
   // Genres are static reference data — cache for a day, never re-fetch on nav.
   const genres = useQuery({ queryKey: ["genres"], queryFn: getGenres, staleTime: 86_400_000 });
   const prefs = useQuery({
@@ -53,7 +83,21 @@ export default function Home() {
   async function onDismissReco(bookId: string) {
     await dismissBook(bookId);
     qc.invalidateQueries({ queryKey: ["recos"] });
+    qc.invalidateQueries({ queryKey: ["home-more"] });
   }
+
+  // Pull-to-refresh = "give me a different selection". New seed → every seeded
+  // query refetches with a fresh mix.
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setSeed(Math.floor(Math.random() * 1_000_000));
+    await Promise.allSettled([
+      qc.invalidateQueries({ queryKey: ["free-reads"] }),
+      qc.invalidateQueries({ queryKey: ["paid-discoveries"] }),
+      qc.invalidateQueries({ queryKey: ["new-releases"] }),
+    ]);
+    setRefreshing(false);
+  }, [qc]);
 
   const genreName = (slug: string) =>
     genres.data?.find((g: Genre) => g.slug === slug)?.name ?? slug;
@@ -82,19 +126,28 @@ export default function Home() {
   const newRow = dedupe(newReleases.data);
   const genreExclude = Array.from(seen);
 
-  return (
-    <ScreenContainer edges={["top"]}>
-      <AppHeader />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-        {/* Masthead strip: this is a numbered issue of the collana. */}
-        <View style={styles.masthead}>
-          <Text style={styles.mastheadText}>Periodico di letture</Text>
-          <Text style={styles.mastheadText}>Anno I · N°07</Text>
-        </View>
+  // Infinite tail, deduped against everything already shown above and chunked
+  // into rows of three so it reads as a grid.
+  const tail: BookCardType[] = [];
+  for (const b of (more.data?.pages ?? []).flat() as BookCardType[]) {
+    if (seen.has(b.id)) continue;
+    seen.add(b.id);
+    tail.push(b);
+  }
+  const tailRows: BookCardType[][] = [];
+  for (let i = 0; i < tail.length; i += 3) tailRows.push(tail.slice(i, i + 3));
 
-        {hero ? <IssueHero book={hero} /> : null}
+  const header = (
+    <View>
+      {/* Masthead strip: this is a numbered issue of the collana. */}
+      <View style={styles.masthead}>
+        <Text style={styles.mastheadText}>Periodico di letture</Text>
+        <Text style={styles.mastheadText}>Anno I · N°07</Text>
+      </View>
 
-        <View style={styles.rows}>
+      {hero ? <IssueHero book={hero} /> : null}
+
+      <View style={styles.rows}>
           {recoRow.length > 0 ? (
             <BookRow title="Consigliati per te" books={recoRow} onDismiss={onDismissReco} />
           ) : null}
@@ -113,10 +166,53 @@ export default function Home() {
             <GenreRow key={slug} slug={slug} title={genreName(slug)} exclude={genreExclude} />
           ))}
 
-          {newRow.length > 0 ? <BookRow title="Nuove uscite" books={newRow} /> : null}
-          <View style={{ height: spacing.xxl }} />
-        </View>
-      </ScrollView>
+        {newRow.length > 0 ? <BookRow title="Nuove uscite" books={newRow} /> : null}
+      </View>
+
+      {tailRows.length > 0 ? (
+        <Text style={styles.tailTitle}>Continua a scoprire</Text>
+      ) : null}
+    </View>
+  );
+
+  return (
+    <ScreenContainer edges={["top"]}>
+      <AppHeader />
+      <FlatList
+        data={tailRows}
+        keyExtractor={(row, i) => `tail-${i}-${row[0]?.id ?? i}`}
+        ListHeaderComponent={header}
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing || recos.isRefetching}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            title="Nuove proposte…"
+          />
+        }
+        onEndReachedThreshold={0.6}
+        onEndReached={() => {
+          if (more.hasNextPage && !more.isFetchingNextPage) void more.fetchNextPage();
+        }}
+        renderItem={({ item }) => (
+          <View style={styles.gridRow}>
+            {item.map((b) => (
+              <BookCard key={b.id} book={b} width={cardW} showMeta />
+            ))}
+          </View>
+        )}
+        ListFooterComponent={
+          <View style={styles.footer}>
+            {more.isFetchingNextPage ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : !more.hasNextPage && tailRows.length > 0 ? (
+              <Text style={styles.footerText}>Hai visto tutto per ora — trascina in giù per una nuova selezione</Text>
+            ) : null}
+          </View>
+        }
+      />
     </ScreenContainer>
   );
 }
@@ -231,4 +327,23 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   rows: { marginTop: spacing.sm },
+  tailTitle: {
+    fontFamily: displayFont,
+    fontSize: 18,
+    fontWeight: "900",
+    color: colors.text,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  gridRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  footer: { paddingVertical: spacing.xl, paddingHorizontal: spacing.lg, alignItems: "center" },
+  footerText: { color: colors.textFaint, fontSize: 13, textAlign: "center" },
 });

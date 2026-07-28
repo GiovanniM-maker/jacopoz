@@ -51,6 +51,16 @@ export async function getTrendingBooks(limit = 20, offset = 0): Promise<BookCard
   return (data ?? []) as BookCard[];
 }
 
+/** Trending, rotated by `seed` so the row isn't frozen between visits. */
+export async function getTrendingSeeded(limit = 20, seed = 0): Promise<BookCard[]> {
+  const { data, error } = await supabase.rpc("get_trending_seeded", {
+    p_limit: limit,
+    p_seed: seed,
+  });
+  if (error) throw error;
+  return (data ?? []) as BookCard[];
+}
+
 /** Books in a single genre — powers the genre rows on the dashboard. */
 export async function getBooksByGenre(slug: string, limit = 20): Promise<BookCard[]> {
   const { data, error } = await supabase
