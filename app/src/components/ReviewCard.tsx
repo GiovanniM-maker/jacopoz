@@ -7,6 +7,7 @@ import { BookCover } from "./BookCover";
 import { HeartButton } from "./HeartButton";
 import { Icon } from "./ui/Icon";
 import { RatingStars } from "./ui/RatingStars";
+import { RichText } from "./ui/RichText";
 
 export interface ReviewCardProps {
   authorName: string;
@@ -72,9 +73,7 @@ export function ReviewCard(props: ReviewCardProps) {
           <Text style={styles.spoilerText}>⚠ Contiene spoiler — tocca per leggere</Text>
         </Pressable>
       ) : (
-        <Text style={styles.body} numberOfLines={props.onPress ? 6 : undefined}>
-          {props.body}
-        </Text>
+        <RichText style={styles.body} numberOfLines={props.onPress ? 6 : undefined} text={props.body} />
       )}
 
       {/* Footer rule + actions */}

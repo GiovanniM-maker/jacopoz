@@ -50,7 +50,7 @@ export default function FindFriends() {
           </View>
         </Pressable>
 
-        <Pressable style={styles.searchRow} onPress={() => router.push("/(tabs)/search")}>
+        <Pressable style={styles.searchRow} onPress={() => router.push("/search")}>
           <Icon name="search" color={colors.textMuted} size={18} />
           <Text style={styles.searchLabel}>Cerca un lettore per nome</Text>
         </Pressable>

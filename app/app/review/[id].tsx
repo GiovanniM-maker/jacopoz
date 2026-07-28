@@ -19,6 +19,7 @@ import { getBookmarkedIds, toggleBookmark } from "@/api/bookmarks";
 import { CommentItem } from "@/components/CommentItem";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { confirmDialog } from "@/lib/confirm";
 import { useAuth } from "@/store/auth";
@@ -50,6 +51,11 @@ export default function ReviewThread() {
   const savedComments = useQuery({
     queryKey: ["saved-comment-ids", userId],
     queryFn: () => getBookmarkedIds(userId!, "comment"),
+    enabled: !!userId,
+  });
+  const savedReviews = useQuery({
+    queryKey: ["saved-review-ids", userId],
+    queryFn: () => getBookmarkedIds(userId!, "review"),
     enabled: !!userId,
   });
   const blocked = useQuery({
@@ -91,6 +97,12 @@ export default function ReviewThread() {
     qc.invalidateQueries({ queryKey: ["saved-comment-ids", userId] });
   }
 
+  async function onSaveReview() {
+    if (!userId || !id) return;
+    await toggleBookmark(userId, "review", id);
+    qc.invalidateQueries({ queryKey: ["saved-review-ids", userId] });
+  }
+
   async function onReviewLike() {
     if (!id) return;
     await toggleLike("review", id);
@@ -124,9 +136,31 @@ export default function ReviewThread() {
         <ScreenHeader
           title="Recensione"
           backFallback="/(tabs)/community"
-          rightIcon="flag"
-          rightColor={reported ? colors.primary : colors.textMuted}
-          onRightPress={() => setModMenu((v) => !v)}
+          right={
+            <View style={styles.hdrActions}>
+              <Pressable
+                style={styles.hdrTile}
+                hitSlop={8}
+                onPress={onSaveReview}
+                accessibilityLabel={savedReviews.data?.has(id!) ? "Rimuovi dai salvati" : "Salva"}
+              >
+                <Icon
+                  name="bookmark"
+                  color={savedReviews.data?.has(id!) ? colors.primary : colors.text}
+                  size={18}
+                  filled={savedReviews.data?.has(id!) ?? false}
+                />
+              </Pressable>
+              <Pressable
+                style={styles.hdrTile}
+                hitSlop={8}
+                onPress={() => setModMenu((v) => !v)}
+                accessibilityLabel="Segnala"
+              >
+                <Icon name="flag" color={reported ? colors.primary : colors.textMuted} size={18} />
+              </Pressable>
+            </View>
+          }
         />
 
         {modMenu ? (
@@ -240,6 +274,16 @@ function ReplyList({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  hdrActions: { flexDirection: "row", gap: spacing.sm },
+  hdrTile: {
+    width: 40,
+    height: 36,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   modMenu: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.sm,

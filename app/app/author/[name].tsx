@@ -24,7 +24,7 @@ export default function AuthorScreen() {
   return (
     <ScreenContainer edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => goBack("/(tabs)/search")} hitSlop={10}>
+        <Pressable onPress={() => goBack("/search")} hitSlop={10}>
           <Text style={styles.back}>‹ Indietro</Text>
         </Pressable>
       </View>

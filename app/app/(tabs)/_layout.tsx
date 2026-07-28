@@ -36,8 +36,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: "Home", tabBarIcon: tabIcon("home") }} />
       <Tabs.Screen name="community" options={{ title: "Feed", tabBarIcon: tabIcon("community") }} />
       <Tabs.Screen name="profile" options={{ title: "Tu", tabBarIcon: tabIcon("profile") }} />
-      {/* Reachable from the header (search right, review left) — hidden from the tab bar. */}
-      <Tabs.Screen name="search" options={{ href: null }} />
+      {/* Reachable from the header (review left) — hidden from the tab bar.
+          Search is a root stack route (app/search.tsx) so "back" returns to
+          wherever it was opened from (Home or Feed), not a fixed tab. */}
       <Tabs.Screen name="create" options={{ href: null }} />
     </Tabs>
   );

@@ -80,6 +80,9 @@ export default function BookPage() {
     qc.invalidateQueries({ queryKey: ["user-book", id, userId] });
     qc.invalidateQueries({ queryKey: ["book", id] });
     qc.invalidateQueries({ queryKey: ["shelf", userId] });
+    // Rating changes now flow into the user's review too — refresh it.
+    qc.invalidateQueries({ queryKey: ["book-reviews", id, userId] });
+    qc.invalidateQueries({ queryKey: ["my-review", id, userId] });
   }
 
   if (!book.data) return <ScreenContainer />;

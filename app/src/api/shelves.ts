@@ -58,6 +58,17 @@ export async function setShelf(
     .single();
   if (error) throw error;
 
+  // Keep the user's review (if any) in lockstep with the shelf rating, so the
+  // score on a book's page always matches the score in its review — a single
+  // per-user rating, editable from either place.
+  if (patch.rating !== undefined) {
+    await supabase
+      .from("reviews")
+      .update({ rating: next.rating })
+      .eq("user_id", userId)
+      .eq("book_id", bookId);
+  }
+
   if (patch.status !== undefined) void track("shelf_added", { bookId, status: next.status });
   if (patch.liked) void track("book_liked", { bookId });
   if (patch.rating != null) void track("book_rated", { bookId, rating: next.rating });

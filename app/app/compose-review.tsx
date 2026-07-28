@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { getMyReview, upsertReview } from "@/api/reviews";
+import { getUserBook } from "@/api/shelves";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { RatingStars } from "@/components/ui/RatingStars";
@@ -21,10 +22,18 @@ export default function ComposeReview() {
   const [rating, setRating] = useState<number | null>(null);
   const [spoilers, setSpoilers] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
   const existing = useQuery({
     queryKey: ["my-review", bookId, userId],
     queryFn: () => getMyReview(userId!, bookId!),
+    enabled: !!bookId && !!userId,
+  });
+  // The rating the user may have already given from the book's page — so the
+  // review opens pre-filled with the same score (one rating per book).
+  const shelf = useQuery({
+    queryKey: ["user-book", bookId, userId],
+    queryFn: () => getUserBook(userId!, bookId!),
     enabled: !!bookId && !!userId,
   });
 
@@ -33,8 +42,20 @@ export default function ComposeReview() {
       setBody(existing.data.body);
       setRating(existing.data.rating);
       setSpoilers(existing.data.contains_spoilers);
+    } else if (existing.isFetched && shelf.data?.rating != null) {
+      // No review yet → inherit the score from the book page.
+      setRating((prev) => prev ?? shelf.data!.rating);
     }
-  }, [existing.data]);
+  }, [existing.data, existing.isFetched, shelf.data]);
+
+  /** Wrap the current selection (or caret) with a markdown marker. */
+  function wrap(marker: string) {
+    const s = Math.min(selection.start, selection.end);
+    const e = Math.max(selection.start, selection.end);
+    const next = body.slice(0, s) + marker + body.slice(s, e) + marker + body.slice(e);
+    setBody(next);
+    setSelection({ start: s + marker.length, end: e + marker.length });
+  }
 
   async function onSubmit() {
     if (!userId || !bookId || body.trim().length === 0) return;
@@ -56,6 +77,16 @@ export default function ComposeReview() {
         <RatingStars value={rating} size={30} onChange={setRating} />
       </View>
 
+      <View style={styles.toolbar}>
+        <Pressable style={styles.fmtBtn} onPress={() => wrap("**")} accessibilityLabel="Grassetto">
+          <Text style={[styles.fmtLabel, { fontWeight: "900" }]}>B</Text>
+        </Pressable>
+        <Pressable style={styles.fmtBtn} onPress={() => wrap("*")} accessibilityLabel="Corsivo">
+          <Text style={[styles.fmtLabel, { fontStyle: "italic" }]}>I</Text>
+        </Pressable>
+        <Text style={styles.fmtHint}>Seleziona il testo, poi B o I</Text>
+      </View>
+
       <TextInput
         style={styles.textArea}
         placeholder="Che cosa ne pensi? Basta una riga, o vai in profondità…"
@@ -63,6 +94,8 @@ export default function ComposeReview() {
         multiline
         value={body}
         onChangeText={setBody}
+        selection={selection}
+        onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
         maxLength={5000}
         textAlignVertical="top"
       />
@@ -106,6 +139,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
+  toolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  fmtBtn: {
+    width: 40,
+    height: 36,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fmtLabel: { color: colors.text, fontSize: 16 },
+  fmtHint: { color: colors.textFaint, fontSize: 12, marginLeft: spacing.xs },
   textArea: {
     minHeight: 160,
     backgroundColor: colors.surface,
