@@ -41,3 +41,13 @@ enabled = true
 
 [functions.ingest-book]
 verify_jwt = true
+
+# The reader endpoint. Gateway stays open (the public-domain text branch is
+# harmless); the catalog-write branch verifies the caller's JWT in-function.
+[functions.read]
+verify_jwt = false
+
+# MUST stay false: pg_net's dispatch_push trigger calls this with only an
+# x-dispatch-secret header and no JWT. Requiring a JWT here would break push.
+[functions.send-push]
+verify_jwt = false

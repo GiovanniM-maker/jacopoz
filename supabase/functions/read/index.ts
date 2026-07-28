@@ -117,6 +117,22 @@ Deno.serve(async (req) => {
 
     // --- Match / availability -----------------------------------------
     if (body.book_id) {
+      // This branch writes to the catalog (canonical author, gutenberg_id) via
+      // the service role, so it must be driven only by a signed-in user — not
+      // by anyone holding the public anon key. Verify the caller's JWT.
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } },
+      );
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) {
+        return new Response(JSON.stringify({ error: "authentication required" }), {
+          status: 401,
+          headers: { ...CORS, "content-type": "application/json" },
+        });
+      }
+
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -168,7 +184,10 @@ Deno.serve(async (req) => {
       headers: { ...CORS, "content-type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    // Log the detail server-side; never leak internals (schema, provider
+    // errors) to the caller.
+    console.error("read error:", err);
+    return new Response(JSON.stringify({ error: "internal error" }), {
       status: 500,
       headers: { ...CORS, "content-type": "application/json" },
     });

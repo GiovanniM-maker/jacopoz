@@ -459,7 +459,18 @@ Deno.serve(async (req) => {
       const g = await googleBooksSearch(`isbn:${isbn}`, 1);
       normalized = g.length ? g : ([await openLibraryByIsbn(isbn)].filter(Boolean) as NormalizedBook[]);
     } else if (body.googleVolumeId) {
-      const res = await fetch(`https://www.googleapis.com/books/v1/volumes/${body.googleVolumeId}`);
+      // Validate the id shape and encode it — never interpolate raw input into
+      // the path (a "../" or "?"/"#" could reach other googleapis endpoints).
+      const volId = String(body.googleVolumeId);
+      if (!/^[A-Za-z0-9_-]{4,40}$/.test(volId)) {
+        return new Response(JSON.stringify({ error: "invalid googleVolumeId" }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      const res = await fetch(
+        `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(volId)}`,
+      );
       const v = res.ok ? await res.json() : null;
       const nb = v ? normalizeGoogleVolume(v) : null;
       if (nb) normalized = [nb];
@@ -506,7 +517,8 @@ Deno.serve(async (req) => {
       headers: { "content-type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
+    console.error("ingest-book error:", err);
+    return new Response(JSON.stringify({ error: "internal error" }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
