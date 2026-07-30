@@ -62,6 +62,23 @@ as $$
   from t;
 $$;
 
--- Recompute for the whole catalogue in one statement is too slow for the API
--- timeout, so this is driven in batches by the deploy script; the trigger from
+-- Recomputing the whole catalogue in one statement exceeds the API timeout, so
+-- the backfill is driven in batches using this marker column; the trigger from
 -- 0042 keeps new rows correct.
+alter table public.books add column if not exists work_key_v int default 1;
+
+-- Batch driver (run until no rows remain):
+--   with batch as (select id from public.books where work_key_v < 2 limit 2500)
+--   update public.books b
+--      set work_key = public.work_key(b.title, b.authors), work_key_v = 2
+--   from batch where b.id = batch.id;
+--
+-- Applied: 65 812 / 67 583 rows carry a key; the rest return null on purpose
+-- (no usable surname, or a normalised title under 6 chars) and stay standalone.
+--
+-- KNOWN LIMIT — the two rows that still sit outside the Dostoevskij group are
+-- dirty source metadata, not a keying flaw:
+--   authors = ['Dostoevskij Fëdor LeggereGiovane']  -- imprint glued onto the name
+--   authors = ['Giovanna Martinulli', 'Fëdor Dostoevskij']  -- translator listed first
+-- Fixing these belongs in author normalisation at import time; widening the key
+-- to chase them would risk merging books that merely share a contributor.
