@@ -30,6 +30,23 @@ export function contentWidth(): number {
   return Math.min(Dimensions.get("window").width, MAX_CONTENT);
 }
 
+/** Gap between cards in the book grids. */
+export const GRID_GAP = spacing.md;
+
+/**
+ * Width of one card in an N-column book grid.
+ *
+ * The naive `(inner - gaps) / 3` lands on exactly the available width (e.g.
+ * 111.33 × 3 + 24 = 358.00 inside 358 on a 390pt phone), and a hair of
+ * sub-pixel rounding on web then wraps the third card onto its own line — which
+ * is why grids silently rendered two columns. Floor it and shave a pixel so the
+ * row is always strictly narrower than its container.
+ */
+export function gridCardWidth(windowWidth: number, columns = 3): number {
+  const inner = Math.min(windowWidth, MAX_CONTENT) - spacing.lg * 2;
+  return Math.max(60, Math.floor((inner - GRID_GAP * (columns - 1) - 1) / columns));
+}
+
 // Display faces, no bundled webfonts. Collana uses a condensed heavy
 // "poster" stack (Impact-adjacent — on-brand for pulp); Rivista uses a
 // light editorial serif à la Lucy. Resolved per active theme below.

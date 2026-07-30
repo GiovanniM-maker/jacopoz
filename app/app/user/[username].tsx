@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { blockUser, isBlocked, reportContent, unblockUser } from "@/api/moderation";
 import { getProfileByUsername, getProfileStats } from "@/api/profile";
 import { getShelfBooks } from "@/api/shelves";
+import { getUserReviews, type UserReview } from "@/api/reviews";
+import { ReviewCard } from "@/components/ReviewCard";
 import { followUser, isFollowing, unfollowUser } from "@/api/social";
 import { confirmDialog } from "@/lib/confirm";
 import { BookCard } from "@/components/BookCard";
@@ -14,16 +16,18 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { contentWidth, collanaMark, colors, displayFont, spacing, typography } from "@/theme";
+import { collanaMark, colors, displayFont, spacing, typography } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 export default function PublicProfile() {
+  const CARD_W = useGridCardWidth(3);
   const { username } = useLocalSearchParams<{ username: string }>();
   const { session } = useAuth();
   const qc = useQueryClient();
   const [reported, setReported] = useState(false);
+  const [section, setSection] = useState<"books" | "reviews">("books");
 
   const profile = useQuery({
     queryKey: ["profile-by-username", username],
@@ -47,6 +51,11 @@ export default function PublicProfile() {
     queryKey: ["is-following", targetId],
     queryFn: () => isFollowing(targetId!),
     enabled: !!targetId && !isSelf,
+  });
+  const reviews = useQuery({
+    queryKey: ["user-reviews", targetId],
+    queryFn: () => getUserReviews(targetId!),
+    enabled: !!targetId && section === "reviews",
   });
   const blocked = useQuery({
     queryKey: ["is-blocked", targetId],
@@ -155,12 +164,63 @@ export default function PublicProfile() {
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Letti di recente</Text>
-        <View style={styles.grid}>
-          {(read.data ?? []).map((b: BookCardType) => (
-            <BookCard key={b.id} book={b} width={CARD_W} />
-          ))}
+        {/* Tabs: a reader's reviews are the point of following them, and they
+            were unreachable from here — the stat counted them but nothing
+            listed them. */}
+        <View style={styles.tabbar}>
+          {(["books", "reviews"] as const).map((t, i) => {
+            const on = section === t;
+            return (
+              <Pressable
+                key={t}
+                style={[styles.tab, i > 0 && styles.tabNotFirst, on && styles.tabOn]}
+                onPress={() => setSection(t)}
+              >
+                <Text style={[styles.tabLabel, on && styles.tabLabelOn]}>
+                  {t === "books" ? "Letti" : "Recensioni"}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        {section === "books" ? (
+          (read.data ?? []).length === 0 ? (
+            <Text style={styles.emptyNote}>Nessun libro letto, per ora.</Text>
+          ) : (
+            <View style={styles.grid}>
+              {(read.data ?? []).map((b: BookCardType) => (
+                <BookCard key={b.id} book={b} width={CARD_W} />
+              ))}
+            </View>
+          )
+        ) : reviews.isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        ) : (reviews.data ?? []).length === 0 ? (
+          <Text style={styles.emptyNote}>
+            {p.display_name.split(" ")[0]} non ha ancora scritto recensioni.
+          </Text>
+        ) : (
+          <View style={styles.reviewList}>
+            {(reviews.data ?? []).map((r: UserReview) => (
+              <ReviewCard
+                key={r.id}
+                authorName={p.display_name}
+                authorAvatar={p.avatar_url}
+                createdAt={r.created_at}
+                rating={r.rating}
+                body={r.body}
+                containsSpoilers={r.contains_spoilers}
+                likeCount={r.like_count}
+                commentCount={r.comment_count}
+                bookTitle={r.book?.title}
+                bookCover={r.book?.cover_url}
+                onPress={() => router.push(`/review/${r.id}`)}
+                onBookPress={r.book ? () => router.push(`/book/${r.book!.id}`) : undefined}
+              />
+            ))}
+          </View>
+        )}
         <View style={{ height: spacing.xxl }} />
       </ScrollView>
     </ScreenContainer>
@@ -245,6 +305,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.xl,
   },
+  tabbar: { flexDirection: "row", paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  tabNotFirst: { marginLeft: -2 },
+  tabOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tabLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  tabLabelOn: { color: colors.onPrimary },
+  emptyNote: {
+    color: colors.textMuted,
+    fontSize: 14,
+    textAlign: "center",
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+  },
+  reviewList: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

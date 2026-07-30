@@ -7,10 +7,10 @@ import { BookCard } from "@/components/BookCard";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
-import { contentWidth, colors, displayFont, spacing, typography } from "@/theme";
+import { colors, displayFont, spacing, typography } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 import type { BookCard as BookCardType, Genre } from "@/types/database";
 
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 /**
  * A genre or subgenre section, reached from a book's category tags or from a
@@ -19,6 +19,7 @@ const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
  * by searching their name — and imported in the background to fill the niche.
  */
 export default function GenreScreen() {
+  const CARD_W = useGridCardWidth(3);
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const genreSlug = (slug ?? "").toLowerCase();
 

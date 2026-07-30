@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { expandCatalog, importFromProviders, searchAuthors, searchBooks } from "@/api/books";
 import { searchUsers } from "@/api/profile";
@@ -11,7 +11,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
-import { contentWidth, collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
+import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 
 type Tab = "books" | "authors" | "users";
 
@@ -84,10 +85,7 @@ export default function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, tab, books.isFetching, books.isSuccess, books.data]);
 
-  const cardWidth = useMemo(
-    () => (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3,
-    [],
-  );
+  const cardWidth = useGridCardWidth(3);
 
   return (
     <ScreenContainer edges={["top"]}>

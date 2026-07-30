@@ -18,12 +18,13 @@ import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { confirmDialog } from "@/lib/confirm";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { contentWidth, colors, displayFont, spacing, typography } from "@/theme";
+import { colors, displayFont, spacing, typography } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 export default function ListDetail() {
+  const CARD_W = useGridCardWidth(3);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const qc = useQueryClient();
