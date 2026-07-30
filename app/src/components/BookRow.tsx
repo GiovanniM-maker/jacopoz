@@ -6,14 +6,16 @@ import { RowHeader } from "./RowHeader";
 
 interface Props {
   title: string;
-  books: BookCardType[];
+  books: (BookCardType & { reason?: string })[];
   cardWidth?: number;
   /** When set, each card gets a ✕ ("Non mi interessa") calling this. */
   onDismiss?: (bookId: string) => void;
+  /** Surface each book's personalised reason under its cover. */
+  showReason?: boolean;
 }
 
 /** A horizontally-scrolling row of book posters under a rubric header. */
-export function BookRow({ title, books, cardWidth = 108, onDismiss }: Props) {
+export function BookRow({ title, books, cardWidth = 108, onDismiss, showReason }: Props) {
   if (books.length === 0) return null;
   return (
     <View style={styles.wrap}>
@@ -28,6 +30,7 @@ export function BookRow({ title, books, cardWidth = 108, onDismiss }: Props) {
           <BookCard
             book={item}
             width={cardWidth}
+            showReason={showReason}
             onDismiss={onDismiss ? () => onDismiss(item.id) : undefined}
           />
         )}

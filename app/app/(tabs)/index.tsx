@@ -168,7 +168,7 @@ export default function Home() {
 
       <View style={styles.rows}>
           {recoRow.length > 0 ? (
-            <BookRow title="Consigliati per te" books={recoRow} onDismiss={onDismissReco} />
+            <BookRow title="Consigliati per te" books={recoRow} onDismiss={onDismissReco} showReason />
           ) : null}
 
           {freeRow.length > 0 ? (

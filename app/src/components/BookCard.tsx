@@ -17,16 +17,22 @@ function prefetchBook(id: string) {
 }
 
 interface Props {
-  book: BookCardType;
+  book: BookCardType & { reason?: string };
   width?: number;
   /** Netflix rows show only the artwork; meta is hidden by default. */
   showMeta?: boolean;
   /** "Non mi interessa": renders a small ✕ tile over the cover. */
   onDismiss?: () => void;
+  /**
+   * Show the personalised "why this book is here for you" line the recommender
+   * produced ("Dagli autori che ami", "Popolare tra lettori come te", …). Global
+   * genre labels say what a book *is*; this says what it is *to this reader*.
+   */
+  showReason?: boolean;
 }
 
 /** A tappable poster card used in dashboard rows and grids. */
-export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Props) {
+export function BookCard({ book, width = 120, showMeta = false, onDismiss, showReason }: Props) {
   return (
     <Pressable
       style={[styles.card, { width }]}
@@ -44,6 +50,11 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Pro
         </Pressable>
       ) : null}
       <BookCover url={book.cover_url} title={book.title} width={width} />
+      {showReason && book.reason ? (
+        <Text style={styles.reason} numberOfLines={2}>
+          {book.reason}
+        </Text>
+      ) : null}
       {showMeta ? (
         <View style={styles.meta}>
           <Text style={styles.title} numberOfLines={2}>
@@ -59,6 +70,13 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Pro
 }
 
 const styles = StyleSheet.create({
+  reason: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    marginTop: 4,
+  },
   card: { marginRight: spacing.sm },
   dismiss: {
     position: "absolute",
