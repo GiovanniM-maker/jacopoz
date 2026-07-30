@@ -155,14 +155,35 @@ function normalizeGoogleVolume(v: any): NormalizedBook | null {
   const isbn13 = ids.find((i) => i.type === "ISBN_13")?.identifier ?? null;
   const isbn10 = ids.find((i) => i.type === "ISBN_10")?.identifier ?? null;
   const year = info.publishedDate ? parseInt(info.publishedDate.slice(0, 4), 10) : null;
+
+  // Search results only ever carry smallThumbnail/thumbnail (~128px), which is
+  // soft on a phone. The content endpoint serves the same image at a larger
+  // zoom, so ask for it when there is a volume id to build the URL from.
+  const links = info.imageLinks ?? {};
+  const best: string | undefined =
+    links.extraLarge ?? links.large ?? links.medium ?? links.small ?? links.thumbnail;
+  const cover =
+    (v.id
+      ? `https://books.google.com/books/content?id=${v.id}&printsec=frontcover&img=1&zoom=2&source=gbs_api`
+      : best?.replace("http://", "https://").replace("&edge=curl", "")) ??
+    (isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg` : null);
+
+  // Free to read, on Google's own terms: either the work is public domain with
+  // full viewability, or Google itself lists it as a free ebook. The link is to
+  // the web reader, never a download endpoint.
+  const access = v.accessInfo ?? {};
+  const sale = v.saleInfo ?? {};
+  const isFree =
+    (access.publicDomain === true && access.viewability === "ALL_PAGES") ||
+    sale.saleability === "FREE";
+  const reader: string | null = access.webReaderLink ?? null;
+
   return {
     title: info.title,
     subtitle: info.subtitle ?? null,
     authors: normalizeAuthors(info.authors ?? []),
     description: info.description ?? null,
-    cover_url:
-      info.imageLinks?.thumbnail?.replace("http://", "https://").replace("&edge=curl", "") ??
-      (isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg` : null),
+    cover_url: cover,
     published_year: Number.isFinite(year) ? year : null,
     page_count: info.pageCount ?? null,
     language: info.language ?? null,
@@ -170,7 +191,7 @@ function normalizeGoogleVolume(v: any): NormalizedBook | null {
     isbn_10: isbn10,
     categories: mapCategories(info.categories ?? []),
     gutenberg_id: null,
-    free_read_url: null,
+    free_read_url: isFree && reader ? reader : null,
     providerIds: v.id ? [{ provider: "google_books", external_id: v.id }] : [],
   };
 }
@@ -218,18 +239,46 @@ async function googleBooksSearch(
   lang?: string | null,
 ): Promise<NormalizedBook[]> {
   const key = Deno.env.get("GOOGLE_BOOKS_API_KEY");
-  const url = new URL("https://www.googleapis.com/books/v1/volumes");
-  url.searchParams.set("q", query);
-  url.searchParams.set("maxResults", String(Math.min(limit, 40)));
-  // Ask the provider for editions in the reader's language. Without this the
-  // API returns whichever edition ranks globally — which is how an Italian
-  // search for "la vegetariana" only ever yielded the Spanish/Catalan one.
-  if (lang && lang !== "all") url.searchParams.set("langRestrict", lang);
-  if (key) url.searchParams.set("key", key);
-  const res = await fetch(url);
+  const build = (country?: string) => {
+    const url = new URL("https://www.googleapis.com/books/v1/volumes");
+    url.searchParams.set("q", query);
+    url.searchParams.set("maxResults", String(Math.min(limit, 40)));
+    // Magazines and periodicals share the volumes endpoint and are never what
+    // a reader is looking for here.
+    url.searchParams.set("printType", "books");
+    // Ask the provider for editions in the reader's language. Without this the
+    // API returns whichever edition ranks globally — which is how an Italian
+    // search for "la vegetariana" only ever yielded the Spanish/Catalan one.
+    if (lang && lang !== "all") url.searchParams.set("langRestrict", lang);
+    if (country) url.searchParams.set("country", country);
+    if (key) url.searchParams.set("key", key);
+    return url;
+  };
+
+  let res = await fetch(build());
+  // Google geo-gates this endpoint and refuses outright when it cannot place
+  // the caller's IP — "Cannot determine user location for geographically
+  // restricted operation", a 403. The documented escape is to state the country
+  // explicitly. It does not happen from every egress, so it is a retry rather
+  // than a default.
+  if (res.status === 403) res = await fetch(build("IT"));
   if (!res.ok) return [];
   const data = await res.json();
   return (data.items ?? []).map(normalizeGoogleVolume).filter(Boolean) as NormalizedBook[];
+}
+
+/**
+ * An author's actual shelf. A free-text search for "Kira Shell" ranks on the
+ * words appearing anywhere, so it returns a Japanese shell encyclopedia
+ * alongside her novels; `inauthor:` is the provider's own author field and
+ * returns only her.
+ */
+async function googleAuthorSearch(
+  author: string,
+  limit: number,
+  lang?: string | null,
+): Promise<NormalizedBook[]> {
+  return googleBooksSearch(`inauthor:"${author.replace(/"/g, "")}"`, limit, lang);
 }
 
 /** ISO 639-2 (Open Library) -> the ISO 639-1 codes the catalogue stores. */
@@ -392,6 +441,10 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook, preferLang?: s
     if (!existing.description && nb.description) patch.description = nb.description;
     if (!existing.cover_url && nb.cover_url) patch.cover_url = nb.cover_url;
     if (!existing.language && nb.language) patch.language = nb.language;
+    // Gutenberg is not the only source of a free read: Google flags public
+    // domain works and its own free ebooks, and that is what the "Gratis" tag
+    // on a cover is reading.
+    if (!existing.free_read_url && nb.free_read_url) patch.free_read_url = nb.free_read_url;
 
     if (Object.keys(patch).length > 0) {
       const { data } = await supabase
@@ -539,12 +592,19 @@ Deno.serve(async (req) => {
       const q = String(body.query);
       const n = Number(body.limit ?? 10);
       const lang = reqLang;
+      // `mode: "author"` asks the provider's author field rather than its
+      // free-text index, which is the difference between Kira Shell's novels
+      // and a shell encyclopedia by someone called Kira.
+      const byAuthor = body.mode === "author";
+      const search = (l?: string | null) =>
+        byAuthor ? googleAuthorSearch(q, n, l) : googleBooksSearch(q, n, l);
+
       const [guten, google] = await Promise.all([
         gutendexSearch(q, Math.min(n, 5)),
         // Preferred-language editions first, then unrestricted so nothing is lost.
         lang
-          ? Promise.all([googleBooksSearch(q, n, lang), googleBooksSearch(q, n)]).then((r) => r.flat())
-          : googleBooksSearch(q, n),
+          ? Promise.all([search(lang), search(null)]).then((r) => r.flat())
+          : search(null),
       ]);
       normalized = [...guten, ...google];
       if (normalized.length === 0) normalized = await openLibrarySearch(q, n);

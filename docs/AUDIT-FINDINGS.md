@@ -217,6 +217,52 @@ già presenti. Era la ricerca che non arrivava mai a rispondere.
 - 🟡 Rimosse dal `app_config` le righe `_dbg_*` che avevo usato per registrare le
   misurazioni.
 
+## Quinta tornata — ricerca inesatta
+
+Su 29 query realistiche (refusi, titoli parziali, autore+titolo, ordine
+sbagliato) la ricerca ne risolveva **17**. Le cause erano due, entrambe
+strutturali:
+
+- il full-text pretende **tutte** le parole, quindi "murgia accabadora" o
+  "edipo re" davano zero risultati;
+- il ramo trigram confronta la query con il titolo **intero**, quindi una
+  lettera sbagliata dentro un titolo lungo scende sotto qualsiasi soglia utile
+  (`similarity('gatsbi','il grande gatsby')` = 0,28).
+
+`word_similarity` misura la query contro il **miglior tratto di parole** del
+titolo — 0,71 sullo stesso caso — ed è indicizzabile con l'operatore `<%` sugli
+stessi indici GIN. Costa però 20–228 ms a ramo, troppo per ogni battuta.
+
+Da qui il disegno a **due passaggi** (0049): prima quello preciso ed economico
+(full-text AND, full-text a prefisso per la digitazione, trigram sul titolo);
+poi una domanda concreta al risultato — *qualche candidato contiene davvero
+ogni parola significativa della query?* — e solo in caso negativo il passaggio
+rilassato con `word_similarity` su titolo e autori più il full-text in OR.
+
+**26/29 risolte**, con latenza 18–117 ms (misurata a catalogo fermo). Le tre
+che restano non sono difetti di ricerca: "il grande gatsbi" non ha
+un'edizione italiana in catalogo, "marques" è genuinamente ambiguo (esistono
+libri francesi intitolati proprio "marques") e "machbet" è più vicino per
+trigram a "Machiavelli" che a "Macbeth".
+
+Due bug trovati misurando, non leggendo:
+
+- 🔴 **`immutable_unaccent` non abbassa il case.** Gli operatori trigram e
+  full-text lo fanno internamente, quindi non se n'era mai accorto nessuno; ma
+  il controllo di pertinenza usa `position()`, che è case-sensitive. Cercava
+  "dune" dentro "Dune Messiah", non lo trovava, dichiarava ogni query senza
+  risposta e lanciava il passaggio costoso **su tutte**: 'dune' misurava
+  1 451 ms. Con `lower()`, 65 ms.
+- 🟠 **`ts_rank` non era subordinato a un match.** Da solo pesa la
+  sovrapposizione parziale di lessemi: siccome "il" e "grande" compaiono in
+  migliaia di titoli, tutti tornavano a 0,99 e seppellivano la risposta giusta.
+  Ora conta solo quando la query fa match davvero, e il match completo vale un
+  punto pieno in più.
+- 🟠 **"Continua a leggere" apriva un lettore vuoto.** Il lettore in-app è
+  indirizzato per id Gutenberg (la scheda libro lo passa correttamente), mentre
+  la home passava l'uuid del libro: `Number(uuid)` è NaN e la query del testo
+  restava disabilitata. Corretto in 0050.
+
 ---
 
 ## Note operative (a carico del founder, pre-lancio)

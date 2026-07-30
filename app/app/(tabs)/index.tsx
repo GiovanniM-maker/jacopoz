@@ -263,7 +263,11 @@ function ContinueReadingRow({ books }: { books: ContinueReadingBook[] }) {
             key={b.id}
             style={styles.resumeItem}
             onPress={() =>
-              router.push(b.free_read_url ? `/read/${b.id}` : `/book/${b.id}`)
+              router.push(
+                b.gutenberg_id
+                  ? `/read/${b.gutenberg_id}?bookId=${b.id}`
+                  : `/book/${b.id}`,
+              )
             }
           >
             <BookCover url={b.cover_url} title={b.title} width={116} />

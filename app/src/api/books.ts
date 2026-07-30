@@ -265,6 +265,7 @@ export async function importFromProviders(
   limit = 10,
   lang?: string | null,
   expand = false,
+  mode?: "author",
 ): Promise<void> {
   try {
     // Passing the reader's language makes the provider return editions in that
@@ -275,7 +276,7 @@ export async function importFromProviders(
     // subject). It used to be a second, unconditional Edge invocation on every
     // search; folding it in here means a search costs one provider round-trip
     // instead of two.
-    await supabase.functions.invoke("ingest-book", { body: { query, limit, lang, expand } });
+    await supabase.functions.invoke("ingest-book", { body: { query, limit, lang, expand, mode } });
   } catch {
     // ignore — catalog stays as-is
   }

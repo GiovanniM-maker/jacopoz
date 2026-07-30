@@ -108,7 +108,13 @@ export default function Search() {
     setImporting(true);
     // An author search that finds nothing wants that author's shelf, not ten
     // titles, so ask for the provider maximum there.
-    void importFromProviders(debounced, tab === "authors" ? 40 : 10, lang === "auto" ? "it" : lang, true)
+    void importFromProviders(
+      debounced,
+      tab === "authors" ? 40 : 10,
+      lang === "auto" ? "it" : lang,
+      true,
+      tab === "authors" ? "author" : undefined,
+    )
       .then(() => local.refetch())
       .finally(() => setImporting(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps

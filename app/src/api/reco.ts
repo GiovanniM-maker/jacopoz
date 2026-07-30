@@ -22,6 +22,9 @@ export interface ContinueReadingBook extends BookCard {
   percent: number;
   bookmark_percent: number | null;
   free_read_url: string | null;
+  /** Only a Gutenberg text can be opened by the in-app reader; a Google Books
+   *  free read is an external page, so those go to the book detail instead. */
+  gutenberg_id: number | null;
 }
 
 /** Books the reader has actually started — the "Continua a leggere" row. */
