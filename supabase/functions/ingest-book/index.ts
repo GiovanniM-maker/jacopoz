@@ -232,6 +232,20 @@ async function googleBooksSearch(
   return (data.items ?? []).map(normalizeGoogleVolume).filter(Boolean) as NormalizedBook[];
 }
 
+/** ISO 639-2 (Open Library) -> the ISO 639-1 codes the catalogue stores. */
+const ISO2: Record<string, string> = {
+  ita: "it", eng: "en", spa: "es", fre: "fr", fra: "fr", ger: "de", deu: "de",
+  por: "pt", dut: "nl", nld: "nl", rus: "ru", jpn: "ja", chi: "zh", zho: "zh",
+  gre: "el", ell: "el", swe: "sv", dan: "da", nor: "no", fin: "fi", pol: "pl",
+  cat: "ca", lat: "la", ara: "ar", heb: "he", tur: "tr", cze: "cs", ces: "cs",
+};
+function iso2(code?: string | null): string | null {
+  if (!code) return null;
+  const c = code.toLowerCase();
+  if (c.length === 2) return c;
+  return ISO2[c] ?? null;
+}
+
 // --- Open Library (fallback, no key) ----------------------------------
 async function openLibraryByIsbn(isbn: string): Promise<NormalizedBook | null> {
   const ua = Deno.env.get("OPEN_LIBRARY_USER_AGENT") ?? "jacopoz/0.1";
@@ -270,7 +284,10 @@ async function openLibrarySearch(query: string, limit: number): Promise<Normaliz
   const url = new URL("https://openlibrary.org/search.json");
   url.searchParams.set("q", query);
   url.searchParams.set("limit", String(Math.min(limit, 20)));
-  url.searchParams.set("fields", "key,title,author_name,first_publish_year,isbn,cover_i,subject,number_of_pages_median");
+  url.searchParams.set(
+    "fields",
+    "key,title,author_name,first_publish_year,isbn,cover_i,subject,number_of_pages_median,language",
+  );
   const res = await fetch(url, { headers: { "User-Agent": ua } });
   if (!res.ok) return [];
   const data = await res.json();
@@ -290,7 +307,10 @@ async function openLibrarySearch(query: string, limit: number): Promise<Normaliz
             : null,
         published_year: d.first_publish_year ?? null,
         page_count: d.number_of_pages_median ?? null,
-        language: null,
+        // Open Library reports ISO 639-2 ("ita"); the catalogue and the reader's
+        // preference use two-letter codes, so an unmapped value would silently
+        // never match the language boost.
+        language: iso2(d.language?.[0]),
         isbn_13: isbn13,
         isbn_10: null,
         categories: mapCategories(d.subject ?? []),

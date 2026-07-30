@@ -13,6 +13,7 @@ import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
 import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
 import { useGridCardWidth } from "@/lib/useGrid";
+import type { BookCard as BookCardType } from "@/types/database";
 
 type Tab = "books" | "authors" | "users";
 
@@ -67,23 +68,38 @@ export default function Search() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, tab]);
 
-  // Import direct matches from providers ONLY once the local search has settled
-  // and actually came back thin — not blindly on every keystroke.
+  // Import from providers once the local search has settled and the results
+  // don't actually answer the query.
+  //
+  // This used to trigger on "fewer than 5 results", which quietly failed for
+  // exactly the searches that need it: "kira shell" returned 8 rows — Shell
+  // Game, Hell's Kitchen, Kira-kira, Shelley — all trigram noise, none of them
+  // the author. Eight is not fewer than five, so the import never ran and the
+  // reader concluded the book wasn't there. Relevance is the right test, not
+  // volume: if no result carries every significant word of the query in its
+  // title or author, go and fetch it.
   const importedFor = useRef<string>("");
   useEffect(() => {
-    if (
-      tab === "books" &&
-      debounced.length >= 3 &&
-      !books.isFetching &&
-      books.isSuccess &&
-      (books.data?.length ?? 0) < 5 &&
-      importedFor.current !== debounced
-    ) {
-      importedFor.current = debounced;
-      void importFromProviders(debounced, 10, lang === "auto" ? "it" : lang).then(() => books.refetch());
-    }
+    if (tab !== "books" || debounced.length < 3) return;
+    if (books.isFetching || !books.isSuccess) return;
+    if (importedFor.current === debounced) return;
+
+    const norm = (t: string) =>
+      t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const terms = norm(debounced).split(/[^a-z0-9]+/).filter((t) => t.length >= 3);
+    const rows = books.data ?? [];
+    const answered =
+      terms.length === 0 ||
+      rows.some((b: BookCardType) => {
+        const hay = norm(`${b.title} ${(b.authors ?? []).join(" ")}`);
+        return terms.every((t) => hay.includes(t));
+      });
+    if (answered) return;
+
+    importedFor.current = debounced;
+    void importFromProviders(debounced, 10, lang === "auto" ? "it" : lang).then(() => books.refetch());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced, tab, books.isFetching, books.isSuccess, books.data]);
+  }, [debounced, tab, lang, books.isFetching, books.isSuccess, books.data]);
 
   const cardWidth = useGridCardWidth(3);
 
