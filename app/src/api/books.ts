@@ -246,28 +246,20 @@ export async function importFromProviders(
   query: string,
   limit = 10,
   lang?: string | null,
+  expand = false,
 ): Promise<void> {
   try {
     // Passing the reader's language makes the provider return editions in that
     // language first, so searching an Italian title imports the Italian edition
     // instead of whichever translation ranks globally.
-    await supabase.functions.invoke("ingest-book", { body: { query, limit, lang } });
+    //
+    // `expand` also pulls the cluster around the hits (same author, same
+    // subject). It used to be a second, unconditional Edge invocation on every
+    // search; folding it in here means a search costs one provider round-trip
+    // instead of two.
+    await supabase.functions.invoke("ingest-book", { body: { query, limit, lang, expand } });
   } catch {
     // ignore — catalog stays as-is
-  }
-}
-
-/**
- * Grow the catalog *around* a search: imports the searched books plus a
- * cluster of related titles (same author / same subject). Fire-and-forget,
- * runs in the background so it never blocks the results the user sees —
- * next time this corner of the catalog is richer for search and reco.
- */
-export async function expandCatalog(query: string, limit = 10): Promise<void> {
-  try {
-    await supabase.functions.invoke("ingest-book", { body: { query, limit, expand: true } });
-  } catch {
-    // best-effort catalog growth
   }
 }
 

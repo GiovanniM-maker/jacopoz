@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { expandCatalog, importFromProviders, searchAuthors, searchBooks } from "@/api/books";
+import { importFromProviders, searchAuthors, searchBooks } from "@/api/books";
 import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { BookCard } from "@/components/BookCard";
@@ -57,13 +57,11 @@ export default function Search() {
     enabled: tab === "users" && debounced.length >= 2,
   });
 
-  // Grow the catalog around each distinct query at most once (background).
-  const grownFor = useRef<string>("");
+  const trackedFor = useRef<string>("");
   useEffect(() => {
-    if (tab === "books" && debounced.length >= 3 && grownFor.current !== debounced) {
-      grownFor.current = debounced;
+    if (tab === "books" && debounced.length >= 3 && trackedFor.current !== debounced) {
+      trackedFor.current = debounced;
       void track("search_performed", { q: debounced });
-      void expandCatalog(debounced, 10);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, tab]);
@@ -78,28 +76,51 @@ export default function Search() {
   // reader concluded the book wasn't there. Relevance is the right test, not
   // volume: if no result carries every significant word of the query in its
   // title or author, go and fetch it.
+  //
+  // It also used to fire alongside an unconditional expandCatalog() on every
+  // settled query, so each search cost two Edge invocations and two rounds of
+  // provider calls even when the answer was already on screen. The expansion is
+  // now folded into this one call (`expand`), which the function already
+  // supports, so a search costs at most one provider round-trip.
   const importedFor = useRef<string>("");
+  const [importing, setImporting] = useState(false);
   useEffect(() => {
-    if (tab !== "books" || debounced.length < 3) return;
-    if (books.isFetching || !books.isSuccess) return;
-    if (importedFor.current === debounced) return;
+    if (debounced.length < 3) return;
+    if (tab === "users") return;
+    const local = tab === "books" ? books : authors;
+    if (local.isFetching || !local.isSuccess) return;
+    if (importedFor.current === `${tab}:${debounced}`) return;
 
     const norm = (t: string) =>
       t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const terms = norm(debounced).split(/[^a-z0-9]+/).filter((t) => t.length >= 3);
-    const rows = books.data ?? [];
+    // Every significant word of the query has to appear in a result, otherwise
+    // what came back is trigram noise and the reader's book simply isn't here.
+    const haystacks: string[] =
+      tab === "books"
+        ? (books.data ?? []).map((b: BookCardType) => `${b.title} ${(b.authors ?? []).join(" ")}`)
+        : (authors.data ?? []).map((a: { author: string }) => a.author);
     const answered =
-      terms.length === 0 ||
-      rows.some((b: BookCardType) => {
-        const hay = norm(`${b.title} ${(b.authors ?? []).join(" ")}`);
-        return terms.every((t) => hay.includes(t));
-      });
+      terms.length === 0 || haystacks.some((h: string) => terms.every((t) => norm(h).includes(t)));
     if (answered) return;
 
-    importedFor.current = debounced;
-    void importFromProviders(debounced, 10, lang === "auto" ? "it" : lang).then(() => books.refetch());
+    importedFor.current = `${tab}:${debounced}`;
+    setImporting(true);
+    void importFromProviders(debounced, 10, lang === "auto" ? "it" : lang, true)
+      .then(() => local.refetch())
+      .finally(() => setImporting(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debounced, tab, lang, books.isFetching, books.isSuccess, books.data]);
+  }, [
+    debounced,
+    tab,
+    lang,
+    books.isFetching,
+    books.isSuccess,
+    books.data,
+    authors.isFetching,
+    authors.isSuccess,
+    authors.data,
+  ]);
 
   const cardWidth = useGridCardWidth(3);
 
@@ -151,10 +172,13 @@ export default function Search() {
 
       {/* Loading feedback: searches hit the network (and sometimes import from
           providers), so without this the screen looked frozen. */}
-      {(tab === "books" ? books.isFetching : tab === "authors" ? authors.isFetching : users.isFetching) ? (
+      {(tab === "books" ? books.isFetching : tab === "authors" ? authors.isFetching : users.isFetching) ||
+      importing ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary} size="small" />
-          <Text style={styles.loadingText}>Sto cercando…</Text>
+          <Text style={styles.loadingText}>
+            {importing ? "Cerco anche fuori dal catalogo…" : "Sto cercando…"}
+          </Text>
         </View>
       ) : null}
 

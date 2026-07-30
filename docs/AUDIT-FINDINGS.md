@@ -179,6 +179,44 @@ rimasti: sweep a11y esaustivo, safe-area del composer commenti.
 - **RLS** attiva su tutte le tabelle; funzioni `DEFINER` con `search_path` fissato.
 - **Storage locale:** solo sessione, tema, flag PWA.
 
+## Quarta tornata — velocità (la causa vera dei "libri non trovati")
+
+La segnalazione "i miei amici hanno cercato Georges Simenon e Kira Shell e non
+li hanno trovati" **non era un problema di catalogo**: entrambi gli autori erano
+già presenti. Era la ricerca che non arrivava mai a rispondere.
+
+- 🔴 **`search_books` regredito da ~80 ms a 2 000–20 000 ms** con
+  l'introduzione di una riga per opera (migrazione 0042). Il ruolo
+  `authenticated` ha `statement_timeout = 8s` e `anon` ne ha **3s**: oltre quella
+  soglia Postgres annulla la query e il lettore vede "nessun risultato". Non un
+  errore visibile — un catalogo apparentemente vuoto.
+  Tre cause, tutte nella forma della query (i predicati selezionano 8–39 righe):
+  `select b.*` trascinava l'embedding a 512 dimensioni in ogni ordinamento; la
+  disgiunzione `term = '' OR tsv @@ … OR unaccent(title) % …` impediva l'uso di
+  entrambi gli indici (seq scan con `immutable_unaccent(title)` ricalcolato su
+  67 583 righe); la finestra `row_number()` girava su quell'insieme illimitato
+  prima del `LIMIT`. **Corretto in 0046** — misurato 27–83 ms, e verificato che
+  rientra anche nei 3s di `anon`.
+- 🟠 **Soglia trigram**: al valore di default 0.3 il recheck del bitmap heap
+  ricalcolava l'unaccent su ~1 700 blocchi. Portata a 0.4 a livello di funzione:
+  'amore' da 621 ms a 22 ms, con il refuso ("a ciascuno il sur") che continua a
+  trovare i suoi 7 risultati.
+- 🟠 **`search_authors`** faceva seq scan (unnest prima del filtro): ~500 ms →
+  10–16 ms con un indice trigram sull'array appiattito (0046).
+- 🟠 **Indice ANN più grande della memoria**: `shared_buffers` è 224 MB,
+  `books_embedding_hnsw` da solo 176 MB più 51 MB di tabella — si sfrattavano a
+  vicenda, da cui i consigli a 260 ms a caldo ma 830–1 660 ms a freddo. Passato
+  a `halfvec` (0047): stesso grafo, metà spazio.
+- 🔴 **`GOOGLE_BOOKS_API_KEY` mancante**: verificato che Google Books risponde
+  **429** senza chiave, quindi ogni import passava dal solo fallback Open
+  Library. Il segreto va messo lato Supabase (Edge secrets), non su Vercel.
+- 🟡 **Una sola chiamata provider per ricerca**: `expandCatalog` partiva a ogni
+  query oltre all'import, raddoppiando le invocazioni Edge. Ora l'espansione è
+  dentro l'unica chiamata, e la scheda **Autori** importa anch'essa (prima non lo
+  faceva: cercare un autore assente non produceva nulla).
+- 🟡 Rimosse dal `app_config` le righe `_dbg_*` che avevo usato per registrare le
+  misurazioni.
+
 ---
 
 ## Note operative (a carico del founder, pre-lancio)
