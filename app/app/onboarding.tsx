@@ -7,6 +7,7 @@ import { setShelf } from "@/api/shelves";
 import { saveOnboarding } from "@/api/profile";
 import { BookCover } from "@/components/BookCover";
 import { Button } from "@/components/ui/Button";
+import { enablePush, pushSupported } from "@/lib/push";
 import { Chip } from "@/components/ui/Chip";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
@@ -26,17 +27,18 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 /**
- * Two-step taste onboarding, built to beat the recommendation cold-start:
+ * Three-step onboarding, built to beat the recommendation cold-start:
  *   1. Genres + subgenres (declared interest).
  *   2. Books you've already read + star ratings — this seeds the taste
  *      vector directly (the real signal), so the very first recommendations
  *      are already on-target. Step 2 is optional; the value grows visibly
  *      as you add books ("more books → sharper picks").
+ *   3. Notifications, asked at peak intent rather than left for later.
  */
 export default function Onboarding() {
   const { session, refreshProfile } = useAuth();
   const userId = session?.user.id;
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
@@ -67,23 +69,26 @@ export default function Onboarding() {
   async function finish() {
     if (!userId) return;
     setSaving(true);
-    // Credit the parent of every chosen subgenre so genre-affinity (which
-    // matches parent slugs on books) still fires.
-    const slugs = new Set(selected);
-    for (const s of selected) {
-      const p = parentOf.get(s);
-      if (p) slugs.add(p);
+    try {
+      // Credit the parent of every chosen subgenre so genre-affinity (which
+      // matches parent slugs on books) still fires.
+      const slugs = new Set(selected);
+      for (const s of selected) {
+        const p = parentOf.get(s);
+        if (p) slugs.add(p);
+      }
+      await saveOnboarding(userId, [...slugs]); // also flips onboarded_at → gate → app
+      await refreshProfile();
+    } finally {
+      setSaving(false);
     }
-    await saveOnboarding(userId, [...slugs]); // also flips onboarded_at → gate → app
-    await refreshProfile();
-    setSaving(false);
   }
 
   if (step === 1) {
     return (
       <ScreenContainer padded>
         <View style={styles.header}>
-          <Text style={styles.kicker}>Passo 1 di 2</Text>
+          <Text style={styles.kicker}>Passo 1 di 3</Text>
           <Text style={styles.title}>Cosa ami leggere?</Text>
           <Text style={styles.subtitle}>
             Scegline almeno {MIN_PICKS}. Tocca anche i sottogeneri per farci capire meglio i tuoi gusti.
@@ -130,7 +135,71 @@ export default function Onboarding() {
     );
   }
 
-  return <BooksStep userId={userId!} onBack={() => setStep(1)} onFinish={finish} saving={saving} />;
+  if (step === 2) {
+    return (
+      <BooksStep
+        userId={userId!}
+        onBack={() => setStep(1)}
+        onFinish={() => setStep(3)}
+        saving={false}
+      />
+    );
+  }
+
+  return <NotificationsStep onDone={finish} saving={saving} />;
+}
+
+/**
+ * Step 3 — ask for notifications while intent is highest (right after setting up
+ * taste), instead of waiting for the reader to find the bell. The permission
+ * prompt must come from a user gesture, so it hangs off this button. Skipping is
+ * a peer choice, not a dark pattern, and the bell keeps offering it later.
+ */
+function NotificationsStep({ onDone, saving }: { onDone: () => void; saving: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const supported = pushSupported();
+
+  async function allow() {
+    setBusy(true);
+    try {
+      await enablePush();
+    } finally {
+      setBusy(false);
+      onDone();
+    }
+  }
+
+  return (
+    <ScreenContainer padded>
+      <View style={styles.header}>
+        <Text style={styles.kicker}>Passo 3 di 3</Text>
+        <Text style={styles.title}>Ti avvisiamo noi</Text>
+        <Text style={styles.subtitle}>
+          Quando qualcuno commenta una tua recensione, ti mette like o inizia a seguirti, te lo
+          facciamo sapere. Niente spam: solo cose che riguardano te.
+        </Text>
+      </View>
+
+      <View style={styles.notifSpacer} />
+
+      {supported ? (
+        <Button
+          label="Attiva le notifiche"
+          onPress={allow}
+          loading={busy || saving}
+          style={styles.cta}
+        />
+      ) : (
+        <Text style={styles.notifNote}>
+          Aggiungi Tomo alla schermata Home per ricevere le notifiche sul telefono.
+        </Text>
+      )}
+
+      <Pressable onPress={onDone} disabled={busy || saving} style={styles.notifSkip} hitSlop={8}>
+        <Text style={styles.notifSkipText}>{supported ? "Non ora" : "Continua"}</Text>
+      </Pressable>
+    </ScreenContainer>
+  );
 }
 
 /** Step 2 — books you've read, rated. Each add seeds the taste vector live. */
@@ -210,7 +279,7 @@ function BooksStep({
   return (
     <ScreenContainer padded>
       <View style={styles.header}>
-        <Text style={styles.kicker}>Passo 2 di 2 · facoltativo</Text>
+        <Text style={styles.kicker}>Passo 2 di 3 · facoltativo</Text>
         <Text style={styles.title}>Quali libri hai già letto?</Text>
         <Text style={styles.subtitle}>
           Aggiungine qualcuno e dai un voto. Più ne metti, più i consigli diventano precisi — puoi
@@ -386,4 +455,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   finishBtn: { minWidth: 140 },
+  notifSpacer: { flex: 1 },
+  notifNote: { color: colors.textMuted, fontSize: 14, textAlign: "center", marginBottom: spacing.md },
+  notifSkip: { alignSelf: "center", paddingVertical: spacing.md },
+  notifSkipText: { color: colors.textMuted, fontSize: 14, fontWeight: "700" },
 });

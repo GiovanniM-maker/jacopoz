@@ -6,6 +6,7 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -15,16 +16,21 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getBooksByGenre, getGenres, getNewReleases, getTrendingSeeded } from "@/api/books";
 import {
   dismissBook,
+  getContinueReading,
   getFreeReadsForYou,
+  getHomeSections,
   getPaidDiscoveries,
   getRecommendations,
   logRecoImpressions,
+  type ContinueReadingBook,
+  type HomeSection,
 } from "@/api/reco";
 import { getGenrePrefs } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { AppHeader } from "@/components/AppHeader";
 import { BookCover } from "@/components/BookCover";
 import { BookRow } from "@/components/BookRow";
+import { RowHeader } from "@/components/RowHeader";
 import { TopTenRow } from "@/components/TopTenRow";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { BookCard } from "@/components/BookCard";
@@ -47,6 +53,12 @@ export default function Home() {
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1_000_000));
   const [refreshing, setRefreshing] = useState(false);
 
+  const resume = useQuery({ queryKey: ["continue-reading"], queryFn: () => getContinueReading(12) });
+  // Named, personalised rows; which ones appear depends on the seed.
+  const sections = useQuery({
+    queryKey: ["home-sections", seed],
+    queryFn: () => getHomeSections(seed, 5),
+  });
   const recos = useQuery({ queryKey: ["recos", seed], queryFn: () => getRecommendations(20, 0, seed) });
   const freeReads = useQuery({ queryKey: ["free-reads"], queryFn: () => getFreeReadsForYou(15) });
   const paidPicks = useQuery({ queryKey: ["paid-discoveries"], queryFn: () => getPaidDiscoveries(15) });
@@ -95,6 +107,7 @@ export default function Home() {
       qc.invalidateQueries({ queryKey: ["free-reads"] }),
       qc.invalidateQueries({ queryKey: ["paid-discoveries"] }),
       qc.invalidateQueries({ queryKey: ["new-releases"] }),
+      qc.invalidateQueries({ queryKey: ["continue-reading"] }),
     ]);
     setRefreshing(false);
   }, [qc]);
@@ -145,7 +158,13 @@ export default function Home() {
         <Text style={styles.mastheadText}>Anno I · N°07</Text>
       </View>
 
-      {hero ? <IssueHero book={hero} /> : null}
+      {/* "Continua a leggere" comes first once anything is in progress — the
+          fastest path back into a book, like Netflix's Continue watching. */}
+      {(resume.data ?? []).length > 0 ? (
+        <ContinueReadingRow books={resume.data ?? []} />
+      ) : hero ? (
+        <IssueHero book={hero} />
+      ) : null}
 
       <View style={styles.rows}>
           {recoRow.length > 0 ? (
@@ -157,6 +176,14 @@ export default function Home() {
           ) : null}
 
           <TopTenRow title="Top 10 su Tomo oggi" books={trendingRow} />
+
+          {/* Personalised, named rows — these rotate with the seed, so a
+              refresh reveals different ones. */}
+          {(sections.data ?? []).map((s: HomeSection) => {
+            const books = s.books.filter((b) => !seen.has(b.id));
+            books.forEach((b) => seen.add(b.id));
+            return books.length >= 4 ? <BookRow key={s.key} title={s.title} books={books} /> : null;
+          })}
 
           {paidRow.length > 0 ? (
             <BookRow title="Nuove scoperte · a pagamento" books={paidRow} />
@@ -214,6 +241,48 @@ export default function Home() {
         }
       />
     </ScreenContainer>
+  );
+}
+
+/**
+ * "Continua a leggere" — the Netflix resume row. Each cover carries a progress
+ * bar (and a bookmark tick when one is set); tapping a free book jumps straight
+ * back into the reader, otherwise it opens the book page.
+ */
+function ContinueReadingRow({ books }: { books: ContinueReadingBook[] }) {
+  return (
+    <View style={styles.resumeWrap}>
+      <RowHeader title="Continua a leggere" />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.resumeList}
+      >
+        {books.map((b) => (
+          <Pressable
+            key={b.id}
+            style={styles.resumeItem}
+            onPress={() =>
+              router.push(b.free_read_url ? `/read/${b.id}` : `/book/${b.id}`)
+            }
+          >
+            <BookCover url={b.cover_url} title={b.title} width={116} />
+            <View style={styles.resumeBar}>
+              <View style={[styles.resumeFill, { width: `${Math.min(100, Math.max(2, b.percent))}%` }]} />
+              {b.bookmark_percent != null ? (
+                <View style={[styles.resumeMark, { left: `${Math.min(99, b.bookmark_percent)}%` }]} />
+              ) : null}
+            </View>
+            <Text style={styles.resumePct}>
+              {b.percent >= 1 ? `${Math.round(b.percent)}%` : "Inizia"}
+            </Text>
+            <Text style={styles.resumeTitle} numberOfLines={2}>
+              {b.title}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -327,6 +396,21 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   rows: { marginTop: spacing.sm },
+  resumeWrap: { marginTop: spacing.sm, marginBottom: spacing.md },
+  resumeList: { paddingHorizontal: spacing.lg, gap: spacing.md },
+  resumeItem: { width: 116 },
+  resumeBar: {
+    height: 5,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 6,
+    position: "relative",
+  },
+  resumeFill: { height: "100%", backgroundColor: colors.primary },
+  resumeMark: { position: "absolute", top: -2, width: 2, height: 9, backgroundColor: colors.accent },
+  resumePct: { color: colors.textMuted, fontSize: 10, fontWeight: "800", marginTop: 3 },
+  resumeTitle: { color: colors.text, fontSize: 12, fontWeight: "600", marginTop: 2 },
   tailTitle: {
     fontFamily: displayFont,
     fontSize: 18,

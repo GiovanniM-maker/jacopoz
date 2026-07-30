@@ -24,3 +24,16 @@ export async function affiliateUrl(isbn: string | null): Promise<string | null> 
   if (error) return null;
   return (data as string) ?? null;
 }
+
+/**
+ * Buy link for a specific book on the Italian storefront. Prefers the ISBN only
+ * when the row is known to be an Italian edition — a stored ISBN is often the
+ * English/foreign one, which is why "Compra su Amazon" used to land on editions
+ * in the wrong language. Otherwise it searches by title + author, which
+ * amazon.it resolves to the Italian edition.
+ */
+export async function buyUrl(bookId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("amazon_buy_url", { p_book_id: bookId });
+  if (error) return null;
+  return (data as string) ?? null;
+}

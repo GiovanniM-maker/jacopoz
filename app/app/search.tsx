@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { expandCatalog, importFromProviders, searchAuthors, searchBooks } from "@/api/books";
 import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
@@ -107,6 +107,15 @@ export default function Search() {
         ))}
       </View>
 
+      {/* Loading feedback: searches hit the network (and sometimes import from
+          providers), so without this the screen looked frozen. */}
+      {(tab === "books" ? books.isFetching : tab === "authors" ? authors.isFetching : users.isFetching) ? (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator color={colors.primary} size="small" />
+          <Text style={styles.loadingText}>Sto cercando…</Text>
+        </View>
+      ) : null}
+
       {tab === "books" ? (
         <FlatList
           key="books-grid"
@@ -182,6 +191,14 @@ function Empty({ msg }: { msg: string }) {
 }
 
 const styles = StyleSheet.create({
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  loadingText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
   header: {
     flexDirection: "row",
     alignItems: "center",

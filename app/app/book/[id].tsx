@@ -7,7 +7,7 @@ import { getBook, getExternalReviews, getSimilarBooks, requestBookEnrichment, bo
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
-import { affiliateUrl } from "@/api/config";
+import { buyUrl } from "@/api/config";
 import { getReadInfo, amazonUrl } from "@/api/reading";
 import { track } from "@/api/analytics";
 import { BookCover } from "@/components/BookCover";
@@ -45,8 +45,8 @@ export default function BookPage() {
     enabled: !!id,
   });
   const affiliate = useQuery({
-    queryKey: ["affiliate", book.data?.isbn_13],
-    queryFn: () => affiliateUrl(book.data?.isbn_13 ?? null),
+    queryKey: ["buy-url", id],
+    queryFn: () => buyUrl(id!),
     enabled: !!book.data,
   });
   // Free-read availability: matches the book to Project Gutenberg on demand
@@ -113,8 +113,8 @@ export default function BookPage() {
   const isSaved = ub?.status === "want_to_read";
 
   async function onBuyAmazon() {
-    // Prefer the affiliate URL when we have one (ISBN-backed); otherwise fall
-    // back to a plain Amazon books search so every book has a buy path.
+    // Server-built link: amazon.it, ISBN only for known-Italian editions,
+    // otherwise title+author so the reader gets the Italian edition.
     const url = affiliate.data ?? amazonUrl(b);
     void track("affiliate_click", { bookId: id, affiliate: !!affiliate.data });
     Linking.openURL(url);

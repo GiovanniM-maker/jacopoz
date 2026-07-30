@@ -71,7 +71,18 @@ export async function saveBookmark(bookId: UUID, percent: number | null): Promis
  * books search on title + author. No affiliate tag yet; we'll tag the
  * most-read titles later.
  */
-export function amazonUrl(book: { title: string; authors: string[]; isbn_13?: string | null }): string {
-  const term = book.isbn_13 ?? `${book.title} ${book.authors[0] ?? ""}`.trim();
+export function amazonUrl(book: {
+  title: string;
+  authors: string[];
+  isbn_13?: string | null;
+  language?: string | null;
+}): string {
+  // Only trust the ISBN for known-Italian editions: the stored one is often a
+  // foreign edition, which used to send readers to a German/Catalan listing.
+  // A title+author search on amazon.it returns the Italian edition instead.
+  const term =
+    book.language === "it" && book.isbn_13
+      ? book.isbn_13
+      : `${book.title} ${book.authors[0] ?? ""}`.trim();
   return `https://www.amazon.it/s?k=${encodeURIComponent(term)}&i=stripbooks`;
 }

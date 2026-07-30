@@ -18,6 +18,51 @@ export async function getRecommendations(limit = 20, offset = 0, seed = 0): Prom
   return (data ?? []) as BookReco[];
 }
 
+export interface ContinueReadingBook extends BookCard {
+  percent: number;
+  bookmark_percent: number | null;
+  free_read_url: string | null;
+}
+
+/** Books the reader has actually started — the "Continua a leggere" row. */
+export async function getContinueReading(limit = 12): Promise<ContinueReadingBook[]> {
+  const { data, error } = await supabase.rpc("get_continue_reading", { p_limit: limit });
+  if (error) throw error;
+  return (data ?? []) as ContinueReadingBook[];
+}
+
+export interface HomeSection {
+  key: string;
+  title: string;
+  rank: number;
+  books: BookCard[];
+}
+
+/**
+ * Personalised, named home rows ("Perché hai letto X", "Ancora <autore>",
+ * "Il tuo filone: …", editorial angles). Which rows come back depends on
+ * `seed`, so a refresh surfaces different sections. Returns them grouped and
+ * ordered, dropping rows too thin to look intentional.
+ */
+export async function getHomeSections(seed = 0, maxSections = 5): Promise<HomeSection[]> {
+  const { data, error } = await supabase.rpc("get_home_sections", {
+    p_seed: seed,
+    p_max_sections: maxSections,
+    p_per_section: 12,
+  });
+  if (error) throw error;
+  const groups = new Map<string, HomeSection>();
+  for (const row of (data ?? []) as any[]) {
+    let g = groups.get(row.section_key);
+    if (!g) {
+      g = { key: row.section_key, title: row.section_title, rank: row.section_rank, books: [] };
+      groups.set(row.section_key, g);
+    }
+    g.books.push(row as BookCard);
+  }
+  return [...groups.values()].filter((g) => g.books.length >= 4).sort((a, b) => a.rank - b.rank);
+}
+
 /** Taste-ranked FREE reads (readable in-app now). */
 export async function getFreeReadsForYou(limit = 15): Promise<BookCard[]> {
   const { data, error } = await supabase.rpc("get_reco_by_availability", {

@@ -9,7 +9,64 @@ export async function searchBooks(query: string, limit = 20, offset = 0): Promis
     p_offset: offset,
   });
   if (error) throw error;
-  return (data ?? []) as BookCard[];
+  return mergeEditions((data ?? []) as BookCard[]);
+}
+
+/** Normalise a title for comparison: drop edition parentheticals, accents,
+ *  punctuation and case, so "A' Ciascuno Il Suo (Gli Adelphi)" ≡ "A ciascuno il suo". */
+function normTitle(t: string): string {
+  return (t || "")
+    .replace(/\([^)]*\)/g, " ")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+/** True when two same-length titles differ in a single character — catches
+ *  provider typos like "a ciascuno il suo" vs "a ciascuno il sur". */
+function oneCharApart(a: string, b: string): boolean {
+  if (a.length !== b.length || a.length < 10) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && ++diff > 1) return false;
+  }
+  return diff === 1;
+}
+
+/** How complete a row is — decides which edition survives a merge. */
+function completeness(b: BookCard): number {
+  return (
+    (b.cover_url ? 4 : 0) +
+    (b.avg_rating ? 1 : 0) +
+    Math.min(3, (b.reads_count + b.saves_count + b.likes_count + b.reviews_count) / 5)
+  );
+}
+
+/**
+ * Collapse duplicate *editions* of the same work. Providers hand us the same
+ * book several times — a translated edition, an "(Gli Adelphi)" reprint, and
+ * sometimes a typo'd title — each as its own row with its own ISBN. Only merge
+ * rows by the same author whose titles match exactly once normalised, or differ
+ * by a single character (a typo). Deliberately conservative: series like
+ * "The Dark Tower I"/"II" differ in length and are left alone.
+ */
+export function mergeEditions(rows: BookCard[]): BookCard[] {
+  const kept: { norm: string; author: string; book: BookCard }[] = [];
+  for (const b of rows) {
+    const norm = normTitle(b.title);
+    const author = (b.authors?.[0] ?? "").toLowerCase().trim();
+    const hit = kept.find(
+      (k) => k.author === author && (k.norm === norm || oneCharApart(k.norm, norm)),
+    );
+    if (!hit) {
+      kept.push({ norm, author, book: b });
+    } else if (completeness(b) > completeness(hit.book)) {
+      hit.book = b; // keep the richer edition
+      hit.norm = norm;
+    }
+  }
+  return kept.map((k) => k.book);
 }
 
 /** Attributed external voices for the "Dalla critica" section. */
