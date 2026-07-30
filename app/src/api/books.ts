@@ -282,3 +282,26 @@ export async function getCatalogLanguages(): Promise<CatalogLanguage[]> {
   if (error) return [];
   return (data ?? []) as CatalogLanguage[];
 }
+
+export interface BookEdition {
+  id: string;
+  title: string;
+  authors: string[];
+  cover_url: string | null;
+  language: string | null;
+  published_year: number | null;
+  isbn_13: string | null;
+  page_count: number | null;
+  is_current: boolean;
+}
+
+/**
+ * Every edition of the work this book belongs to, best-for-this-reader first.
+ * Lets the book page offer an edition picker instead of scattering the same work
+ * across several search results.
+ */
+export async function getBookEditions(bookId: string): Promise<BookEdition[]> {
+  const { data, error } = await supabase.rpc("get_book_editions", { p_book_id: bookId });
+  if (error) return [];
+  return (data ?? []) as BookEdition[];
+}

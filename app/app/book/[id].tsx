@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { getBook, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating } from "@/api/books";
+import { getBook, getBookEditions, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating, type BookEdition } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
@@ -56,6 +56,11 @@ export default function BookPage() {
     queryFn: () => getReadInfo(id!),
     enabled: !!id,
     staleTime: 1000 * 60 * 60,
+  });
+  const editions = useQuery({
+    queryKey: ["book-editions", id],
+    queryFn: () => getBookEditions(id!),
+    enabled: !!id,
   });
   const similar = useQuery({
     queryKey: ["similar-books", id],
@@ -173,6 +178,32 @@ export default function BookPage() {
           <View style={styles.synopsis}>
             <Text style={styles.synTitle}>Sinossi</Text>
             <Text style={styles.description}>{b.description}</Text>
+          </View>
+        ) : null}
+
+        {/* Editions of the same work. Search now returns one row per work, so
+            this is where the other printings live: tap one to switch to it. */}
+        {(editions.data ?? []).length > 1 ? (
+          <View style={styles.editions}>
+            <Text style={styles.synTitle}>Edizioni ({(editions.data ?? []).length})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.edList}>
+              {(editions.data ?? []).map((e: BookEdition) => (
+                <Pressable
+                  key={e.id}
+                  style={[styles.edItem, e.is_current && styles.edItemOn]}
+                  onPress={() => {
+                    if (!e.is_current) router.replace(`/book/${e.id}`);
+                  }}
+                >
+                  <BookCover url={e.cover_url} title={e.title} width={64} />
+                  <Text style={styles.edMeta} numberOfLines={1}>
+                    {e.language ? e.language.toUpperCase() : "—"}
+                    {e.published_year ? ` · ${e.published_year}` : ""}
+                  </Text>
+                  {e.is_current ? <Text style={styles.edCurrent}>in lettura</Text> : null}
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
         ) : null}
 
@@ -504,6 +535,12 @@ const styles = StyleSheet.create({
   },
   buyLink: { alignItems: "center", paddingVertical: spacing.sm },
   buyLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
+  editions: { marginBottom: spacing.lg },
+  edList: { gap: spacing.sm, paddingTop: spacing.sm, paddingRight: spacing.lg },
+  edItem: { width: 64, alignItems: "center", opacity: 0.85 },
+  edItemOn: { opacity: 1 },
+  edMeta: { color: colors.textMuted, fontSize: 10, fontWeight: "700", marginTop: 4 },
+  edCurrent: { color: colors.primary, fontSize: 9, fontWeight: "800", textTransform: "uppercase" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
   synopsis: { marginBottom: spacing.lg },
   synTitle: {
