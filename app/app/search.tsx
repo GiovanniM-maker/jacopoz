@@ -12,7 +12,7 @@ import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
 import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/theme";
-import { useGridCardWidth } from "@/lib/useGrid";
+import { useGridCardWidth, useGridColumns } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 
 type Tab = "books" | "authors" | "users";
@@ -106,13 +106,19 @@ export default function Search() {
 
     importedFor.current = `${tab}:${debounced}`;
     setImporting(true);
+    // Expansion pulls ~30 more books around the hits, which is worth it for a
+    // real title or author and actively harmful for a short common word: typing
+    // "meet" left the catalogue holding Meet Addy, Meet Kirsten and Meet
+    // Samantha for good, and every later search had to rank around them. Only
+    // expand when the query is specific enough to be about something.
+    const specific = terms.length > 1 || debounced.length >= 6;
     // An author search that finds nothing wants that author's shelf, not ten
     // titles, so ask for the provider maximum there.
     void importFromProviders(
       debounced,
       tab === "authors" ? 40 : 10,
       lang === "auto" ? "it" : lang,
-      true,
+      specific,
       tab === "authors" ? "author" : undefined,
     )
       .then(() => local.refetch())
@@ -130,7 +136,8 @@ export default function Search() {
     authors.data,
   ]);
 
-  const cardWidth = useGridCardWidth(3);
+  const columns = useGridColumns();
+  const cardWidth = useGridCardWidth(columns);
 
   return (
     <ScreenContainer edges={["top"]}>
@@ -164,6 +171,11 @@ export default function Search() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          // react-native-web gives every ScrollView flexGrow: 1, horizontal
+          // ones included. Sitting directly inside the screen's flex column
+          // that made this strip swallow all the leftover height — on an empty
+          // search the four language chips filled the entire screen.
+          style={styles.langScroll}
           contentContainerStyle={styles.langRow}
         >
           {LANGS.map((l) => (
@@ -192,16 +204,26 @@ export default function Search() {
 
       {tab === "books" ? (
         <FlatList
-          key="books-grid"
+          // FlatList cannot change numColumns in place, so the key has to carry
+          // it — otherwise rotating the phone throws "Changing numColumns on
+          // the fly is not supported".
+          key={`books-grid-${columns}`}
           data={books.data ?? []}
           keyExtractor={(b) => b.id}
-          numColumns={3}
+          numColumns={columns}
           columnWrapperStyle={styles.col}
           contentContainerStyle={styles.grid}
           showsVerticalScrollIndicator={false}
+          // Without this the first tap on a result only dismisses the keyboard
+          // and is swallowed — the reader taps a book and nothing happens.
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListEmptyComponent={
-            debounced.length >= 3 && !books.isFetching ? (
+            debounced.length >= 3 && !books.isFetching && !importing ? (
               <Empty msg="Nessun libro trovato. Stiamo importando nuovi titoli mentre cerchi." />
+            ) : debounced.length < 2 ? (
+              // Before this the screen was simply blank, which read as broken.
+              <Hint />
             ) : null
           }
           renderItem={({ item }) => <BookCard book={item} width={cardWidth} showMeta />}
@@ -213,6 +235,10 @@ export default function Search() {
           keyExtractor={(a) => a.author}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          // Without this the first tap on a result only dismisses the keyboard
+          // and is swallowed — the reader taps a book and nothing happens.
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListEmptyComponent={debounced.length >= 2 ? <Empty msg="Nessun autore trovato." /> : null}
           renderItem={({ item }) => (
             <Pressable
@@ -239,6 +265,10 @@ export default function Search() {
           keyExtractor={(u) => u.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          // Without this the first tap on a result only dismisses the keyboard
+          // and is swallowed — the reader taps a book and nothing happens.
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           ListEmptyComponent={debounced.length >= 2 ? <Empty msg="Nessun utente trovato." /> : null}
           renderItem={({ item }) => (
             <Pressable style={styles.row} onPress={() => router.push(`/user/${item.username}`)}>
@@ -256,6 +286,19 @@ export default function Search() {
   );
 }
 
+/** What the search screen says before the reader has typed anything. */
+function Hint() {
+  return (
+    <View style={styles.hint}>
+      <Text style={styles.hintTitle}>Cerca un libro, un autore, un lettore</Text>
+      <Text style={styles.hintBody}>
+        Titolo anche approssimativo, o solo il cognome dell'autore. Se non ce l'abbiamo
+        ancora, lo andiamo a prendere mentre cerchi.
+      </Text>
+    </View>
+  );
+}
+
 function Empty({ msg }: { msg: string }) {
   return (
     <View style={{ height: 240 }}>
@@ -265,6 +308,17 @@ function Empty({ msg }: { msg: string }) {
 }
 
 const styles = StyleSheet.create({
+  langScroll: { flexGrow: 0, flexShrink: 0 },
+  hint: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl, gap: spacing.sm },
+  hintTitle: {
+    color: colors.text,
+    fontFamily: displayFont,
+    fontSize: 18,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  hintBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
   langRow: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.sm },
   langChip: {
     paddingHorizontal: spacing.md,

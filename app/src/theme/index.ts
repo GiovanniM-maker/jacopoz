@@ -47,6 +47,20 @@ export function gridCardWidth(windowWidth: number, columns = 3): number {
   return Math.max(60, Math.floor((inner - GRID_GAP * (columns - 1) - 1) / columns));
 }
 
+/**
+ * Column count for the book grids, from the window width.
+ *
+ * Three is right on a phone held upright and is what the feed and the shelves
+ * are designed around, so it is the floor. Sideways, or on a tablet, the same
+ * three columns stretched each cover to ~256pt; aiming for a ~150pt card keeps
+ * a cover looking like a cover.
+ */
+export function gridColumns(windowWidth: number): number {
+  const inner = Math.min(windowWidth, MAX_CONTENT) - spacing.lg * 2;
+  const target = 150;
+  return Math.max(3, Math.min(6, Math.round((inner + GRID_GAP) / (target + GRID_GAP))));
+}
+
 // Display faces, no bundled webfonts. Collana uses a condensed heavy
 // "poster" stack (Impact-adjacent — on-brand for pulp); Rivista uses a
 // light editorial serif à la Lucy. Resolved per active theme below.

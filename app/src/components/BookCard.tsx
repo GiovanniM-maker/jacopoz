@@ -77,7 +77,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
     marginTop: 4,
   },
-  card: { marginRight: spacing.sm },
+  // No margin here. Every grid that holds these cards sizes its columns with
+  // gridCardWidth() and spaces them with `gap`, so a margin on the card is
+  // width the layout never budgeted for: three cards plus their margins came to
+  // 381pt inside 358pt on a 390pt phone, and the third one wrapped. That is the
+  // "profile shows two columns" report. Horizontal rows set their own gap.
+  card: {},
   dismiss: {
     position: "absolute",
     top: 4,

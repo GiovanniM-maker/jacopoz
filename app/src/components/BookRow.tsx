@@ -42,7 +42,7 @@ export function BookRow({ title, books, cardWidth = 108, onDismiss, showReason }
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: spacing.xl },
-  list: { paddingHorizontal: spacing.lg },
+  list: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   shelf: {
     height: 2,
     backgroundColor: colors.border,

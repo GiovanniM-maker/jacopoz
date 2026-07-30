@@ -263,6 +263,43 @@ Due bug trovati misurando, non leggendo:
   la home passava l'uuid del libro: `Number(uuid)` è NaN e la query del testo
   restava disabilitata. Corretto in 0050.
 
+## Sesta tornata — layout (dalle foto dello schermo)
+
+- 🔴 **La riga dei filtri lingua si mangiava tutto lo schermo.** In
+  react-native-web *ogni* `ScrollView` nasce con `flexGrow: 1`, comprese quelle
+  orizzontali (`commonStyle` in `exports/ScrollView`). Stando dentro la colonna
+  flex della schermata, la striscia si prendeva tutta l'altezza avanzata: a
+  ricerca vuota i quattro chip riempivano il display. Risolto con
+  `flexGrow: 0, flexShrink: 0` esplicito.
+- 🔴 **Le griglie erano larghe più del loro contenitore.** `BookCard` portava
+  `marginRight: spacing.sm`, ma ogni griglia calcola le colonne con
+  `gridCardWidth()` e le distanzia con `gap`: quel margine è larghezza che il
+  layout non aveva previsto. Su un telefono da 390pt tre schede facevano 381pt
+  dentro 358 e la terza andava a capo — **è questa la segnalazione "nel profilo
+  vedo due colonne"**, che il ritocco a `gridCardWidth` non aveva risolto perché
+  la causa era altrove. Margine tolto, `gap` esplicito nelle righe orizzontali
+  che ci contavano (`BookRow`). Verificato a 320 / 360 / 375 / 390 / 414 / 430 /
+  744 / 820 / 852 / 932 / 1440 pt: nessuna riga sfora.
+- 🟠 **Tre colonne anche in orizzontale.** Ruotando il telefono la larghezza
+  utile raddoppia e le stesse tre colonne gonfiavano ogni copertina a ~256pt.
+  Ora il numero di colonne segue la finestra (3 in verticale, 4-5 in
+  orizzontale e su tablet), puntando a una scheda da ~150pt.
+- 🟠 **Il primo tocco su un risultato non apriva niente**: senza
+  `keyboardShouldPersistTaps` la lista consuma il tocco per chiudere la
+  tastiera. Aggiunto, insieme a `keyboardDismissMode="on-drag"`.
+- 🟠 **Schermata di ricerca vuota e muta** prima di digitare: nessun testo,
+  nessun suggerimento. Ora c'è un invito breve.
+- 🟡 **La ricerca sporcava il catalogo.** L'espansione (~30 libri attorno ai
+  risultati) partiva a ogni import: cercare "meet" ha lasciato in catalogo Meet
+  Addy, Meet Kirsten e Meet Samantha per sempre. Ora l'espansione parte solo se
+  la query è specifica (più di una parola, o almeno sei caratteri); l'import
+  diretto resta.
+
+Nota di metodo: queste sono state verificate leggendo il sorgente di
+react-native-web e ricalcolando la larghezza delle griglie a ogni breakpoint,
+non con uno screenshot — il browser headless non arriva a Supabase da questo
+ambiente, quindi la schermata autenticata non è riproducibile qui.
+
 ---
 
 ## Note operative (a carico del founder, pre-lancio)
