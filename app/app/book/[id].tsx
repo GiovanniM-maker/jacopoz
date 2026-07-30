@@ -133,12 +133,19 @@ export default function BookPage() {
           <Text style={styles.backText}>‹ Indietro</Text>
         </Pressable>
 
-        {/* Collana band: this book is an issue of the series. */}
+        {/* Rubric band. It used to also print "N°<n>" — a number derived from a
+            hash of the title, purely decorative, but sitting next to real
+            bibliographic data it read as a catalogue number the book doesn't
+            have. Shows the language instead, which is genuinely useful here. */}
         <View style={[styles.colBand, { backgroundColor: mark.band }]}>
           <Text style={[styles.colBandText, { color: bandInk }]} numberOfLines={1}>
             Tomo · {b.categories[0] ?? "Libro"}
           </Text>
-          <Text style={[styles.colBandText, { color: bandInk }]}>N°{mark.number}</Text>
+          {b.language ? (
+            <Text style={[styles.colBandText, { color: bandInk }]}>
+              {b.language.toUpperCase()}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.hero}>

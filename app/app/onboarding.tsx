@@ -4,7 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { getGenres, searchBooks, importFromProviders } from "@/api/books";
 import { getFreeReadsForYou } from "@/api/reco";
 import { setShelf } from "@/api/shelves";
-import { saveOnboarding } from "@/api/profile";
+import { saveOnboarding, setReadingLanguage } from "@/api/profile";
 import { BookCover } from "@/components/BookCover";
 import { Button } from "@/components/ui/Button";
 import { enablePush, pushSupported } from "@/lib/push";
@@ -40,6 +40,8 @@ export default function Onboarding() {
   const userId = session?.user.id;
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Reading language: decides which editions rank first everywhere in the app.
+  const [lang, setLang] = useState("it");
   const [saving, setSaving] = useState(false);
 
   const { data: genres = [] } = useQuery({ queryKey: ["genres"], queryFn: getGenres });
@@ -77,6 +79,7 @@ export default function Onboarding() {
         const p = parentOf.get(s);
         if (p) slugs.add(p);
       }
+      await setReadingLanguage(userId, lang);
       await saveOnboarding(userId, [...slugs]); // also flips onboarded_at → gate → app
       await refreshProfile();
     } finally {
@@ -96,6 +99,23 @@ export default function Onboarding() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.lg }}>
+          <Text style={styles.langLabel}>In che lingua leggi?</Text>
+          <View style={styles.langRow}>
+            {[
+              { code: "it", label: "Italiano" },
+              { code: "en", label: "English" },
+              { code: "es", label: "Español" },
+              { code: "fr", label: "Français" },
+              { code: "de", label: "Deutsch" },
+              { code: "pt", label: "Português" },
+            ].map((l) => (
+              <Chip key={l.code} label={l.label} selected={lang === l.code} onPress={() => setLang(l.code)} />
+            ))}
+          </View>
+          <Text style={styles.langHint}>
+            Ti mostreremo prima le edizioni in questa lingua. Puoi cambiarla quando vuoi.
+          </Text>
+
           {groups.map(({ parent, subs }: { parent: Genre; subs: Genre[] }) => (
             <View key={parent.slug} style={styles.group}>
               <View style={styles.groupRow}>
@@ -455,6 +475,14 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   finishBtn: { minWidth: 140 },
+  langLabel: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
+    marginBottom: spacing.sm,
+  },
+  langRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.xs },
+  langHint: { color: colors.textMuted, fontSize: 12, marginBottom: spacing.lg },
   notifSpacer: { flex: 1 },
   notifNote: { color: colors.textMuted, fontSize: 14, textAlign: "center", marginBottom: spacing.md },
   notifSkip: { alignSelf: "center", paddingVertical: spacing.md },

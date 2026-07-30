@@ -65,7 +65,7 @@ export async function deleteAccount(): Promise<void> {
 
 export async function updateProfile(
   id: UUID,
-  patch: Partial<Pick<Profile, "display_name" | "bio" | "avatar_url">>,
+  patch: Partial<Pick<Profile, "display_name" | "bio" | "avatar_url" | "reading_language">>,
 ): Promise<Profile> {
   const { data, error } = await supabase
     .from("profiles")
@@ -90,6 +90,15 @@ export async function getGenrePrefs(userId: UUID): Promise<string[]> {
 
 /** Replace the user's genre picks and stamp onboarded_at. Called from the
  *  onboarding taste picker — this is what solves reco cold-start. */
+/** The reader's preferred reading language — drives search ranking + imports. */
+export async function setReadingLanguage(userId: UUID, lang: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ reading_language: lang })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
 export async function saveOnboarding(userId: UUID, genreSlugs: string[]): Promise<void> {
   await supabase.from("user_genre_prefs").delete().eq("user_id", userId);
   if (genreSlugs.length) {

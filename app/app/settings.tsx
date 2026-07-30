@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { deleteAccount, updateProfile } from "@/api/profile";
+import { deleteAccount, setReadingLanguage, updateProfile } from "@/api/profile";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -19,6 +19,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState(profile?.reading_language ?? "it");
   const [installable, setInstallable] = useState(canInstall());
 
   useEffect(() => {
@@ -34,6 +35,19 @@ export default function Settings() {
         "Tocca Condividi in fondo a Safari, poi «Aggiungi a Home».",
         "Ho capito",
       );
+    }
+  }
+
+  async function onPickLang(code: string) {
+    if (!userId) return;
+    const prev = lang;
+    setLang(code);
+    try {
+      await setReadingLanguage(userId, code);
+      await refreshProfile();
+    } catch {
+      setLang(prev);
+      setError("Non è stato possibile cambiare lingua. Riprova.");
     }
   }
 
@@ -105,6 +119,32 @@ export default function Settings() {
           style={styles.save}
         />
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {/* Reading language — the same preference chosen at onboarding. */}
+        <Text style={styles.section}>Lingua di lettura</Text>
+        <Text style={styles.langHint}>
+          Le edizioni in questa lingua vengono mostrate prima nelle ricerche.
+        </Text>
+        <View style={styles.langRow}>
+          {[
+            { code: "it", label: "Italiano" },
+            { code: "en", label: "English" },
+            { code: "es", label: "Español" },
+            { code: "fr", label: "Français" },
+            { code: "de", label: "Deutsch" },
+            { code: "pt", label: "Português" },
+          ].map((l) => (
+            <Pressable
+              key={l.code}
+              onPress={() => onPickLang(l.code)}
+              style={[styles.langChip, lang === l.code && styles.langChipOn]}
+            >
+              <Text style={[styles.langChipText, lang === l.code && styles.langChipTextOn]}>
+                {l.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* Appearance / theme */}
         <Text style={styles.section}>Aspetto</Text>
@@ -190,6 +230,18 @@ const styles = StyleSheet.create({
   },
   area: { minHeight: 84 },
   save: { marginTop: spacing.lg },
+  langHint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
+  langRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  langChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  langChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  langChipText: { color: colors.textMuted, fontSize: 13, fontWeight: "800" },
+  langChipTextOn: { color: colors.onPrimary },
   errorText: { color: colors.accent, fontSize: 13, marginTop: spacing.sm, textAlign: "center" },
   row: {
     flexDirection: "row",

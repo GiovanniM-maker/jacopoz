@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { router, useLocalSearchParams } from "expo-router";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { blockUser, isBlocked, reportContent, unblockUser } from "@/api/moderation";
 import { getProfileByUsername, getProfileStats } from "@/api/profile";
@@ -22,6 +23,7 @@ export default function PublicProfile() {
   const { username } = useLocalSearchParams<{ username: string }>();
   const { session } = useAuth();
   const qc = useQueryClient();
+  const [reported, setReported] = useState(false);
 
   const profile = useQuery({
     queryKey: ["profile-by-username", username],
@@ -71,7 +73,14 @@ export default function PublicProfile() {
 
   async function onReport() {
     if (!targetId) return;
-    await reportContent("user", targetId);
+    // "user" is not a member of the report_target enum — the valid value is
+    // "profile", so this insert used to be rejected outright.
+    try {
+      await reportContent("profile", targetId);
+      setReported(true);
+    } catch {
+      setReported(false);
+    }
   }
 
   // Optimistic follow toggle guarded against double-taps (a second insert would
@@ -118,8 +127,8 @@ export default function PublicProfile() {
                 style={styles.followBtn}
               />
               <View style={styles.modRow}>
-                <Pressable onPress={onReport} hitSlop={8}>
-                  <Text style={styles.modLink}>Segnala</Text>
+                <Pressable onPress={onReport} hitSlop={8} disabled={reported}>
+                  <Text style={styles.modLink}>{reported ? "Segnalato ✓" : "Segnala"}</Text>
                 </Pressable>
                 <Text style={styles.modDot}>·</Text>
                 <Pressable onPress={onToggleBlock} hitSlop={8}>

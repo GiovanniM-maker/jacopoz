@@ -2,11 +2,17 @@ import { supabase } from "@/lib/supabase";
 import type { Book, BookCard, ExternalReview, Genre, UUID } from "@/types/database";
 
 /** Full catalog search via the search_books RPC (FTS + trigram fallback). */
-export async function searchBooks(query: string, limit = 20, offset = 0): Promise<BookCard[]> {
+export async function searchBooks(
+  query: string,
+  limit = 20,
+  offset = 0,
+  lang?: string | null,
+): Promise<BookCard[]> {
   const { data, error } = await supabase.rpc("search_books", {
     p_query: query,
     p_limit: limit,
     p_offset: offset,
+    p_lang: lang ?? null,
   });
   if (error) throw error;
   return mergeEditions((data ?? []) as BookCard[]);
@@ -236,9 +242,16 @@ export function bookAvgRating(book: Pick<Book, "rating_sum" | "rating_count">): 
  * providers into the catalog. Called when local search is thin so results
  * populate over time. Best-effort — failure just means no new imports.
  */
-export async function importFromProviders(query: string, limit = 10): Promise<void> {
+export async function importFromProviders(
+  query: string,
+  limit = 10,
+  lang?: string | null,
+): Promise<void> {
   try {
-    await supabase.functions.invoke("ingest-book", { body: { query, limit } });
+    // Passing the reader's language makes the provider return editions in that
+    // language first, so searching an Italian title imports the Italian edition
+    // instead of whichever translation ranks globally.
+    await supabase.functions.invoke("ingest-book", { body: { query, limit, lang } });
   } catch {
     // ignore — catalog stays as-is
   }
@@ -256,4 +269,16 @@ export async function expandCatalog(query: string, limit = 10): Promise<void> {
   } catch {
     // best-effort catalog growth
   }
+}
+
+export interface CatalogLanguage {
+  language: string;
+  book_count: number;
+}
+
+/** Languages the catalogue actually carries, for the search filter. */
+export async function getCatalogLanguages(): Promise<CatalogLanguage[]> {
+  const { data, error } = await supabase.rpc("get_catalog_languages");
+  if (error) return [];
+  return (data ?? []) as CatalogLanguage[];
 }

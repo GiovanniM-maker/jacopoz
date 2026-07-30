@@ -37,6 +37,7 @@ export default function ReviewThread() {
   const [posting, setPosting] = useState(false);
   const [modMenu, setModMenu] = useState(false);
   const [reported, setReported] = useState(false);
+  const [reportedComments, setReportedComments] = useState<Set<string>>(new Set());
 
   const review = useQuery({
     queryKey: ["review", id, userId],
@@ -87,7 +88,13 @@ export default function ReviewThread() {
   }
 
   async function onReportComment(commentId: string) {
-    await reportContent("comment", commentId);
+    try {
+      await reportContent("comment", commentId);
+      // Visible acknowledgement: tapping the flag used to do nothing at all.
+      setReportedComments((prev) => new Set(prev).add(commentId));
+    } catch {
+      // leave the flag untouched so the reader can retry
+    }
     qc.invalidateQueries({ queryKey: ["comments", id, userId] });
   }
 
@@ -212,6 +219,7 @@ export default function ReviewThread() {
                 onLike={() => onCommentLike(c.id)}
                 onReply={() => setReplyTo(c)}
                 onSave={() => onSaveComment(c.id)}
+                reported={reportedComments.has(c.id)}
                 onReport={() => onReportComment(c.id)}
               />
               {c.reply_count > 0 ? (

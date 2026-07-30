@@ -24,6 +24,7 @@ export interface Profile {
   following_count: number;
   books_read_count: number;
   points: number;
+  reading_language: string;
   onboarded_at: string | null;
   created_at: string;
 }

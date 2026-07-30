@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { expandCatalog, importFromProviders, searchAuthors, searchBooks } from "@/api/books";
 import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
@@ -24,14 +24,24 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
+// Language filter options. "auto" follows the reader's profile preference;
+// "all" removes the boost entirely (useful to find an original-language edition).
+const LANGS: { code: string; label: string }[] = [
+  { code: "auto", label: "La mia lingua" },
+  { code: "it", label: "Italiano" },
+  { code: "en", label: "Inglese" },
+  { code: "all", label: "Tutte" },
+];
+
 export default function Search() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("books");
+  const [lang, setLang] = useState("auto");
   const debounced = useDebounced(query.trim(), 350);
 
   const books = useQuery({
-    queryKey: ["search-books", debounced],
-    queryFn: () => searchBooks(debounced, 30),
+    queryKey: ["search-books", debounced, lang],
+    queryFn: () => searchBooks(debounced, 30, 0, lang === "auto" ? null : lang),
     enabled: tab === "books" && debounced.length >= 2,
   });
   const authors = useQuery({
@@ -69,7 +79,7 @@ export default function Search() {
       importedFor.current !== debounced
     ) {
       importedFor.current = debounced;
-      void importFromProviders(debounced, 10).then(() => books.refetch());
+      void importFromProviders(debounced, 10, lang === "auto" ? "it" : lang).then(() => books.refetch());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debounced, tab, books.isFetching, books.isSuccess, books.data]);
@@ -106,6 +116,24 @@ export default function Search() {
           </Pressable>
         ))}
       </View>
+
+      {tab === "books" ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.langRow}
+        >
+          {LANGS.map((l) => (
+            <Pressable
+              key={l.code}
+              onPress={() => setLang(l.code)}
+              style={[styles.langChip, lang === l.code && styles.langChipOn]}
+            >
+              <Text style={[styles.langText, lang === l.code && styles.langTextOn]}>{l.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
 
       {/* Loading feedback: searches hit the network (and sometimes import from
           providers), so without this the screen looked frozen. */}
@@ -191,6 +219,17 @@ function Empty({ msg }: { msg: string }) {
 }
 
 const styles = StyleSheet.create({
+  langRow: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.sm },
+  langChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  langChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  langText: { color: colors.textMuted, fontSize: 12, fontWeight: "800" },
+  langTextOn: { color: colors.onPrimary },
   loadingRow: {
     flexDirection: "row",
     alignItems: "center",

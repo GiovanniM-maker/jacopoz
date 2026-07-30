@@ -212,11 +212,19 @@ async function gutendexSearch(query: string, limit: number): Promise<NormalizedB
     .filter(Boolean) as NormalizedBook[];
 }
 
-async function googleBooksSearch(query: string, limit: number): Promise<NormalizedBook[]> {
+async function googleBooksSearch(
+  query: string,
+  limit: number,
+  lang?: string | null,
+): Promise<NormalizedBook[]> {
   const key = Deno.env.get("GOOGLE_BOOKS_API_KEY");
   const url = new URL("https://www.googleapis.com/books/v1/volumes");
   url.searchParams.set("q", query);
   url.searchParams.set("maxResults", String(Math.min(limit, 40)));
+  // Ask the provider for editions in the reader's language. Without this the
+  // API returns whichever edition ranks globally — which is how an Italian
+  // search for "la vegetariana" only ever yielded the Spanish/Catalan one.
+  if (lang && lang !== "all") url.searchParams.set("langRestrict", lang);
   if (key) url.searchParams.set("key", key);
   const res = await fetch(url);
   if (!res.ok) return [];
@@ -295,7 +303,7 @@ async function openLibrarySearch(query: string, limit: number): Promise<Normaliz
 }
 
 // --- Canonical upsert (dedup) -----------------------------------------
-async function upsertCanonical(supabase: any, nb: NormalizedBook) {
+async function upsertCanonical(supabase: any, nb: NormalizedBook, preferLang?: string | null) {
   // 1) Try to find an existing canonical row: ISBN-13 first, then dedup_key.
   let existing: any = null;
   if (nb.isbn_13) {
@@ -336,16 +344,44 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook) {
       .single();
     if (error) throw error;
     book = data;
-  } else if (nb.gutenberg_id && !existing.gutenberg_id) {
-    // Enrich an existing row with the free-read link discovered via Gutenberg.
-    await supabase
-      .from("books")
-      .update({
-        gutenberg_id: nb.gutenberg_id,
-        free_read_url: nb.free_read_url,
-        gutenberg_checked_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id);
+  } else {
+    // The dedup key is title+first-author, so every language edition of a work
+    // collapses onto ONE row and whichever was imported first keeps its
+    // metadata. That is why an Italian reader kept seeing the Spanish/Catalan
+    // edition of "La vegetariana": the Spanish one landed first and nothing
+    // could ever replace it. When an edition in the wanted language shows up
+    // and the stored row isn't in that language, upgrade the row's edition
+    // fields to it (never blank a populated field).
+    const patch: Record<string, unknown> = {};
+
+    if (nb.gutenberg_id && !existing.gutenberg_id) {
+      patch.gutenberg_id = nb.gutenberg_id;
+      patch.free_read_url = nb.free_read_url;
+      patch.gutenberg_checked_at = new Date().toISOString();
+    }
+
+    if (preferLang && nb.language === preferLang && existing.language !== preferLang) {
+      patch.language = nb.language;
+      if (nb.isbn_13) patch.isbn_13 = nb.isbn_13;
+      if (nb.isbn_10) patch.isbn_10 = nb.isbn_10;
+      if (nb.cover_url) patch.cover_url = nb.cover_url;
+      if (nb.description) patch.description = nb.description;
+      if (nb.page_count) patch.page_count = nb.page_count;
+    }
+    // Fill genuine gaps regardless of language.
+    if (!existing.description && nb.description) patch.description = nb.description;
+    if (!existing.cover_url && nb.cover_url) patch.cover_url = nb.cover_url;
+    if (!existing.language && nb.language) patch.language = nb.language;
+
+    if (Object.keys(patch).length > 0) {
+      const { data } = await supabase
+        .from("books")
+        .update(patch)
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+      if (data) book = data;
+    }
   }
 
   // 2) Record provider ids (idempotent) so future lookups resolve instantly.
@@ -405,6 +441,7 @@ async function upsertMany(
   list: NormalizedBook[],
   seen: Set<string>,
   cap = Infinity,
+  preferLang?: string | null,
 ): Promise<any[]> {
   const out: any[] = [];
   for (const nb of list) {
@@ -414,7 +451,7 @@ async function upsertMany(
     const k = dedupKey(nb.title, nb.authors);
     if (seen.has(k)) continue;
     seen.add(k);
-    out.push(await upsertCanonical(supabase, nb));
+    out.push(await upsertCanonical(supabase, nb, preferLang));
   }
   return out;
 }
@@ -452,6 +489,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+    const reqLang = typeof body.lang === "string" && body.lang && body.lang !== "all" ? body.lang : null;
     let normalized: NormalizedBook[] = [];
 
     if (body.isbn) {
@@ -480,9 +518,13 @@ Deno.serve(async (req) => {
       // metadata), Open Library as the always-available fallback.
       const q = String(body.query);
       const n = Number(body.limit ?? 10);
+      const lang = reqLang;
       const [guten, google] = await Promise.all([
         gutendexSearch(q, Math.min(n, 5)),
-        googleBooksSearch(q, n),
+        // Preferred-language editions first, then unrestricted so nothing is lost.
+        lang
+          ? Promise.all([googleBooksSearch(q, n, lang), googleBooksSearch(q, n)]).then((r) => r.flat())
+          : googleBooksSearch(q, n),
       ]);
       normalized = [...guten, ...google];
       if (normalized.length === 0) normalized = await openLibrarySearch(q, n);
@@ -494,7 +536,7 @@ Deno.serve(async (req) => {
     }
 
     const seen = new Set<string>();
-    const books = await upsertMany(supabase, normalized, seen);
+    const books = await upsertMany(supabase, normalized, seen, Infinity, reqLang);
 
     // Make the just-imported titles instantly recommendable.
     await embedNewBooks(supabase, books);
@@ -506,7 +548,7 @@ Deno.serve(async (req) => {
     if (body.expand && books.length) {
       try {
         const rel = await gatherRelated(books);
-        related = await upsertMany(supabase, rel, seen, 30);
+        related = await upsertMany(supabase, rel, seen, 30, reqLang);
         await embedNewBooks(supabase, related);
       } catch {
         // expansion is best-effort; never fail the base import
