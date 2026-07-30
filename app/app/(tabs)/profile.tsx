@@ -194,6 +194,7 @@ export default function ProfileScreen() {
                   commentCount={r.comment_count}
                   bookTitle={r.book?.title}
                   bookCover={r.book?.cover_url}
+                bookId={r.book?.id}
                   onPress={() => router.push(`/review/${r.id}`)}
                   onBookPress={() => r.book && router.push(`/book/${r.book.id}`)}
                   onLike={async () => {

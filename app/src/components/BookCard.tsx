@@ -49,7 +49,7 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss, showR
           <Icon name="close" color={colors.text} size={12} />
         </Pressable>
       ) : null}
-      <BookCover url={book.cover_url} title={book.title} width={width} />
+      <BookCover url={book.cover_url} title={book.title} width={width} bookId={book.id} />
       {showReason && book.reason ? (
         <Text style={styles.reason} numberOfLines={2}>
           {book.reason}

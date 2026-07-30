@@ -132,6 +132,7 @@ export default function Community() {
               likedByViewer={item.viewer_has_liked}
               bookTitle={item.book_title}
               bookCover={item.book_cover_url}
+              bookId={item.book_id}
               onPress={() => router.push(`/review/${item.review_id}`)}
               onBookPress={() => router.push(`/book/${item.book_id}`)}
               onAuthorPress={() => router.push(`/user/${item.author_username}`)}
