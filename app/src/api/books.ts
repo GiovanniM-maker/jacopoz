@@ -19,14 +19,32 @@ export async function searchBooks(
 }
 
 /** Normalise a title for comparison: drop edition parentheticals, accents,
- *  punctuation and case, so "A' Ciascuno Il Suo (Gli Adelphi)" ≡ "A ciascuno il suo". */
+ *  punctuation and case, so "A' Ciascuno Il Suo (Gli Adelphi)" ≡ "A ciascuno il suo".
+ *  A leading article goes too — providers disagree about it on the same work
+ *  ("Notti Bianche" and "Le notti bianche" are the same book). */
 function normTitle(t: string): string {
-  return (t || "")
+  const flat = (t || "")
     .replace(/\([^)]*\)/g, " ")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return flat.replace(/^(?:il|lo|la|i|gli|le|l|un|uno|una|the|a|an)\s+/, "").replace(/\s+/g, "");
+}
+
+/** Any author in common, compared on accent-folded full names. Providers list
+ *  translators, editors and imprints ahead of the author, so the *first* author
+ *  is not a reliable identity — "Notti bianche" arrives credited to Cortese,
+ *  Martinulli or Dostoevskij depending on the edition, with Dostoevskij present
+ *  further down the list. Requiring a shared name still keeps two different
+ *  works that happen to share a title apart. */
+function sharesAuthor(a: string[] | null, b: string[] | null): boolean {
+  const fold = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const setA = new Set((a ?? []).map(fold).filter(Boolean));
+  if (setA.size === 0) return false;
+  return (b ?? []).map(fold).some((n) => n && setA.has(n));
 }
 
 /** True when two same-length titles differ in a single character — catches
@@ -52,21 +70,21 @@ function completeness(b: BookCard): number {
 /**
  * Collapse duplicate *editions* of the same work. Providers hand us the same
  * book several times — a translated edition, an "(Gli Adelphi)" reprint, and
- * sometimes a typo'd title — each as its own row with its own ISBN. Only merge
- * rows by the same author whose titles match exactly once normalised, or differ
+ * sometimes a typo'd title — each as its own row with its own ISBN. Merge rows
+ * that share an author and whose titles match exactly once normalised, or differ
  * by a single character (a typo). Deliberately conservative: series like
  * "The Dark Tower I"/"II" differ in length and are left alone.
  */
 export function mergeEditions(rows: BookCard[]): BookCard[] {
-  const kept: { norm: string; author: string; book: BookCard }[] = [];
+  const kept: { norm: string; book: BookCard }[] = [];
   for (const b of rows) {
     const norm = normTitle(b.title);
-    const author = (b.authors?.[0] ?? "").toLowerCase().trim();
     const hit = kept.find(
-      (k) => k.author === author && (k.norm === norm || oneCharApart(k.norm, norm)),
+      (k) =>
+        (k.norm === norm || oneCharApart(k.norm, norm)) && sharesAuthor(k.book.authors, b.authors),
     );
     if (!hit) {
-      kept.push({ norm, author, book: b });
+      kept.push({ norm, book: b });
     } else if (completeness(b) > completeness(hit.book)) {
       hit.book = b; // keep the richer edition
       hit.norm = norm;
