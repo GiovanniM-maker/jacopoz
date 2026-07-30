@@ -8,6 +8,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { confirmDialog } from "@/lib/confirm";
 import { canInstall, isIos, onInstallChange, promptInstall } from "@/lib/pwaInstall";
+import { buildId, hardRefresh } from "@/lib/appVersion";
 import { useAuth } from "@/store/auth";
 import { activeTheme, colors, radius, setTheme, spacing, THEMES, typography } from "@/theme";
 
@@ -65,6 +66,16 @@ export default function Settings() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function onHardRefresh() {
+    const ok = await confirmDialog(
+      "Aggiornare l'app?",
+      "Svuota la cache e ricarica Tomo all'ultima versione. Non perdi nulla: i tuoi dati sono sul server.",
+      "Aggiorna",
+    );
+    if (!ok) return;
+    await hardRefresh();
   }
 
   async function onDelete() {
@@ -180,6 +191,13 @@ export default function Settings() {
         </Text>
         <Row icon="list" label="Informativa privacy" onPress={() => router.push("/legal/privacy")} />
         <Row icon="list" label="Termini di servizio" onPress={() => router.push("/legal/terms")} />
+
+        {/* Build + hard refresh: an installed PWA can pin an old bundle in its
+            service-worker cache, so this shows what is actually running and
+            gives a one-tap way out. */}
+        <Text style={styles.section}>App</Text>
+        <Text style={styles.note}>Versione installata: {buildId()}</Text>
+        <Row icon="download" label="Aggiorna all'ultima versione" onPress={onHardRefresh} />
 
         {/* Danger zone */}
         <Text style={[styles.section, { color: colors.primary }]}>Zona pericolosa</Text>

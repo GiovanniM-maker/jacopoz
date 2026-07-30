@@ -38,6 +38,7 @@ const reg =
   "}).catch(function(){})})}";
 
 const head = `
+    <meta name="tomo-build" content="${BUILD_ID}" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#ECE1C8" />
     <meta name="mobile-web-app-capable" content="yes" />
