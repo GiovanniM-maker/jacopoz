@@ -11,16 +11,47 @@ Uso:  python3 scripts/spec-test.py [prefisso]
 Richiede /tmp/sbq.py (client Management API) — vedi docs/DEPLOY.md.
 """
 import importlib.util
+import json
+import os
 import re
+import ssl
 import sys
 import time
 import unicodedata
+import urllib.request
 
 spec = importlib.util.spec_from_file_location("sbq", "/tmp/sbq.py")
 sbq = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sbq)
 
 RESULTS = []
+
+# La anon key è pubblica per costruzione (sta nel bundle web), ma non va
+# scritta nel repo: si legge dall'ambiente, e senza si salta il test end-to-end
+# invece di dichiararlo superato.
+ANON = os.environ.get("TOMO_ANON_KEY") or ""
+if not ANON:
+    try:
+        ANON = open("/tmp/anon.key", encoding="utf-8").read().strip()
+    except OSError:
+        ANON = ""
+
+_ctx = ssl.create_default_context(cafile="/root/.ccr/ca-bundle.crt")
+_handlers = [urllib.request.HTTPSHandler(context=_ctx)]
+if os.environ.get("HTTPS_PROXY"):
+    _handlers.insert(0, urllib.request.ProxyHandler({"https": os.environ["HTTPS_PROXY"]}))
+_opener = urllib.request.build_opener(*_handlers)
+
+
+def ingest(body, timeout=240):
+    """Chiama la Edge Function esattamente come fa app/app/search.tsx."""
+    req = urllib.request.Request(
+        "https://tpphaalfmcqtfxhyafzz.supabase.co/functions/v1/ingest-book",
+        method="POST", data=json.dumps(body).encode(),
+        headers={"Authorization": f"Bearer {ANON}", "apikey": ANON,
+                 "content-type": "application/json", "User-Agent": "curl/8.5.0"})
+    with _opener.open(req, timeout=timeout) as r:
+        return json.loads(r.read())
 
 
 def q(sql, _tries=4):
@@ -39,7 +70,10 @@ def q(sql, _tries=4):
 
 
 def check(ident, description, ok, detail=""):
-    RESULTS.append((ident, description, bool(ok), detail))
+    """`ok=None` significa "non verificabile in questo momento": non è un
+    successo (non dimostra niente) ma nemmeno un fallimento (non c'è un difetto
+    da correggere). Contarlo come rosso insegnerebbe a ignorare il rosso."""
+    RESULTS.append((ident, description, ok if ok is None else bool(ok), detail))
 
 
 def norm(s):
@@ -261,6 +295,112 @@ def test_security():
           set(granted) <= allowed, f"scrivibili: {granted}")
 
 
+# ------------------------------------------------- R-7: import a richiesta
+# Attenzione: questo blocco **scrive** in catalogo, perché è esattamente ciò che
+# la funzione fa. È il comportamento del prodotto, non un effetto collaterale
+# del test.
+# Il criterio è l'**autore**, non il titolo: molte traduzioni italiane non
+# esistono affatto presso i provider (Google Books ha "The Goldfinch" ma non
+# "Il cardellino"), quindi pretendere il titolo italiano misurerebbe il
+# catalogo di Google, non il nostro import. Il cognome dell'autore invece è lo
+# stesso in ogni lingua.
+# Il candidato si **genera**, non si sceglie da una lista: ogni giro ne importa
+# uno per davvero, quindi qualunque elenco fisso si consuma da solo e dopo
+# qualche esecuzione il test passerebbe a vuoto. Open Library fornisce coppie
+# titolo+autore reali — un fixture inventato ("La rondine" attribuito a
+# Janeczek) darebbe un falso allarme — e non ha quota.
+OL_UA = os.environ.get("OPEN_LIBRARY_USER_AGENT", "tomo-spec-test/0.1")
+
+
+def _open_library_candidati(offset):
+    url = ("https://openlibrary.org/search.json?q=language%3Aita"
+           f"&limit=20&offset={offset}&fields=title,author_name")
+    req = urllib.request.Request(url, headers={"User-Agent": OL_UA})
+    try:
+        with _opener.open(req, timeout=60) as r:
+            return json.loads(r.read()).get("docs", [])
+    except Exception:
+        return []
+
+
+def _autore_in_catalogo(surname):
+    return int(q("select count(*) n from public.books where "
+                 f"lower(public.authors_text(authors)) like '%{lit(surname)}%';")[0]["n"])
+
+
+def test_import():
+    if not ANON:
+        check("R-7", "un libro assente viene importato quando lo si cerca", False,
+              "TOMO_ANON_KEY non impostata: test non eseguito")
+        return
+
+    # Serve un autore davvero assente, altrimenti il test sarebbe vero per
+    # costruzione. Se un candidato non porta il suo autore, quasi sempre il
+    # titolo nel fixture non è davvero suo: si prova il successivo invece di
+    # dare la colpa al prodotto. Il fallimento resta possibile — se nessun
+    # candidato importa niente, l'import è rotto sul serio.
+    tentativi = []
+    visti = set()
+    for offset in (0, 200, 700, 1500, 3000, 6000):
+        for d in _open_library_candidati(offset):
+            titolo = (d.get("title") or "").strip()
+            autori = d.get("author_name") or []
+            if not titolo or not autori:
+                continue
+            # Senza togliere gli accenti il confronto non può funzionare:
+            # `authors_text` in catalogo passa da immutable_unaccent, quindi
+            # cercare "jérôme" non trova mai "Jerome".
+            parole = norm(autori[0]).split()
+            cognome = parole[-1] if parole else ""
+            if len(cognome) < 4 or cognome in visti or not cognome.isalpha():
+                continue
+            visti.add(cognome)
+            if _autore_in_catalogo(cognome) != 0:
+                continue
+
+            query = f"{titolo} {autori[0]}"
+            tot_prima = int(q("select count(*) n from public.books;")[0]["n"])
+            try:
+                res = ingest({"query": query, "limit": 10, "lang": "it", "expand": True})
+            except Exception as e:
+                # Una connessione caduta non è un difetto del prodotto.
+                check("R-7", "un libro assente viene importato quando lo si cerca", None,
+                      f"rete: {type(e).__name__} — riprovare")
+                return
+            time.sleep(2)
+            n_autore = _autore_in_catalogo(cognome)
+            tot_dopo = int(q("select count(*) n from public.books;")[0]["n"])
+            diretti = len(res.get("books", []))
+
+            if n_autore > 0:
+                check("R-7", "un libro assente viene importato quando lo si cerca", True,
+                      f"{query[:50]!r}: {cognome} da 0 a {n_autore} libri, "
+                      f"{diretti} risultati diretti")
+                simili = res.get("related", 0)
+                errore = res.get("expand_error")
+                check("R-7b", "l'import porta anche libri simili, non solo quello cercato",
+                      simili > 0 and not errore,
+                      f"espansione fallita: {errore}" if errore else
+                      f"nuovi in catalogo {tot_dopo - tot_prima}, di cui {diretti} diretti "
+                      f"e {simili} simili")
+                return
+
+            tentativi.append(f"{query[:40]!r}: {diretti} importati, nessun {cognome}")
+            if len(tentativi) >= 3:
+                break
+        if len(tentativi) >= 3:
+            break
+
+    if not tentativi:
+        # Nessun autore proposto da Open Library manca al catalogo: non c'è
+        # niente da importare, quindi non c'è niente da verificare.
+        check("R-7", "un libro assente viene importato quando lo si cerca", None,
+              "nessun autore assente fra quelli proposti: nulla da importare")
+        return
+    check("R-7", "un libro assente viene importato quando lo si cerca", False,
+          " ; ".join(tentativi))
+
+
 # --------------------------------------------------------------- client
 def test_client():
     src = open("app/app/search.tsx", encoding="utf-8").read()
@@ -285,7 +425,8 @@ def test_client():
 
 def main():
     only = sys.argv[1] if len(sys.argv) > 1 else ""
-    for fn in (test_search, test_language, test_genres, test_catalog, test_security, test_client):
+    for fn in (test_search, test_language, test_genres, test_catalog, test_security,
+               test_import, test_client):
         try:
             fn()
         except Exception as e:  # un test rotto non deve nascondere gli altri
@@ -295,14 +436,16 @@ def main():
     width = max(len(r[0]) for r in rows) if rows else 8
     failed = 0
     for ident, desc, ok, detail in rows:
-        mark = "  ok  " if ok else " FAIL "
-        failed += not ok
+        mark = "  --  " if ok is None else ("  ok  " if ok else " FAIL ")
+        failed += ok is False
         print(f"{mark} {ident:<{width}}  {desc}")
         if detail and not ok:
             print(f"        └─ {detail}")
         elif detail:
             print(f"        └─ {detail}")
-    print(f"\n{len(rows) - failed}/{len(rows)} controlli superati")
+    skipped = sum(1 for r in rows if r[2] is None)
+    print(f"\n{len(rows) - failed - skipped}/{len(rows) - skipped} controlli superati"
+          + (f"  ({skipped} non verificabili ora)" if skipped else ""))
     return 1 if failed else 0
 
 

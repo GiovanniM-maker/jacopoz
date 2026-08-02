@@ -300,6 +300,49 @@ react-native-web e ricalcolando la larghezza delle griglie a ogni breakpoint,
 non con uno screenshot — il browser headless non arriva a Supabase da questo
 ambiente, quindi la schermata autenticata non è riproducibile qui.
 
+## Settima tornata — l'import a richiesta (R-7)
+
+Verifica di una promessa che non era mai stata messa alla prova: *cercare un
+libro che non abbiamo lo porta in catalogo, insieme a qualche libro vicino*.
+
+Funziona, ma per arrivarci sono usciti tre difetti veri.
+
+- 🔴 **`inauthor:` fallisce in silenzio su molti autori.** È il campo autore di
+  Google e lo confronta *come lo scrive Google*: misurato,
+  `inauthor:"Marco Missiroli"` restituisce **zero**, mentre la query semplice
+  "Marco Missiroli" restituisce otto suoi libri. Siccome l'espansione si
+  appoggiava solo a quello, cercare un suo titolo portava in catalogo una riga
+  e basta. Peggio: la scheda **Autori** era passata a `inauthor:` il giorno
+  prima, quindi anche lì un autore poteva sparire del tutto. Ora c'è il ripiego
+  sul testo libero. Missiroli: da 1 libro importato a 6 diretti + 20 simili.
+- 🟠 **I "simili" per soggetto non partivano mai.** L'espansione leggeva
+  `categories` dalla riga appena salvata — che per un libro appena importato è
+  **sempre vuota**, perché le categorie arrivano dopo. Ora usa le categorie
+  *grezze* del provider ("Fiction / Literary"), che sono anche molto più
+  precise dei nostri quindici slug.
+- 🟠 **Il seme dei simili era preso dalla lista grezza**, che comincia con i
+  risultati Gutenberg: su certe query si espandeva attorno a un autore di
+  pubblico dominio capitato lì per caso invece che attorno al libro cercato.
+  Ora parte dalle righe effettivamente salvate.
+- 🟡 **Query senza risultati**: chi cerca ricorda spesso un pezzo giusto e uno
+  sbagliato. Se la formulazione esatta non dà nulla, ora si riprova con la
+  parola più lunga — di solito il cognome. "La ragazza che tornava a casa
+  Postorino" (titolo inesistente) è passata da 0 libri a 2 diretti + 19 simili.
+- 🟡 **`related: 0` era muto**: non distingueva "non c'era niente di nuovo" da
+  "è andata storta", perché l'espansione è best-effort e il `catch` ingoiava
+  tutto. Ora la risposta porta `expand_error`.
+
+**Limite non risolto.** Molte traduzioni italiane non esistono affatto presso i
+provider: Google Books ha "The Goldfinch" ma non "Il cardellino". Cercare il
+titolo italiano di un libro straniero importa allora solo l'edizione originale.
+Non è l'import a essere rotto, è il catalogo di Google.
+
+Nota sul test: il caso di prova si **genera** da Open Library invece di stare in
+una lista. Un elenco fisso si consuma da solo — ogni giro ne importa uno per
+davvero — e dopo qualche esecuzione il test sarebbe passato a vuoto. La suite ha
+ora un terzo esito, "non verificabile ora", per i casi in cui non c'è niente da
+importare o la rete cade: contarli come rossi insegnerebbe a ignorare il rosso.
+
 ---
 
 ## Note operative (a carico del founder, pre-lancio)

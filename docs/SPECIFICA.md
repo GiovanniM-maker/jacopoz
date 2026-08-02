@@ -55,6 +55,31 @@ barra di testo, delle schede, e — per i libri — dei filtri lingua.
 - **R-7** — Se i risultati locali **non contengono ogni parola significativa**
   della query, l'app va a prenderli dai provider e aggiorna la lista da sola.
   Il criterio è la pertinenza, non il numero di risultati.
+- **R-7b** — Lo stesso import porta in catalogo anche i **libri vicini**: altre
+  opere dello stesso autore e altri titoli sullo stesso soggetto. Una ricerca
+  non deve arricchire il catalogo di una riga sola.
+
+> **Come è fatto.** L'espansione parte da ciò che è stato davvero salvato (non
+> dalla lista grezza del provider, che comincia con i risultati Gutenberg e
+> porterebbe a espandere attorno all'autore sbagliato) e usa due segnali:
+> `inauthor:` per le altre opere dell'autore, e `subject:` sulle categorie
+> **grezze** del provider — "Fiction / Literary", non i nostri quindici slug,
+> che sulla riga appena importata sono per giunta ancora vuoti.
+>
+> `inauthor:` da solo non basta: cerca il campo autore *come lo scrive Google*,
+> e misurando si è visto che `inauthor:"Marco Missiroli"` non restituisce nulla
+> mentre la query semplice "Marco Missiroli" restituisce otto suoi libri. C'è
+> quindi un ripiego sul testo libero.
+>
+> L'espansione resta **best-effort**: non deve mai far fallire l'import
+> principale. Quando salta, la risposta lo dichiara (`expand_error`), perché un
+> `related: 0` muto non distingue "non c'era niente di nuovo" da "è andata
+> storta".
+
+> **Limite noto.** Molte traduzioni italiane non esistono affatto presso i
+> provider: Google Books ha "The Goldfinch" ma non "Il cardellino". Cercare il
+> titolo italiano di un libro straniero può quindi importare solo l'edizione
+> originale. Non è un difetto dell'import, è il catalogo di Google.
 - **R-8** — Durante l'import la schermata lo dice ("Cerco anche fuori dal
   catalogo…"). Non resta mai muta.
 - **R-9** — Prima di digitare la schermata spiega cosa si può cercare.

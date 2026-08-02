@@ -28,6 +28,10 @@ interface NormalizedBook {
   isbn_13: string | null;
   isbn_10: string | null;
   categories: string[];
+  /** Le categorie *come le scrive il provider* ("Fiction / Literary"), non i
+   *  nostri slug. Servono all'espansione per cercare `subject:` — i nostri slug
+   *  sono troppo grossolani e, sui libri appena importati, ancora vuoti. */
+  rawCategories: string[];
   gutenberg_id: number | null;
   free_read_url: string | null;
   providerIds: { provider: "google_books" | "open_library"; external_id: string }[];
@@ -190,6 +194,7 @@ function normalizeGoogleVolume(v: any): NormalizedBook | null {
     isbn_13: isbn13,
     isbn_10: isbn10,
     categories: mapCategories(info.categories ?? []),
+    rawCategories: info.categories ?? [],
     gutenberg_id: null,
     free_read_url: isFree && reader ? reader : null,
     providerIds: v.id ? [{ provider: "google_books", external_id: v.id }] : [],
@@ -225,6 +230,7 @@ async function gutendexSearch(query: string, limit: number): Promise<NormalizedB
         isbn_13: null,
         isbn_10: null,
         categories: mapCategories(r.subjects ?? []),
+        rawCategories: [],
         gutenberg_id: r.id,
         free_read_url: textUrl,
         providerIds: [],
@@ -272,13 +278,23 @@ async function googleBooksSearch(
  * words appearing anywhere, so it returns a Japanese shell encyclopedia
  * alongside her novels; `inauthor:` is the provider's own author field and
  * returns only her.
+ *
+ * But `inauthor:` matches the author field *exactly as Google spells it*, and
+ * Google does not spell every author the way we hold them. Measured:
+ * `inauthor:"Marco Missiroli"` returns **nothing**, while the plain query
+ * "Marco Missiroli" returns eight of his books. Silently returning nothing is
+ * the worst possible outcome for a reader searching an author, so the strict
+ * field is a first attempt, not the only one.
  */
 async function googleAuthorSearch(
   author: string,
   limit: number,
   lang?: string | null,
 ): Promise<NormalizedBook[]> {
-  return googleBooksSearch(`inauthor:"${author.replace(/"/g, "")}"`, limit, lang);
+  const clean = author.replace(/"/g, "");
+  const strict = await googleBooksSearch(`inauthor:"${clean}"`, limit, lang);
+  if (strict.length > 0) return strict;
+  return googleBooksSearch(clean, limit, lang);
 }
 
 /** ISO 639-2 (Open Library) -> the ISO 639-1 codes the catalogue stores. */
@@ -319,6 +335,7 @@ async function openLibraryByIsbn(isbn: string): Promise<NormalizedBook | null> {
     isbn_13: isbn.length === 13 ? isbn : null,
     isbn_10: isbn.length === 10 ? isbn : null,
     categories: mapCategories((rec.subjects ?? []).map((s: any) => s.name)),
+    rawCategories: [],
     gutenberg_id: null,
     free_read_url: null,
     providerIds: [{ provider: "open_library", external_id: `ISBN:${isbn}` }],
@@ -363,6 +380,7 @@ async function openLibrarySearch(query: string, limit: number): Promise<Normaliz
         isbn_13: isbn13,
         isbn_10: null,
         categories: mapCategories(d.subject ?? []),
+        rawCategories: (d.subject ?? []).slice(0, 4),
         gutenberg_id: null,
         free_read_url: null,
         providerIds: d.key ? [{ provider: "open_library", external_id: d.key }] : [],
@@ -533,21 +551,45 @@ async function upsertMany(
 // imported — other works by the same author, and titles in the same
 // subject — so the "cluster" around a searched book fills in for next time.
 // Public-domain related titles arrive free-to-read via Gutenberg.
-async function gatherRelated(baseBooks: any[]): Promise<NormalizedBook[]> {
+async function gatherRelated(
+  books: any[],
+  normalized: NormalizedBook[],
+  lang?: string | null,
+): Promise<NormalizedBook[]> {
+  // Gli autori vengono dalle righe **salvate**: `normalized` è la lista grezza e
+  // comincia con i risultati Gutenberg, quindi prenderne i primi tre significa
+  // a volte espandere attorno a un autore di pubblico dominio capitato lì per
+  // caso invece che attorno al libro cercato.
   const authors = new Set<string>();
-  const cats = new Set<string>();
-  for (const b of baseBooks.slice(0, 3)) {
+  for (const b of books.slice(0, 3)) {
     (b.authors ?? []).slice(0, 1).forEach((a: string) => a && authors.add(a));
-    (b.categories ?? []).slice(0, 1).forEach((c: string) => c && cats.add(c));
   }
+  // I soggetti invece esistono solo sulla lista grezza (la riga di catalogo
+  // porta i nostri quindici slug, e per un libro appena importato è vuota).
+  const keep = new Set(books.map((b: any) => dedupKey(b.title, b.authors ?? [])));
+  const subjects = new Set<string>();
+  for (const nb of normalized) {
+    if (!keep.has(dedupKey(nb.title, nb.authors))) continue;
+    nb.rawCategories.slice(0, 2).forEach((c) => c && subjects.add(c));
+    if (subjects.size >= 2) break;
+  }
+
   const tasks: Promise<NormalizedBook[]>[] = [];
+  // Altre opere dello stesso autore. googleAuthorSearch ripiega sul testo
+  // libero quando `inauthor:` non trova nulla, il che succede più spesso di
+  // quanto si creda.
   for (const a of [...authors].slice(0, 2)) {
-    tasks.push(googleBooksSearch(`inauthor:"${a}"`, 10));
-    tasks.push(gutendexSearch(a.split(/\s+/).slice(-1)[0], 5)); // same author on Gutenberg
+    tasks.push(googleAuthorSearch(a, 10, lang));
+    tasks.push(gutendexSearch(a.split(/\s+/).slice(-1)[0], 5));
   }
-  for (const c of [...cats].slice(0, 1)) {
-    tasks.push(openLibrarySearch(c, 10));
+  // Libri sullo stesso soggetto, nella lingua del lettore. `subject:` usa la
+  // tassonomia di Google ("Fiction / Literary"), non i nostri quindici slug: è
+  // la differenza fra "un altro libro di narrativa" e "un altro libro come
+  // questo".
+  for (const c of [...subjects].slice(0, 2)) {
+    tasks.push(googleBooksSearch(`subject:"${c.replace(/"/g, "")}"`, 10, lang));
   }
+
   const settled = await Promise.all(tasks.map((t) => t.catch(() => [] as NormalizedBook[])));
   return settled.flat();
 }
@@ -608,6 +650,21 @@ Deno.serve(async (req) => {
       ]);
       normalized = [...guten, ...google];
       if (normalized.length === 0) normalized = await openLibrarySearch(q, n);
+
+      // Ancora niente. Chi cerca ricorda spesso un pezzo giusto e uno sbagliato
+      // — "La ragazza che tornava a casa Postorino" non è un libro, ma
+      // Postorino è un'autrice vera. Prima di rispondere "non esiste", riprova
+      // con la parola più lunga della richiesta, che è quasi sempre il cognome
+      // o la parola distintiva del titolo.
+      if (normalized.length === 0) {
+        const longest = q
+          .split(/[^\p{L}\p{N}]+/u)
+          .filter((w) => w.length >= 4)
+          .sort((a, b) => b.length - a.length)[0];
+        if (longest && longest.toLowerCase() !== q.trim().toLowerCase()) {
+          normalized = await googleBooksSearch(longest, n, lang);
+        }
+      }
     } else {
       return new Response(JSON.stringify({ error: "provide isbn, googleVolumeId or query" }), {
         status: 400,
@@ -625,19 +682,27 @@ Deno.serve(async (req) => {
     // search (same author / same subject). Capped, and its embeddings run
     // too, so the reco engine has more to work with next time. Best-effort.
     let related: any[] = [];
+    // L'espansione è best-effort e non deve mai far fallire l'import
+    // principale. Ma "best-effort" ingoiato in silenzio significa che dal
+    // risultato non si distingue "non c'era niente di nuovo da aggiungere" da
+    // "è andata storta": entrambi rispondono `related: 0`. Con l'errore in
+    // chiaro, un `related: 0` è un'informazione invece che un dubbio.
+    let expandError: string | null = null;
     if (body.expand && books.length) {
       try {
-        const rel = await gatherRelated(books);
+        const rel = await gatherRelated(books, normalized, reqLang);
         related = await upsertMany(supabase, rel, seen, 30, reqLang);
         await embedNewBooks(supabase, related);
-      } catch {
-        // expansion is best-effort; never fail the base import
+      } catch (err) {
+        expandError = String((err as Error)?.message ?? err).slice(0, 200);
+        console.error("ingest-book expand failed:", expandError);
       }
     }
 
-    return new Response(JSON.stringify({ books, related: related.length }), {
-      headers: { "content-type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ books, related: related.length, expand_error: expandError }),
+      { headers: { "content-type": "application/json" } },
+    );
   } catch (err) {
     console.error("ingest-book error:", err);
     return new Response(JSON.stringify({ error: "internal error" }), {
