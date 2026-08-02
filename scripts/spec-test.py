@@ -13,6 +13,7 @@ Richiede /tmp/sbq.py (client Management API) — vedi docs/DEPLOY.md.
 import importlib.util
 import re
 import sys
+import time
 import unicodedata
 
 spec = importlib.util.spec_from_file_location("sbq", "/tmp/sbq.py")
@@ -22,11 +23,19 @@ spec.loader.exec_module(sbq)
 RESULTS = []
 
 
-def q(sql):
-    st, out = sbq.sql(sql)
-    if st != 201:
+def q(sql, _tries=4):
+    """La Management API limita la frequenza delle richieste: un 429 durante un
+    backfill non è un fallimento della specifica, quindi si aspetta e si riprova
+    invece di riportare un bug che non c'è."""
+    for attempt in range(_tries):
+        st, out = sbq.sql(sql)
+        if st == 201:
+            return out or []
+        if st == 429 and attempt < _tries - 1:
+            time.sleep(5 * (attempt + 1))
+            continue
         raise RuntimeError(f"SQL {st}: {str(out)[:200]}")
-    return out or []
+    return []
 
 
 def check(ident, description, ok, detail=""):
