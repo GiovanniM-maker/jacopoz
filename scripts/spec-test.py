@@ -42,6 +42,9 @@ if os.environ.get("HTTPS_PROXY"):
     _handlers.insert(0, urllib.request.ProxyHandler({"https": os.environ["HTTPS_PROXY"]}))
 _opener = urllib.request.build_opener(*_handlers)
 
+# Un lettore con abbastanza cronologia da rendere personalizzabile la Home.
+READER = None
+
 
 def ingest(body, timeout=240):
     """Chiama la Edge Function esattamente come fa app/app/search.tsx."""
@@ -52,6 +55,18 @@ def ingest(body, timeout=240):
                  "content-type": "application/json", "User-Agent": "curl/8.5.0"})
     with _opener.open(req, timeout=timeout) as r:
         return json.loads(r.read())
+
+
+def as_reader(sql):
+    """Esegue con l'identità di un lettore reale. Le sezioni della Home, i feed e
+    «Continua a leggere» sono personalizzati: misurarli da anonimo vuol dire
+    misurare il fallback, non la funzione."""
+    uid = READER or ""
+    if not uid:
+        return None
+    return q(f"set local role authenticated; "
+             f"set local request.jwt.claims = '{{\"sub\":\"{uid}\",\"role\":\"authenticated\"}}'; "
+             + sql)
 
 
 def q(sql, _tries=4):
@@ -401,6 +416,185 @@ def test_import():
           " ; ".join(tentativi))
 
 
+# ------------------------------------------------------ H: home, F: social,
+# ------------------------------------------------------ B: scheda libro
+def test_home():
+    # H-1: la Home cambia fra un'apertura e l'altra.
+    slates = []
+    for seed in (11, 22, 33):
+        rows = as_reader(f"select section_key, id from public.get_home_sections({seed}, 6, 12);") or []
+        slates.append({(r["section_key"], r["id"]) for r in rows})
+    diverse = len(slates[0] | slates[1] | slates[2]) > int(len(slates[0]) * 1.3) if slates[0] else False
+    check("H-1", "la Home cambia fra un'apertura e l'altra", diverse,
+          f"elementi distinti su tre semi: {len(slates[0] | slates[1] | slates[2])} "
+          f"contro {len(slates[0])} di un solo giro")
+
+    # H-4: le sezioni parlano al lettore, non sono etichette di genere.
+    titles = [r["section_title"] for r in (as_reader(
+        "select distinct section_title from public.get_home_sections(7, 8, 6);") or [])]
+    personal = [t for t in titles
+                if any(k in (t or "").lower()
+                       for k in ("perché hai", "ancora ", "il tuo", "per te"))]
+    inglesi = [t for t in titles
+               if any(w in (t or "") for w in
+                      ("Nonfiction", "Biography", "Literary", "Young Adult", "Self Help",
+                       "Science Fiction", "Mystery", "Poetry", "Historical", "Business",
+                       "Psychology"))]
+    check("H-4", "le sezioni della Home hanno nomi riferiti al lettore",
+          bool(titles) and len(personal) > 0 and not inglesi,
+          f"{len(personal)} personalizzate su {len(titles)}"
+          + (f"; slug inglesi in una frase italiana: {inglesi}" if inglesi else ""))
+
+    # H-6: lo stesso libro non compare in due caroselli della stessa schermata.
+    #
+    # Le sezioni ordinano tutte lo stesso bacino, quindi un libro finisce
+    # facilmente in più di una: la sovrapposizione a livello di RPC è attesa e
+    # non è il difetto. La garanzia sta a schermo, ed è lì che va verificata —
+    # con l'accortezza che una sezione svuotata dal dedup non deve restare come
+    # titolo senza libri sotto.
+    rows = as_reader("select section_key, id from public.get_home_sections(5, 6, 12);") or []
+    per_book = {}
+    for r in rows:
+        per_book.setdefault(r["id"], set()).add(r["section_key"])
+    sovrapposti = sum(1 for secs in per_book.values() if len(secs) > 1)
+
+    home = open("app/app/(tabs)/index.tsx", encoding="utf-8").read()
+    dedup = "seen.has(b.id)" in home and "seen.add(b.id)" in home
+    niente_righe_vuote = "books.length >= 4 ?" in home
+    check("H-6", "nessun libro in due caroselli della stessa schermata",
+          dedup and niente_righe_vuote,
+          f"dedup a schermo={dedup}, sezioni svuotate nascoste={niente_righe_vuote} "
+          f"(sovrapposizioni grezze dall'RPC: {sovrapposti}, attese)")
+
+    # H-3: "Continua a leggere" deve portare l'id Gutenberg, o il lettore
+    # in-app apre una schermata vuota (era proprio questo il difetto).
+    cols = {r["column_name"] for r in q(
+        "select p.proname, unnest(p.proargnames) as column_name from pg_proc p "
+        "join pg_namespace n on n.oid=p.pronamespace "
+        "where n.nspname='public' and p.proname='get_continue_reading';")}
+    ret = q("select pg_get_function_result(p.oid) r from pg_proc p "
+            "join pg_namespace n on n.oid=p.pronamespace "
+            "where n.nspname='public' and p.proname='get_continue_reading';")
+    check("H-3", "«Continua a leggere» espone l'id per riaprire il libro",
+          "gutenberg_id" in (ret[0]["r"] if ret else ""), "")
+
+
+def test_social():
+    # F-3: i contatori memorizzati devono coincidere col conteggio reale.
+    drift = q("""
+      select 'reviews.like_count' as che, count(*) n from public.reviews r
+      where r.like_count <> (select count(*) from public.likes l
+                             where l.target_type='review' and l.target_id=r.id)
+      union all
+      select 'reviews.comment_count', count(*) from public.reviews r
+      where r.comment_count <> (select count(*) from public.comments c where c.review_id=r.id)
+      union all
+      select 'profiles.followers_count', count(*) from public.profiles p
+      where p.followers_count <> (select count(*) from public.follows f where f.following_id=p.id)
+      union all
+      select 'profiles.following_count', count(*) from public.profiles p
+      where p.following_count <> (select count(*) from public.follows f where f.follower_id=p.id)
+      union all
+      select 'books.reviews_count', count(*) from public.books b
+      where b.reviews_count <> (select count(*) from public.reviews r where r.book_id=b.id);
+    """)
+    sballati = {r["che"]: int(r["n"]) for r in drift if int(r["n"]) > 0}
+    check("F-3", "i contatori coincidono col conteggio reale",
+          not sballati, f"disallineati: {sballati}" if sballati else "tutti allineati")
+
+    # F-1: entrambi i feed esistono e rispondono.
+    ok_feeds = True
+    try:
+        q("select count(*) from public.get_community_feed(10, 0);")
+        q("select count(*) from public.get_following_feed(10, 0);")
+    except RuntimeError:
+        ok_feeds = False
+    check("F-1", "esistono entrambi i feed, «Per te» e «Seguiti»", ok_feeds)
+
+
+def test_book():
+    # B-2: un solo voto per utente per libro, garantito dallo schema e non
+    # dalla buona volontà del client.
+    idx = q("""
+      select count(*) n from pg_index i
+      join pg_class c on c.oid = i.indexrelid
+      where i.indrelid = 'public.user_books'::regclass and i.indisunique
+        and pg_get_indexdef(i.indexrelid) like '%user_id%book_id%';
+    """)
+    check("B-2", "un solo voto per utente per libro (vincolo di schema)",
+          int(idx[0]["n"]) > 0, f"indici unici (user_id, book_id): {idx[0]['n']}")
+
+    # B-4: il link d'acquisto deve essere sensato e sul dominio italiano.
+    row = q("""
+      select public.amazon_buy_url(b.id) u from public.books b
+      where b.cover_url is not null order by b.reads_count desc limit 1;
+    """)
+    url = (row[0]["u"] if row else "") or ""
+    check("B-4", "«Compra su Amazon» punta al dominio italiano",
+          url.startswith("https://www.amazon.it/"), url[:80])
+
+    # B-3/C-5: le edizioni si raggiungono dalla scheda.
+    ed = q("""
+      select count(*) n from public.get_book_editions(
+        (select b.id from public.books b
+          where coalesce(b.work_key,'') <> ''
+            and (select count(*) from public.books b2 where b2.work_key = b.work_key) > 1
+          limit 1));
+    """)
+    check("B-3", "le edizioni sono raggiungibili dalla scheda libro",
+          int(ed[0]["n"]) > 1, f"edizioni trovate: {ed[0]['n']}")
+
+
+def test_extra_language():
+    # L-4: con "Tutte" nessuna lingua è privilegiata — nessun bonus, quindi la
+    # prima pagina non deve essere monolingua se il catalogo non lo è.
+    rows = q("select b.language from public.search_books('amore',30,0,'all') s "
+             "join public.books b on b.id=s.id;")
+    langs = [r["language"] for r in rows]
+    check("L-4", "con «Tutte» nessuna lingua è privilegiata",
+          len(set(langs)) > 1, f"lingue viste: {sorted(set(map(str, langs)))}")
+
+
+def test_genre_pages():
+    # G-5: ogni genere che la ricerca propone deve avere una pagina con dentro
+    # dei libri — la pagina usa `categories @> [slug]`, non la ricerca.
+    vuoti = q("""
+      select g.slug from public.search_genres('a', 50) g
+      where (select count(*) from public.books b where g.slug = any(b.categories)) = 0;
+    """)
+    check("G-5", "ogni genere proposto apre su una pagina con libri dentro",
+          not vuoti, f"vuoti: {[r['slug'] for r in vuoti]}")
+
+
+def test_bundle():
+    # S-4: nessuna chiave privata nel bundle web pubblico.
+    #
+    # Cercare la sottostringa "sb_secret_" non basta: supabase-js contiene
+    # `e.startsWith("sb_secret_")` per riconoscere i prefissi, e un test che
+    # segnala quello è un test che verrà ignorato. Servono forme che possano
+    # essere solo una chiave vera.
+    import glob
+    perdite = []
+    veleni = [
+        (re.compile(r"sb_secret_[A-Za-z0-9_-]{20,}"), "chiave segreta Supabase"),
+        (re.compile(r"sbp_[0-9a-f]{40}"), "personal access token Supabase"),
+        (re.compile(r"sk-or-v1-[A-Za-z0-9]{20,}"), "chiave OpenRouter"),
+        # JWT il cui payload dichiara service_role
+        (re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]*c2VydmljZV9yb2xl"), "JWT service_role"),
+        (re.compile(r"BEGIN (?:EC )?PRIVATE KEY"), "chiave privata PEM"),
+    ]
+    for f in glob.glob("app/dist/**/*.js", recursive=True) + glob.glob("app/dist/*.html"):
+        try:
+            testo = open(f, encoding="utf-8", errors="ignore").read()
+        except OSError:
+            continue
+        for rx, nome in veleni:
+            if rx.search(testo):
+                perdite.append((f.split("/")[-1], nome))
+    check("S-4", "nessuna chiave privata nel bundle web", not perdite,
+          f"trovate: {perdite}" if perdite else "bundle pulito")
+
+
 # --------------------------------------------------------------- client
 def test_client():
     src = open("app/app/search.tsx", encoding="utf-8").read()
@@ -423,10 +617,20 @@ def test_client():
           "Math.max(3," in open("app/src/theme/index.ts", encoding="utf-8").read())
 
 
+def _scegli_lettore():
+    global READER
+    rows = q("select p.id from public.profiles p "
+             "join public.user_books ub on ub.user_id = p.id "
+             "group by p.id order by count(*) desc limit 1;")
+    READER = rows[0]["id"] if rows else None
+
+
 def main():
     only = sys.argv[1] if len(sys.argv) > 1 else ""
+    _scegli_lettore()
     for fn in (test_search, test_language, test_genres, test_catalog, test_security,
-               test_import, test_client):
+               test_import, test_home, test_social, test_book,
+               test_extra_language, test_genre_pages, test_bundle, test_client):
         try:
             fn()
         except Exception as e:  # un test rotto non deve nascondere gli altri

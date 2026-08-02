@@ -343,6 +343,47 @@ davvero — e dopo qualche esecuzione il test sarebbe passato a vuoto. La suite 
 ora un terzo esito, "non verificabile ora", per i casi in cui non c'è niente da
 importare o la rete cade: contarli come rossi insegnerebbe a ignorare il rosso.
 
+## Ottava tornata — le parti della specifica ancora scoperte
+
+La suite copriva ricerca, lingua, generi, catalogo e sicurezza; Home, feed,
+scheda libro e bundle no. Aggiunti dodici controlli. Quattro rossi, di cui
+**due erano difetti del test** e vanno raccontati perché il modo in cui
+sbagliavano è istruttivo.
+
+Difetti veri:
+
+- 🟠 **Slug inglesi dentro una frase italiana.** Le sezioni per tema si
+  chiamavano "Il tuo filone: **Nonfiction**", "Il tuo filone: **Biography**":
+  il titolo era costruito con `initcap(replace(slug,'-',' '))` invece che col
+  nome italiano, che dal 0051 esiste in tabella. Corretto in 0054 con
+  `genre_label()`. Ora: "Il tuo filone: Saggistica", "Il tuo filone: Biografie".
+- 🟡 Il nome della colonna dei follower non era quello che credevo
+  (`followers_count`, non `follower_count`): il controllo sui contatori non
+  girava affatto. Ora gira, e tutti i contatori risultano allineati al conteggio
+  reale.
+
+Difetti del test:
+
+- **H-4 e H-6 misurati da anonimo.** Home, feed e "Continua a leggere" sono
+  personalizzati: senza `auth.uid()` si misura il fallback, non la funzione. Da
+  anonimo le sezioni erano "Classici da leggere gratis" e sembravano
+  spersonalizzate; da lettore vero sono "Ancora Michel Houellebecq", "Perché hai
+  letto Il fu Mattia Pascal". La suite ora sceglie da sola il lettore con più
+  cronologia e gira come lui.
+- **H-6 misurato al livello sbagliato.** Le sezioni ordinano tutte lo stesso
+  bacino, quindi la sovrapposizione a livello di RPC è attesa; la garanzia sta a
+  schermo, dove il client deduplica e — verificato — nasconde le sezioni rimaste
+  con meno di quattro libri, che altrimenti resterebbero titoli senza niente
+  sotto.
+- **S-4 cercava una sottostringa.** `sb_secret_` compare nel bundle perché
+  supabase-js contiene `e.startsWith("sb_secret_")` per riconoscere i prefissi.
+  Un allarme del genere è peggio di nessun allarme: insegna a ignorarlo. Ora il
+  controllo cerca forme che possono essere solo chiavi vere (`sb_secret_` più
+  venti caratteri, `sbp_` più quaranta esadecimali, un JWT il cui payload
+  dichiara `service_role`, un PEM). Bundle pulito.
+
+**39/39.**
+
 ---
 
 ## Note operative (a carico del founder, pre-lancio)
