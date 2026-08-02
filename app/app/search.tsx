@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { importFromProviders, searchAuthors, searchBooks } from "@/api/books";
+import { importFromProviders, searchAuthors, searchBooks, searchGenres } from "@/api/books";
 import { searchUsers } from "@/api/profile";
 import { track } from "@/api/analytics";
 import { BookCard } from "@/components/BookCard";
@@ -15,7 +15,7 @@ import { collanaMark, colors, displayFont, onBand, radius, spacing } from "@/the
 import { useGridCardWidth, useGridColumns } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 
-type Tab = "books" | "authors" | "users";
+type Tab = "books" | "authors" | "genres" | "users";
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -50,6 +50,11 @@ export default function Search() {
     queryKey: ["search-authors", debounced],
     queryFn: () => searchAuthors(debounced, 30),
     enabled: tab === "authors" && debounced.length >= 2,
+  });
+  const genres = useQuery({
+    queryKey: ["search-genres", debounced],
+    queryFn: () => searchGenres(debounced, 30),
+    enabled: tab === "genres" && debounced.length >= 2,
   });
   const users = useQuery({
     queryKey: ["search-users", debounced],
@@ -86,7 +91,7 @@ export default function Search() {
   const [importing, setImporting] = useState(false);
   useEffect(() => {
     if (debounced.length < 3) return;
-    if (tab === "users") return;
+    if (tab === "users" || tab === "genres") return;
     const local = tab === "books" ? books : authors;
     if (local.isFetching || !local.isSuccess) return;
     if (importedFor.current === `${tab}:${debounced}`) return;
@@ -136,6 +141,8 @@ export default function Search() {
     authors.data,
   ]);
 
+  // "it"/"en" sono filtri netti; "auto" e "all" no.
+  const hardLang = lang === "it" || lang === "en" ? lang : null;
   const columns = useGridColumns();
   const cardWidth = useGridCardWidth(columns);
 
@@ -147,7 +154,7 @@ export default function Search() {
         </Pressable>
         <TextInput
           style={styles.input}
-          placeholder="Cerca libri, autori, utenti…"
+          placeholder="Cerca libri, autori, generi, utenti…"
           placeholderTextColor={colors.textFaint}
           autoCapitalize="none"
           value={query}
@@ -157,10 +164,16 @@ export default function Search() {
       </View>
 
       <View style={styles.segment}>
-        {(["books", "authors", "users"] as Tab[]).map((t) => (
+        {(["books", "authors", "genres", "users"] as Tab[]).map((t) => (
           <Pressable key={t} style={styles.seg} onPress={() => setTab(t)}>
             <Text style={[styles.segLabel, tab === t && styles.segLabelOn]}>
-              {t === "books" ? "Libri" : t === "authors" ? "Autori" : "Utenti"}
+              {t === "books"
+                ? "Libri"
+                : t === "authors"
+                  ? "Autori"
+                  : t === "genres"
+                    ? "Generi"
+                    : "Utenti"}
             </Text>
             {tab === t ? <View style={styles.segBar} /> : null}
           </Pressable>
@@ -192,7 +205,13 @@ export default function Search() {
 
       {/* Loading feedback: searches hit the network (and sometimes import from
           providers), so without this the screen looked frozen. */}
-      {(tab === "books" ? books.isFetching : tab === "authors" ? authors.isFetching : users.isFetching) ||
+      {(tab === "books"
+        ? books.isFetching
+        : tab === "authors"
+          ? authors.isFetching
+          : tab === "genres"
+            ? genres.isFetching
+            : users.isFetching) ||
       importing ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.primary} size="small" />
@@ -220,7 +239,25 @@ export default function Search() {
           keyboardDismissMode="on-drag"
           ListEmptyComponent={
             debounced.length >= 3 && !books.isFetching && !importing ? (
-              <Empty msg="Nessun libro trovato. Stiamo importando nuovi titoli mentre cerchi." />
+              // Con un filtro di lingua netto attivo, "nessun risultato" quasi
+              // sempre vuol dire "nessun risultato *in quella lingua*". Dirlo, e
+              // offrire di togliere il filtro, invece di lasciare una lista vuota.
+              hardLang ? (
+                <View style={styles.hint}>
+                  <Text style={styles.hintTitle}>
+                    Nessun libro in {hardLang === "it" ? "italiano" : "inglese"}
+                  </Text>
+                  <Text style={styles.hintBody}>
+                    Il filtro di lingua è attivo. Per «{debounced}» non abbiamo edizioni in questa
+                    lingua.
+                  </Text>
+                  <Pressable style={styles.hintAction} onPress={() => setLang("all")}>
+                    <Text style={styles.hintActionText}>Cerca in tutte le lingue</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Empty msg="Nessun libro trovato. Stiamo importando nuovi titoli mentre cerchi." />
+              )
             ) : debounced.length < 2 ? (
               // Before this the screen was simply blank, which read as broken.
               <Hint />
@@ -252,6 +289,35 @@ export default function Search() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowName}>{item.author}</Text>
+                <Text style={styles.rowMeta}>{item.book_count} libri</Text>
+              </View>
+              <Text style={styles.chev}>›</Text>
+            </Pressable>
+          )}
+        />
+      ) : tab === "genres" ? (
+        <FlatList
+          key="genres-list"
+          data={genres.data ?? []}
+          keyExtractor={(g) => g.slug}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          ListEmptyComponent={
+            debounced.length >= 2 && !genres.isFetching ? (
+              <Empty msg="Nessun genere con questo nome." />
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <Pressable style={styles.row} onPress={() => router.push(`/genre/${item.slug}`)}>
+              <View style={[styles.authorIcon, { backgroundColor: collanaMark(item.slug).band }]}>
+                <Text style={[styles.authorInitial, { color: onBand(collanaMark(item.slug).band) }]}>
+                  {item.name[0]?.toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowName}>{item.name}</Text>
                 <Text style={styles.rowMeta}>{item.book_count} libri</Text>
               </View>
               <Text style={styles.chev}>›</Text>
@@ -319,6 +385,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   hintBody: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
+  hintAction: {
+    alignSelf: "flex-start",
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.primary,
+  },
+  hintActionText: {
+    color: colors.onPrimary,
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
   langRow: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.sm },
   langChip: {
     paddingHorizontal: spacing.md,

@@ -282,6 +282,20 @@ export async function importFromProviders(
   }
 }
 
+export interface GenreHit {
+  slug: string;
+  name: string;
+  book_count: number;
+}
+
+/** Ricerca per genere: nome, slug e sinonimi nelle due lingue, coi refusi. */
+export async function searchGenres(query: string, limit = 20): Promise<GenreHit[]> {
+  if (!query.trim()) return [];
+  const { data, error } = await supabase.rpc("search_genres", { p_query: query, p_limit: limit });
+  if (error) throw error;
+  return (data ?? []) as GenreHit[];
+}
+
 export interface CatalogLanguage {
   language: string;
   book_count: number;
