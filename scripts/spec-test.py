@@ -356,7 +356,7 @@ def test_import():
     # candidato importa niente, l'import è rotto sul serio.
     tentativi = []
     visti = set()
-    for offset in (0, 200, 700, 1500, 3000, 6000):
+    for offset in (0, 200, 700, 1500, 3000, 6000, 12000, 20000):
         for d in _open_library_candidati(offset):
             titolo = (d.get("title") or "").strip()
             autori = d.get("author_name") or []
@@ -387,10 +387,24 @@ def test_import():
             tot_dopo = int(q("select count(*) n from public.books;")[0]["n"])
             diretti = len(res.get("books", []))
 
-            if n_autore > 0:
+            # L'autore è il criterio migliore ma non l'unico: Open Library
+            # elenca anche curatori e traduttori di edizioni antiche che Google
+            # non ha ("Apocalypsis nova" attribuito ad Anna Morisi). Se il libro
+            # cercato è comunque entrato ed è ora trovabile, l'import ha fatto
+            # il suo lavoro.
+            parole = [w for w in norm(titolo).split() if len(w) >= 4][:3]
+            trovato_titolo = False
+            if parole:
+                righe = q(f"select s.title from public.search_books("
+                          f"'{lit(titolo)}',10,0,null) s;")
+                trovato_titolo = any(
+                    all(w in norm(r["title"] or "") for w in parole) for r in righe)
+
+            if n_autore > 0 or trovato_titolo:
                 check("R-7", "un libro assente viene importato quando lo si cerca", True,
-                      f"{query[:50]!r}: {cognome} da 0 a {n_autore} libri, "
-                      f"{diretti} risultati diretti")
+                      f"{query[:46]!r}: {diretti} importati; "
+                      + (f"{cognome} da 0 a {n_autore} libri" if n_autore > 0
+                         else "il titolo cercato è ora trovabile"))
                 simili = res.get("related", 0)
                 errore = res.get("expand_error")
                 check("R-7b", "l'import porta anche libri simili, non solo quello cercato",
