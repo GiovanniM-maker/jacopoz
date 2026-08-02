@@ -60,19 +60,41 @@ export default function Home() {
     queryFn: () => getHomeSections(seed, 5),
   });
   const recos = useQuery({ queryKey: ["recos", seed], queryFn: () => getRecommendations(20, 0, seed) });
-  const freeReads = useQuery({ queryKey: ["free-reads"], queryFn: () => getFreeReadsForYou(15) });
-  const paidPicks = useQuery({ queryKey: ["paid-discoveries"], queryFn: () => getPaidDiscoveries(15) });
   const trending = useQuery({ queryKey: ["trending", seed], queryFn: () => getTrendingSeeded(20, seed) });
-  const newReleases = useQuery({ queryKey: ["new-releases"], queryFn: () => getNewReleases(20) });
+
+  // Le righe più in basso partono **dopo** che quelle in cima hanno risposto.
+  // Non è pigrizia: lanciandole tutte insieme, otto richieste in parallelo
+  // misurano 2,8 s contro i 0,7 s della più lenta da sola — su un'istanza da
+  // 1 GB il pool di connessioni le mette in coda e a rimetterci è proprio ciò
+  // che il lettore sta guardando. Queste stanno sotto la piega: possono
+  // aspettare mezzo secondo.
+  const primoDisegno = resume.isSuccess || recos.isSuccess || sections.isSuccess;
+
+  const freeReads = useQuery({
+    queryKey: ["free-reads"],
+    queryFn: () => getFreeReadsForYou(15),
+    enabled: primoDisegno,
+  });
+  const paidPicks = useQuery({
+    queryKey: ["paid-discoveries"],
+    queryFn: () => getPaidDiscoveries(15),
+    enabled: primoDisegno,
+  });
+  const newReleases = useQuery({
+    queryKey: ["new-releases"],
+    queryFn: () => getNewReleases(20),
+    enabled: primoDisegno,
+  });
 
   // The infinite tail: keeps proposing new books as you scroll, paging into the
-  // same seeded slate so nothing repeats.
+  // same seeded slate so nothing repeats. Non serve prima che si scorra.
   const more = useInfiniteQuery({
     queryKey: ["home-more", seed],
     queryFn: ({ pageParam }) => getRecommendations(PAGE, pageParam as number, seed),
     initialPageParam: 20,
     getNextPageParam: (last: BookReco[], all) =>
       last.length < PAGE ? undefined : 20 + all.length * PAGE,
+    enabled: primoDisegno,
   });
   // Genres are static reference data — cache for a day, never re-fetch on nav.
   const genres = useQuery({ queryKey: ["genres"], queryFn: getGenres, staleTime: 86_400_000 });

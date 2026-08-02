@@ -61,6 +61,11 @@ as $$
 declare
   v_added int := 0;
 begin
+  -- `on commit drop` libera la tabella al commit, non alla fine della
+  -- funzione: due chiamate nella stessa transazione si scontrano. È già
+  -- successo — tre iterazioni in un colpo solo sono girate dieci minuti e poi
+  -- sono morte su "relation already exists", buttando via tutto il lavoro.
+  drop table if exists _cand;
   create temp table _cand on commit drop as
     select b.id, b.embedding::extensions.halfvec(512) as e
     from public.books b
@@ -70,6 +75,7 @@ begin
     order by md5(b.id::text || 'seed')
     limit 6000;
 
+  drop table if exists _seed;
   create temp table _seed (id uuid primary key, e extensions.halfvec(512)) on commit drop;
   insert into _seed select c.id, c.e from _cand c limit 1;
 
@@ -107,6 +113,7 @@ as $$
 declare
   v_moved int;
 begin
+  drop table if exists _cent;
   create temp table _cent on commit drop as
     select c.id, c.centroid::extensions.halfvec(512) as e from public.book_clusters c;
   create index on _cent (id);
@@ -282,6 +289,7 @@ as $$
 declare v_n int;
 begin
   if not exists (select 1 from public.book_clusters) then return 0; end if;
+  drop table if exists _c;
   create temp table _c on commit drop as
     select c.id, c.centroid::extensions.halfvec(512) e from public.book_clusters c;
 
@@ -307,3 +315,43 @@ select cron.schedule(
   'cluster-new-books', '*/10 * * * *',
   $$select public.internal_cluster_new_books(500)$$
 );
+
+-- --------------------------------------------------------------------
+-- Il costruttore: un passo per volta
+-- --------------------------------------------------------------------
+/**
+ * Una passata di k-means su questo catalogo costa ~10 minuti sull'istanza
+ * Micro: 68.737 libri contro 200 centroidi sono 13,7 milioni di confronti a 512
+ * dimensioni, più la riscrittura delle righe che hanno cambiato gruppo.
+ *
+ * Quindi **un passo per esecuzione**, non tre in una transazione: una
+ * transazione lunga trenta minuti è un rischio inutile, e se salta all'ultimo
+ * passo si perde anche il primo. Lo stato sta in `app_config` così il cron può
+ * riprendere da dove era.
+ */
+create or replace function public.internal_cluster_step()
+returns text
+language plpgsql
+volatile
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_step int := coalesce((select (value #>> '{}')::int from public.app_config
+                          where key = 'cluster_build_step'), 0);
+  v_moved int;
+begin
+  if v_step >= 3 then
+    perform public.internal_label_clusters();
+    delete from public.app_config where key = 'cluster_build_step';
+    perform cron.unschedule('cluster-build');
+    return 'etichettati e finito';
+  end if;
+
+  v_moved := public.internal_cluster_iterate();
+  insert into public.app_config (key, value) values ('cluster_build_step', to_jsonb(v_step + 1))
+    on conflict (key) do update set value = excluded.value;
+  return format('passo %s: %s libri spostati', v_step + 1, v_moved);
+end;
+$$;
+revoke execute on function public.internal_cluster_step() from public, anon, authenticated;

@@ -4,6 +4,37 @@
 // its cache.
 import { readFileSync, writeFileSync } from "node:fs";
 
+// L'origine di Supabase per il preconnect: si legge dalla stessa variabile che
+// usa il client, così non può divergere dal progetto realmente usato.
+// Questo script gira come node semplice, non dentro il bundler: `.env` non è
+// caricato da solo, quindi va letto.
+const SUPABASE_ORIGIN = (() => {
+  let raw = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+  if (!raw) {
+    try {
+      const env = readFileSync(new URL("../.env", import.meta.url), "utf8");
+      raw = /^EXPO_PUBLIC_SUPABASE_URL=(.+)$/m.exec(env)?.[1]?.trim() ?? "";
+    } catch {
+      raw = "";
+    }
+  }
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "";
+  }
+})();
+
+// Il primo dato che la app chiede parte solo dopo un handshake TLS con
+// Supabase: misurato ~400 ms. Con questi tag il browser apre la connessione
+// mentre sta ancora scaricando il bundle, così quando il codice parte il canale
+// è già pronto. Senza origine nota è meglio non emettere niente che emettere un
+// href vuoto.
+const PRECONNECT = SUPABASE_ORIGIN
+  ? `    <link rel="preconnect" href="${SUPABASE_ORIGIN}" crossorigin />\n` +
+    `    <link rel="dns-prefetch" href="${SUPABASE_ORIGIN}" />`
+  : "";
+
 const BUILD_ID = String(Date.now());
 
 // 1. Stamp the build id into the service worker (rotates the cache per deploy).
@@ -39,6 +70,7 @@ const reg =
 
 const head = `
     <meta name="tomo-build" content="${BUILD_ID}" />
+${PRECONNECT}
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#ECE1C8" />
     <meta name="mobile-web-app-capable" content="yes" />
