@@ -1,0 +1,31 @@
+-- =====================================================================
+-- 0069 — Statistiche sulle colonne aggiunte oggi, e code che dicono la verità
+--
+-- Sintomo: un giro del recupero descrizioni ha riportato
+-- `{"trovate":0,"vuoti":0,"esaminati":0}` con stato 200, mentre in coda
+-- c'erano 68.000 libri.
+--
+-- Causa: `blurb_source` e `blurb_attempts` sono nate oggi (0064) e nessuno
+-- aveva ancora raccolto statistiche su di loro. Il pianificatore stimava
+-- **121 righe** dove ne trovava **68.675**, e con quella stima sceglieva un
+-- nested loop contro le due CTE: 9,6 milioni di righe scartate, 5 secondi di
+-- esecuzione. Sopra il limite di statement_timeout della richiesta, quindi la
+-- query veniva annullata.
+--
+--   prima:  4632 ms
+--   dopo:    84-130 ms  (misurato cinque volte; il primo giro a freddo 1,5 s)
+--
+-- Perché nessuno se n'è accorto: la funzione Edge leggeva `data` dalla RPC e
+-- ignorava `error`. Una query annullata tornava come lista vuota, e una lista
+-- vuota è indistinguibile da «non c'è più niente da fare». È la terza volta
+-- oggi che un guasto si presenta come un successo con i contatori a zero; le
+-- due funzioni ora restituiscono 503 con il messaggio, invece di dire che
+-- hanno finito.
+--
+-- Regola da portarsi dietro: una colonna appena aggiunta su cui si filtra
+-- subito non ha statistiche, e il piano che ne esce può essere di ordini di
+-- grandezza peggiore. Non è un dettaglio di manutenzione, è parte della
+-- migrazione che aggiunge la colonna.
+-- =====================================================================
+
+analyze public.books;

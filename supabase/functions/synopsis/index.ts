@@ -202,7 +202,17 @@ Deno.serve(async (req) => {
       if (data) libri = [data as Libro];
     } else {
       const n = Math.min(Number(body.batch ?? 10), 30);
-      const { data: coda } = await supabase.rpc("internal_synopsis_queue", { p_limit: n });
+      const { data: coda, error: erroreCoda } = await supabase.rpc(
+        "internal_synopsis_queue", { p_limit: n });
+      if (erroreCoda) {
+        // Vedi blurbs/index.ts: senza questo controllo un timeout della coda
+        // si presenta come "zero libri da fare" e il backfill sembra finito.
+        console.error("coda non leggibile:", erroreCoda.message);
+        return new Response(
+          JSON.stringify({ error: "coda non leggibile", dettaglio: erroreCoda.message }),
+          { status: 503, headers: { "content-type": "application/json" } },
+        );
+      }
       const ids = (coda ?? []).map((r: { id: string }) => r.id);
       if (ids.length) {
         const { data } = await supabase.from("books").select(campi).in("id", ids);

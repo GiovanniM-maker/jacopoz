@@ -108,7 +108,19 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const st: Stato = { chiamate: 0 };
     const n = Math.min(Number(body.batch ?? 8), 50);
-    const { data: coda } = await supabase.rpc("internal_blurb_queue", { p_limit: n });
+    const { data: coda, error: erroreCoda } = await supabase.rpc(
+      "internal_blurb_queue", { p_limit: n });
+    if (erroreCoda) {
+      // Un lotto che esamina zero libri **non** vuol dire coda vuota: la coda
+      // ha 68.000 candidati. Ignorando `error` un timeout della query si
+      // presentava come {"esaminati":0} con stato 200 — indistinguibile da
+      // "non c'è più niente da fare", che è la conclusione sbagliata.
+      console.error("coda non leggibile:", erroreCoda.message);
+      return new Response(
+        JSON.stringify({ error: "coda non leggibile", dettaglio: erroreCoda.message }),
+        { status: 503, headers: { "content-type": "application/json" } },
+      );
+    }
     const libri = (coda ?? []) as Libro[];
 
     let trovate = 0, vuoti = 0;
