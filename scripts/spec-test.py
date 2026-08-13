@@ -550,8 +550,11 @@ def test_social():
       select 'profiles.following_count', count(*) from public.profiles p
       where p.following_count <> (select count(*) from public.follows f where f.follower_id=p.id)
       union all
+      -- Per opera, non per edizione (B-6): il contatore di ogni edizione
+      -- riporta le recensioni dell'opera, che sono quelle che la scheda mostra.
       select 'books.reviews_count', count(*) from public.books b
-      where b.reviews_count <> (select count(*) from public.reviews r where r.book_id=b.id);
+      where b.reviews_count <> (select count(*) from public.reviews r
+                                where r.work_id=b.work_id and r.status='visible');
     """)
     sballati = {r["che"]: int(r["n"]) for r in drift if int(r["n"]) > 0}
     check("F-3", "i contatori coincidono col conteggio reale",
@@ -576,6 +579,24 @@ def test_book():
       where i.indrelid = 'public.user_books'::regclass and i.indisunique
         and pg_get_indexdef(i.indexrelid) like '%user_id%book_id%';
     """)
+    # B-6: la recensione è appesa all'opera, e il vincolo lo garantisce.
+    vincolo = int(q(
+        "select count(*) n from pg_indexes where tablename='reviews' "
+        "and indexdef ilike '%unique%' and indexdef ilike '%work_id%';")[0]["n"])
+    orfane = int(q(
+        "select count(*) n from public.reviews r join public.books b on b.id=r.book_id "
+        "where r.work_id <> b.work_id;")[0]["n"])
+    # Su un'opera con più edizioni, le recensioni si vedono da tutte.
+    sparse = int(q("""
+      select count(*) n from public.books b
+      where exists (select 1 from public.reviews r where r.work_id = b.work_id
+                      and r.book_id <> b.id and r.status='visible')
+        and b.reviews_count = 0;""")[0]["n"])
+    check("B-6", "una recensione parla dell'opera, non dell'edizione",
+          vincolo == 1 and orfane == 0 and sparse == 0,
+          f"vincolo unico su work_id: {vincolo}, recensioni scollegate: {orfane}, "
+          f"edizioni che nascondono le recensioni dell'opera: {sparse}")
+
     check("B-2", "un solo voto per utente per libro (vincolo di schema)",
           int(idx[0]["n"]) > 0, f"indici unici (user_id, book_id): {idx[0]['n']}")
 

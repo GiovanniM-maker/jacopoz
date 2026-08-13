@@ -201,6 +201,14 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
 - **B-4** — "Compra su Amazon" porta all'edizione giusta per lingua.
 - **B-5** — Se il libro è gratis si legge dentro l'app (testo Gutenberg) o si
   apre il lettore esterno.
+- **B-6** — **Una recensione parla dell'opera, non dell'edizione.** Chi apre
+  l'Adelphi vede la recensione scritta sull'Einaudi, il conteggio è lo stesso su
+  entrambe le schede, e lo stesso lettore non può recensire due volte lo stesso
+  libro passando da un'edizione diversa.
+
+  L'edizione da cui la recensione è stata scritta resta registrata — è
+  informazione vera — ma non è il punto di attacco: quello è `work_id`, un'
+  identità stabile che non cambia se qualcuno corregge un refuso nel titolo.
 
 ---
 

@@ -2,25 +2,12 @@ import { supabase } from "@/lib/supabase";
 import type { Review, ReviewWithAuthor, UUID } from "@/types/database";
 import { track } from "./analytics";
 
-/** Visible reviews for a book, newest first, joined with author + viewer like. */
-export async function getBookReviews(
-  bookId: UUID,
-  viewerId?: UUID,
-): Promise<ReviewWithAuthor[]> {
-  const { data, error } = await supabase
-    .from("reviews")
-    .select(
-      "*, author:profiles!reviews_user_id_fkey(id,username,display_name,avatar_url)",
-    )
-    .eq("book_id", bookId)
-    .eq("status", "visible")
-    .order("like_count", { ascending: false })
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-
-  const reviews = (data ?? []) as unknown as ReviewWithAuthor[];
-  return attachViewerLikes(reviews, viewerId);
-}
+// Nota: non esiste più una `getBookReviews(bookId)`. Filtrava su `book_id`,
+// cioè su una singola edizione, ed era il difetto che W1b è servito a togliere:
+// chi apriva l'Adelphi non vedeva la recensione scritta sull'Einaudi. La
+// lettura giusta è `getBookReviewsRanked`, che segue l'opera. La vecchia
+// funzione non era chiamata da nessuno, e lasciarla in giro significava
+// offrire di nuovo la strada sbagliata a chi ne avesse avuto bisogno.
 
 export async function getReview(id: UUID, viewerId?: UUID): Promise<ReviewWithAuthor> {
   const { data, error } = await supabase
@@ -52,42 +39,37 @@ export async function getUserReviews(userId: UUID): Promise<UserReview[]> {
   return (data ?? []) as unknown as UserReview[];
 }
 
-/** The current user's own review of a book, if any (one per book). */
-export async function getMyReview(userId: UUID, bookId: UUID): Promise<Review | null> {
-  const { data, error } = await supabase
-    .from("reviews")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("book_id", bookId)
-    .maybeSingle();
+/** The caller's own review of this **work**, if any — one per work, not per
+ *  edition. Looking it up by edition would show an empty form to someone who
+ *  has already written about the book from a different edition. */
+export async function getMyReview(_userId: UUID, bookId: UUID): Promise<Review | null> {
+  const { data, error } = await supabase.rpc("get_my_review", { p_book_id: bookId });
   if (error) throw error;
   return (data as Review) ?? null;
 }
 
-/** Create or update the caller's review. Rating is also a shelf signal, so
- *  we keep user_books.rating in sync as the single source of truth. */
+/** Create or update the caller's review of the work this book belongs to.
+ *
+ *  Passa da una RPC e non da un `upsert ... on conflict (user_id, book_id)`:
+ *  con il vincolo «una recensione per opera» quell'upsert sbaglia proprio nel
+ *  caso che W1b sistema — chi ha recensito un'edizione e scrive da un'altra non
+ *  trova conflitto, tenta un inserimento e riceve un errore di vincolo invece
+ *  di modificare quello che aveva già scritto.
+ *
+ *  Il voto resta anche su `user_books`, che è la fonte della media del libro. */
 export async function upsertReview(
   userId: UUID,
   bookId: UUID,
   input: { body: string; rating: number | null; contains_spoilers?: boolean },
 ): Promise<Review> {
-  const { data, error } = await supabase
-    .from("reviews")
-    .upsert(
-      {
-        user_id: userId,
-        book_id: bookId,
-        body: input.body,
-        rating: input.rating,
-        contains_spoilers: input.contains_spoilers ?? false,
-      },
-      { onConflict: "user_id,book_id" },
-    )
-    .select("*")
-    .single();
+  const { data, error } = await supabase.rpc("upsert_review", {
+    p_book_id: bookId,
+    p_body: input.body,
+    p_rating: input.rating,
+    p_spoilers: input.contains_spoilers ?? false,
+  });
   if (error) throw error;
 
-  // Sync the canonical rating onto the shelf (drives book average rating).
   if (input.rating != null) {
     const { error: ubErr } = await supabase
       .from("user_books")
@@ -102,10 +84,14 @@ export async function upsertReview(
   return data as Review;
 }
 
-/** Book ids the user has already reviewed (to exclude from "to review"). */
-export async function getReviewedBookIds(userId: UUID): Promise<Set<UUID>> {
-  const { data } = await supabase.from("reviews").select("book_id").eq("user_id", userId);
-  return new Set((data ?? []).map((r) => r.book_id));
+/** Ids of every edition of the works the user has already reviewed.
+ *
+ *  Restituire solo le edizioni recensite riproporrebbe l'Adelphi a chi ha
+ *  scritto sull'Einaudi dello stesso libro. */
+export async function getReviewedBookIds(_userId: UUID): Promise<Set<UUID>> {
+  const { data, error } = await supabase.rpc("get_reviewed_book_ids");
+  if (error) throw error;
+  return new Set(((data ?? []) as UUID[]));
 }
 
 export async function deleteReview(id: UUID): Promise<void> {

@@ -91,7 +91,12 @@ export interface UserBook {
 export interface Review {
   id: UUID;
   user_id: UUID;
+  /** L'edizione da cui la recensione è stata scritta: informazione vera, che
+   *  vale la pena conservare. Non è però il punto di attacco. */
   book_id: UUID;
+  /** L'opera. È qui che la recensione è appesa: una per lettore per opera,
+   *  visibile da qualunque edizione. Lo scrive un trigger, non il client. */
+  work_id: UUID;
   rating: number | null;
   body: string;
   contains_spoilers: boolean;
