@@ -414,7 +414,7 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook, preferLang?: s
         title: nb.title,
         subtitle: nb.subtitle,
         authors: nb.authors,
-        description: nb.description,
+        source_blurb_internal: nb.description,
         cover_url: nb.cover_url,
         published_year: nb.published_year,
         page_count: nb.page_count,
@@ -452,11 +452,12 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook, preferLang?: s
       if (nb.isbn_13) patch.isbn_13 = nb.isbn_13;
       if (nb.isbn_10) patch.isbn_10 = nb.isbn_10;
       if (nb.cover_url) patch.cover_url = nb.cover_url;
-      if (nb.description) patch.description = nb.description;
+      if (nb.description) patch.source_blurb_internal = nb.description;
       if (nb.page_count) patch.page_count = nb.page_count;
     }
     // Fill genuine gaps regardless of language.
-    if (!existing.description && nb.description) patch.description = nb.description;
+    if (!existing.source_blurb_internal && nb.description)
+      patch.source_blurb_internal = nb.description;
     if (!existing.cover_url && nb.cover_url) patch.cover_url = nb.cover_url;
     if (!existing.language && nb.language) patch.language = nb.language;
     // Gutenberg is not the only source of a free read: Google flags public
@@ -487,12 +488,32 @@ async function upsertCanonical(supabase: any, nb: NormalizedBook, preferLang?: s
   return book;
 }
 
+/**
+ * Le righe qui dentro arrivano da `select("*")` con la chiave di servizio,
+ * quindi contengono anche le colonne che 0059 ha tolto ai lettori: il testo
+ * dell'editore, che è materiale di analisi e non nostro da ripubblicare, e il
+ * vettore, che sono 2 KB per libro che il client non usa.
+ *
+ * Revocare la SELECT sulla tabella non protegge da questa strada — qui il
+ * permesso non c'entra, è il codice che decide cosa mettere nella risposta.
+ */
+function perIlClient<T extends Record<string, unknown>>(b: T): Partial<T> {
+  const { source_blurb_internal: _b, embedding: _e, search_tsv: _t, ...resto } = b as
+    Record<string, unknown>;
+  return resto as Partial<T>;
+}
+
 // --- Instant embedding -------------------------------------------------
 // Mirror of the SQL book_embedding_text(): the string we embed.
 function embeddingText(b: any): string {
   return (
     `${b.title ?? ""} — ${(b.authors ?? []).join(", ")}. ` +
-    `${(b.categories ?? []).join(", ")}. ${b.description ?? ""}`
+    `${(b.categories ?? []).join(", ")}. ` +
+    // Deve rispecchiare book_embedding_text() in SQL, che da 0058
+    // preferisce la sinossi al testo dell'editore. Se i due si
+    // scostano, l'impronta calcolata dal database non combacia mai e
+    // il libro viene rivettorizzato a ogni giro.
+    `${b.synopsis ?? b.source_blurb_internal ?? ""}`
   ).slice(0, 1500);
 }
 
@@ -700,7 +721,11 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ books, related: related.length, expand_error: expandError }),
+      JSON.stringify({
+        books: books.map(perIlClient),
+        related: related.length,
+        expand_error: expandError,
+      }),
       { headers: { "content-type": "application/json" } },
     );
   } catch (err) {

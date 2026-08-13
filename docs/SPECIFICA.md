@@ -210,6 +210,11 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
 - **S-2** — Le funzioni `internal_*` non sono richiamabili da `anon`.
 - **S-3** — Nessuna query di ricerca può alterare il database.
 - **S-4** — Le chiavi stanno nei secret Supabase, mai nel bundle web.
+- **S-5** — Le colonne interne (`source_blurb_internal`, `embedding`,
+  `search_tsv`) non escono verso un client, **da nessuna strada**. Sulla
+  tabella la protezione è un permesso; nelle Edge Function il permesso non
+  c'entra, perché leggono con la chiave di servizio — lì è il codice a dover
+  scegliere cosa mettere nella risposta.
 
 ---
 

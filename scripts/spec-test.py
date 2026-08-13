@@ -394,13 +394,35 @@ def test_import():
 
             query = f"{titolo} {autori[0]}"
             tot_prima = int(q("select count(*) n from public.books;")[0]["n"])
-            try:
-                res = ingest({"query": query, "limit": 10, "lang": "it", "expand": True})
-            except Exception as e:
-                # Una connessione caduta non è un difetto del prodotto.
+            # Una connessione caduta non è un difetto del prodotto — ma
+            # arrendersi al primo errore rende non verificabile il controllo
+            # che copre l'import, che è fra i più importanti che ci sono.
+            # L'import interroga fonti esterne e può metterci parecchio: si
+            # riprova, e solo se cade tre volte si dichiara non verificabile.
+            res, ultimo = None, None
+            for tentativo in range(3):
+                try:
+                    res = ingest({"query": query, "limit": 10, "lang": "it", "expand": True})
+                    break
+                except Exception as e:
+                    ultimo = e
+                    time.sleep(4 * (tentativo + 1))
+            if res is None:
                 check("R-7", "un libro assente viene importato quando lo si cerca", None,
-                      f"rete: {type(e).__name__} — riprovare")
+                      f"rete: {type(ultimo).__name__} per tre volte — riprovare")
                 return
+            # S-5: la risposta dell'import non deve riportare le colonne che
+            # 0059 ha tolto ai lettori. Lì la protezione è un permesso sulla
+            # tabella; qui il permesso non c'entra, perché la funzione legge
+            # con la chiave di servizio — è il codice a decidere cosa esce.
+            # Trovato così: `select("*")` rimandava indietro il testo
+            # dell'editore a chiunque cercasse un libro.
+            riservate = {"source_blurb_internal", "embedding", "search_tsv"}
+            uscite = sorted(riservate.intersection(
+                *[set(b) for b in res.get("books", [{}])] or [set()]))
+            check("S-5", "l'import non restituisce le colonne interne",
+                  not uscite, f"esposte: {uscite}" if uscite else "risposta pulita")
+
             time.sleep(2)
             n_autore = _autore_in_catalogo(cognome)
             tot_dopo = int(q("select count(*) n from public.books;")[0]["n"])
