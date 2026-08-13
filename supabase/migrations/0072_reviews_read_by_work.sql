@@ -74,5 +74,6 @@ begin
   offset greatest(p_offset, 0);
 end;
 $function$
+;
 
 revoke execute on function public.get_book_reviews_ranked(uuid, int, int) from anon;
