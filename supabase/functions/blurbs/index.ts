@@ -29,16 +29,41 @@ const DISPATCH_SECRET = Deno.env.get("SYNOPSIS_DISPATCH_SECRET") ?? "";
 
 class QuotaFinita extends Error {}
 
-async function cerca(q: string): Promise<Volume[]> {
+/**
+ * Contatore delle chiamate a Google, per invocazione.
+ *
+ * Non è una variabile di modulo: un'istanza Edge serve più richieste, e due
+ * lotti che si sovrappongono si sommerebbero il conteggio a vicenda.
+ */
+type Stato = { chiamate: number };
+
+/**
+ * Un 403 non vuol dire per forza «quota finita».
+ *
+ * Google lo usa anche per le restrizioni per paese — `ingest-book` ha una
+ * riprova apposta con `country=IT` proprio per quello. Trattarli tutti come
+ * muro giornaliero significherebbe spegnere il recupero per il resto della
+ * giornata a causa di un singolo libro storto. Il muro vero si dichiara nel
+ * corpo della risposta.
+ */
+function muroDiQuota(status: number, corpo: string): boolean {
+  if (status === 429) return true;
+  return status === 403 &&
+    /(rateLimitExceeded|quotaExceeded|dailyLimitExceeded|userRateLimitExceeded)/i.test(corpo);
+}
+
+async function cerca(q: string, st: Stato): Promise<Volume[]> {
   const url = "https://www.googleapis.com/books/v1/volumes?country=IT&maxResults=5" +
     `&key=${KEY}&q=${encodeURIComponent(q)}`;
   // 503 è frequente e transitorio: su una prova di 40 libri ne ha colpiti 3,
   // che senza riprova sarebbero sembrati "libro senza descrizione" e avrebbero
   // consumato un tentativo.
   for (let i = 0; i < 3; i++) {
+    st.chiamate++;
     const res = await fetch(url);
     if (res.ok) return ((await res.json())?.items ?? []) as Volume[];
-    if (res.status === 429 || res.status === 403) throw new QuotaFinita(String(res.status));
+    const corpo = await res.text().catch(() => "");
+    if (muroDiQuota(res.status, corpo)) throw new QuotaFinita(String(res.status));
     if (res.status >= 500 && i < 2) {
       await new Promise((r) => setTimeout(r, 800 * (i + 1)));
       continue;
@@ -48,12 +73,12 @@ async function cerca(q: string): Promise<Volume[]> {
   return [];
 }
 
-async function descrizione(b: Libro): Promise<{ testo: string; via: string } | null> {
+async function descrizione(b: Libro, st: Stato): Promise<{ testo: string; via: string } | null> {
   if (b.isbn_13) {
-    const t = scegli(await cerca(`isbn:${b.isbn_13}`), b, false);
+    const t = scegli(await cerca(`isbn:${b.isbn_13}`, st), b, false);
     if (t) return { testo: t.testo, via: "isbn" };
   }
-  const t = scegli(await cerca(`${b.title} ${b.authors?.[0] ?? ""}`.trim()), b, true);
+  const t = scegli(await cerca(`${b.title} ${b.authors?.[0] ?? ""}`.trim(), st), b, true);
   return t ? { testo: t.testo, via: "titolo" } : null;
 }
 
@@ -81,7 +106,8 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const n = Math.min(Number(body.batch ?? 8), 30);
+    const st: Stato = { chiamate: 0 };
+    const n = Math.min(Number(body.batch ?? 8), 50);
     const { data: coda } = await supabase.rpc("internal_blurb_queue", { p_limit: n });
     const libri = (coda ?? []) as Libro[];
 
@@ -91,7 +117,7 @@ Deno.serve(async (req) => {
     for (const b of libri) {
       let esito: { testo: string; via: string } | null = null;
       try {
-        esito = await descrizione(b);
+        esito = await descrizione(b, st);
       } catch (e) {
         if (e instanceof QuotaFinita) {
           // Fermarsi e basta: i libri non ancora esaminati restano in coda con
@@ -117,8 +143,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Si riporta sempre, non solo quando si tocca il muro: è la serie storica
+    // che dice qual è la quota, non il singolo giorno in cui si esaurisce.
+    await supabase.rpc("internal_blurb_quota_report", {
+      p_chiamate: st.chiamate,
+      p_libri: libri.length,
+      p_esaurita: quota,
+    });
+
     return new Response(
-      JSON.stringify({ trovate, vuoti, esaminati: libri.length, quota_esaurita: quota }),
+      JSON.stringify({
+        trovate, vuoti, esaminati: libri.length, chiamate: st.chiamate,
+        quota_esaurita: quota,
+      }),
       { headers: { "content-type": "application/json" } },
     );
   } catch (err) {
