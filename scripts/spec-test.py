@@ -289,6 +289,20 @@ def test_catalog():
     check("C-6", "il tag GRATIS punta solo a fonti legittime",
           bad_free == 0, f"link non riconosciuti: {bad_free}")
 
+    # C-7: nessuna sinossi senza il materiale su cui è stata scritta.
+    # Il difetto trovato in produzione: senza quarta di copertina il modello
+    # non risponde INSUFFICIENTE, riconosce il titolo e racconta il libro a
+    # memoria — a «Oblivion» di Wallace ha attribuito la trama di «Infinite
+    # Jest». Una scheda falsa è peggio di una scheda vuota, e finisce anche
+    # nell'embedding. Questo controllo esiste perché non si ripeta.
+    infondate = int(q(
+        "select count(*) n from public.books "
+        "where synopsis is not null and synopsis_source = 'ai' "
+        "and not ('source_blurb_internal' = any(coalesce(synopsis_inputs, '{}')));"
+    )[0]["n"])
+    check("C-7", "ogni sinossi generata poggia su un materiale reale",
+          infondate == 0, f"scritte senza materiale: {infondate}")
+
 
 # --------------------------------------------------------------- S: sicurezza
 def test_security():

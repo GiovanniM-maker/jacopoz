@@ -151,6 +151,18 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
 - **C-6** — Il tag **GRATIS** appare solo su libri realmente leggibili
   gratuitamente e legalmente (pubblico dominio Gutenberg, o ebook che Google
   stessa offre gratis).
+- **C-7** — Una sinossi generata poggia su un materiale reale. Se di un libro
+  non abbiamo la quarta di copertina, **la scheda resta senza sinossi**: non si
+  chiede al modello di ricostruirla da titolo e autore.
+
+  Non è una cautela teorica. Lasciato senza materiale, il modello non risponde
+  «INSUFFICIENTE» come gli si chiede: riconosce il titolo e racconta il libro a
+  memoria. Su 32 sinossi generate, 26 erano così, e fra queste «Oblivion» di
+  David Foster Wallace aveva ricevuto la trama di «Infinite Jest». Il lettore
+  non ha modo di accorgersene, e il testo finisce anche nell'embedding.
+
+  Il materiale si recupera da Google Books (funzione `blurbs`), non si mostra
+  mai a un lettore, e serve solo come base per una riscrittura originale.
 
 ---
 
