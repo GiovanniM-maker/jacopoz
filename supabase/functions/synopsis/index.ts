@@ -17,7 +17,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Cambiare il prompt significa cambiare questa stringa. Sta in colonna su ogni
 // riga generata: senza, una rigenerazione in massa non saprebbe cosa rifare.
-const PROMPT_VERSION = "sinossi-2026-08-a";
+const PROMPT_VERSION = "sinossi-2026-08-b";
 // Verificato contro /api/v1/models prima di usarlo: lo slug precedente
 // (anthropic/claude-3.5-haiku) non esiste su OpenRouter e rispondeva 404 su
 // ogni libro. Gemini Flash Lite costa $0,10/M in ingresso e $0,40/M in uscita:
@@ -38,6 +38,11 @@ REGOLE, tutte vincolanti:
 - Se fra i materiali c'è la quarta di copertina dell'editore, usala solo per
   sapere di cosa parla il libro. La tua sinossi deve essere una **riscrittura
   originale**: struttura diversa, lessico diverso. Mai una parafrasi ravvicinata.
+- La sinossi deve poter essere ricavata **dai materiali che hai davanti**. Se il
+  materiale dice cos'è il libro (chi l'ha scritto, quando è uscito, a quale
+  corrente appartiene) ma non cosa ci succede dentro, non è abbastanza: non
+  completarlo con quello che ricordi di quel titolo. È da lì che nascono gli
+  errori peggiori — un libro scambiato per un altro dello stesso autore.
 - Se i materiali non bastano a dire di cosa parla il libro senza inventare,
   rispondi esattamente: INSUFFICIENTE
   Inventare una trama plausibile è l'errore peggiore che puoi fare qui: meglio
@@ -93,9 +98,22 @@ function materiali(b: Libro): { testo: string; fonti: string[] } {
  *  invece una chiave sbagliata. */
 type Esito = { testo: string | null; fonti: string[]; motivo?: string };
 
+/**
+ * Senza quarta di copertina non si genera.
+ *
+ * Il prompt lo chiedeva già («se i materiali non bastano rispondi
+ * INSUFFICIENTE») e il modello non ha obbedito: su 32 sinossi, 26 erano
+ * scritte a memoria da titolo e autore. A «Oblivion» di Wallace ha attribuito
+ * la trama di «Infinite Jest». Un prompt è una richiesta; questo è il vincolo.
+ */
+const MATERIALE_MINIMO = 100;
+
 async function scrivi(b: Libro): Promise<Esito> {
   const key = Deno.env.get("OPENROUTER_API_KEY");
   if (!key) return { testo: null, fonti: [], motivo: "OPENROUTER_API_KEY assente" };
+  if ((b.source_blurb_internal ?? "").trim().length < MATERIALE_MINIMO) {
+    return { testo: null, fonti: [], motivo: "nessun materiale su cui fondarla" };
+  }
   const { testo: input, fonti } = materiali(b);
 
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -198,6 +216,14 @@ Deno.serve(async (req) => {
       const { testo, fonti, motivo } = await scrivi(b);
       if (!testo) {
         scarti.push(`${b.title.slice(0, 30)}: ${motivo ?? "?"}`);
+        // Un rifiuto va scritto, altrimenti il libro torna in testa alla coda
+        // al giro dopo e a quello dopo ancora: con gli stessi materiali il
+        // modello darà la stessa risposta, e intanto i lotti si riempiono di
+        // chiamate già note come perdenti finché il backfill non avanza più.
+        await supabase.rpc("internal_synopsis_attempt_failed", {
+          p_book_id: b.id,
+          p_motivo: motivo ?? "sconosciuto",
+        });
         continue;
       }
       await supabase
