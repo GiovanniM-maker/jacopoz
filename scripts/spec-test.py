@@ -70,14 +70,19 @@ def as_reader(sql):
 
 
 def q(sql, _tries=4):
-    """La Management API limita la frequenza delle richieste: un 429 durante un
-    backfill non è un fallimento della specifica, quindi si aspetta e si riprova
-    invece di riportare un bug che non c'è."""
+    """La Management API limita la frequenza delle richieste e ogni tanto
+    risponde 502: né l'una né l'altra cosa è un fallimento della specifica,
+    quindi si aspetta e si riprova invece di riportare un bug che non c'è.
+
+    Senza la riprova sui 5xx un blocco intero saltava — due giri di fila, e
+    ogni volta un blocco diverso — trascinandosi dietro i controlli che
+    conteneva. Una suite che grida al lupo per un errore di rete smette di
+    essere una fonte affidabile, che è tutto quello per cui esiste."""
     for attempt in range(_tries):
         st, out = sbq.sql(sql)
         if st == 201:
             return out or []
-        if st == 429 and attempt < _tries - 1:
+        if (st == 429 or st >= 500) and attempt < _tries - 1:
             time.sleep(5 * (attempt + 1))
             continue
         raise RuntimeError(f"SQL {st}: {str(out)[:200]}")
