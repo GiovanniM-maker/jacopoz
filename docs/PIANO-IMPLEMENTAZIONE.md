@@ -127,10 +127,18 @@ molto prima che il backfill finisca.
 **Criterio di uscita:** ogni libro raggiungibile dalla UI ha una sinossi entro
 3 secondi dall'apertura della scheda, licenziata o generata e etichettata.
 
-### RE-EMB — Ricalcolo degli embedding  · da fare, dopo W2
+### RE-EMB — Ricalcolo degli embedding  · **impostato**, avanza da solo
 
-- Ricalcolare solo i libri la cui `book_embedding_text()` è cambiata in modo
-  sostanziale (lunghezza cresciuta oltre una soglia), non tutti.
+- **Fatto (0061), e non come ricalcolo unico.** Non serve un "grande giorno del
+  ricalcolo": serve una regola — *un libro il cui testo è cambiato ha un
+  embedding scaduto*. Ogni riga porta l'impronta (`md5`) del testo con cui il
+  suo vettore è stato calcolato; quando non coincide più, e il testo è cresciuto
+  di almeno 120 caratteri, l'embedding viene azzerato e la pipeline esistente lo
+  rifà. Così RE-EMB avanza in passo con W2 invece di aspettarlo, e vale anche
+  per ogni modifica futura (una sinossi rigenerata, categorie corrette).
+- L'impronta si scrive **nella stessa UPDATE** del vettore. Marcarla da un cron
+  separato lascia una finestra in cui una sinossi appena arrivata fa risultare
+  allineato un vettore vecchio, che così non scade mai più.
 - Costo API trascurabile (~0,52 $ per l'intero catalogo).
 - **Prima di ricalcolare, decidere se cambiare modello.** `text-embedding-3-small`
   è la scelta attuale e non è stata benchmarkata sull'italiano. Il documento
