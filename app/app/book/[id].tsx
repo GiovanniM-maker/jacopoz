@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { getBook, getBookEditions, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating, type BookEdition } from "@/api/books";
+import { getBook, getBookEditions, getExternalReviews, getSimilarBooks, requestBookEnrichment, requestSynopsis, bookAvgRating, type BookEdition } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
@@ -73,6 +73,12 @@ export default function BookPage() {
     enabled: !!id,
   });
 
+  // La sinossi si chiede una volta sola per apertura, e solo se manca davvero:
+  // `book.data` arriva dopo, quindi l'effetto aspetta il libro invece di partire
+  // sull'id e chiedere una sinossi che magari c'è già.
+  const [synopsisPending, setSynopsisPending] = useState(false);
+  const synopsisAsked = useRef<string>("");
+
   useEffect(() => {
     if (id) {
       void track("book_viewed", { bookId: id });
@@ -80,6 +86,16 @@ export default function BookPage() {
       void requestBookEnrichment(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    const b = book.data;
+    if (!id || !b || b.synopsis || synopsisAsked.current === id) return;
+    synopsisAsked.current = id;
+    setSynopsisPending(true);
+    void requestSynopsis(id)
+      .then(() => book.refetch())
+      .finally(() => setSynopsisPending(false));
+  }, [id, book.data]);
 
   async function mutateShelf(patch: Parameters<typeof setShelf>[2]) {
     if (!userId || !id) return;
@@ -173,13 +189,27 @@ export default function BookPage() {
           </View>
         </View>
 
-        {/* Synopsis — right under the average rating */}
-        {b.description ? (
-          <View style={styles.synopsis}>
-            <Text style={styles.synTitle}>Sinossi</Text>
-            <Text style={styles.description}>{b.description}</Text>
-          </View>
-        ) : null}
+        {/* Sinossi. Tre stati, e il terzo è dichiarare che non c'è: una scheda
+            vuota è più onesta di una trama inventata. */}
+        <View style={styles.synopsis}>
+          <Text style={styles.synTitle}>Sinossi</Text>
+          {b.synopsis ? (
+            <>
+              <Text style={styles.description}>{b.synopsis}</Text>
+              {b.synopsis_source === "ai" ? (
+                // Visibile e in chiaro, non in un tooltip: chi legge deve sapere
+                // che questo testo l'ha scritto una macchina.
+                <Text style={styles.synFonte}>Sintesi generata automaticamente</Text>
+              ) : null}
+            </>
+          ) : synopsisPending ? (
+            <Text style={styles.synAttesa}>Stiamo scrivendo la sinossi…</Text>
+          ) : (
+            <Text style={styles.synAttesa}>
+              Per questo libro non abbiamo ancora abbastanza informazioni per una sinossi.
+            </Text>
+          )}
+        </View>
 
         {/* Editions of the same work. Search now returns one row per work, so
             this is where the other printings live: tap one to switch to it. */}
@@ -543,6 +573,13 @@ const styles = StyleSheet.create({
   edCurrent: { color: colors.primary, fontSize: 9, fontWeight: "800", textTransform: "uppercase" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
   synopsis: { marginBottom: spacing.lg },
+  synFonte: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontStyle: "italic",
+    marginTop: 6,
+  },
+  synAttesa: { color: colors.textMuted, fontSize: 14, lineHeight: 20, fontStyle: "italic" },
   synTitle: {
     ...typography.caption,
     textTransform: "uppercase",

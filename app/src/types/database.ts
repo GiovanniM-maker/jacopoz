@@ -41,7 +41,11 @@ export interface Book {
   title: string;
   subtitle: string | null;
   authors: string[];
-  description: string | null;
+  /** Quello che il lettore legge. `source_blurb_internal` — la quarta di
+   *  copertina dell'editore — non compare in questo tipo di proposito: è
+   *  materiale di analisi e non deve mai finire in una schermata. */
+  synopsis: string | null;
+  synopsis_source: "publisher" | "ai" | null;
   cover_url: string | null;
   published_year: number | null;
   page_count: number | null;

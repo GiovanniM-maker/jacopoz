@@ -103,6 +103,18 @@ export async function getExternalReviews(bookId: UUID): Promise<ExternalReview[]
   return (data ?? []) as ExternalReview[];
 }
 
+/**
+ * Chiede la sinossi per un libro che non ce l'ha. Si chiama all'apertura della
+ * scheda: non blocca niente, e al ritorno la scheda si aggiorna da sola.
+ */
+export async function requestSynopsis(bookId: UUID): Promise<void> {
+  try {
+    await supabase.functions.invoke("synopsis", { body: { book_id: bookId } });
+  } catch {
+    // best-effort: senza sinossi la scheda mostra lo stato vuoto onesto
+  }
+}
+
 /** Fire-and-forget: ask the pipeline to enrich this book (circle 2). */
 export async function requestBookEnrichment(bookId: UUID): Promise<void> {
   try {
@@ -237,7 +249,17 @@ export async function getBooksByAuthor(author: string, limit = 40): Promise<Book
 
 /** Single canonical book row. */
 export async function getBook(id: UUID): Promise<Book> {
-  const { data, error } = await supabase.from("books").select("*").eq("id", id).single();
+  // Colonne esplicite, mai `*`: `source_blurb_internal` è testo dell'editore e
+  // non deve poter arrivare al client nemmeno per distrazione.
+  const { data, error } = await supabase
+    .from("books")
+    // Una stringa sola, non concatenata: supabase-js analizza il testo del
+    // select a livello di tipi, e la concatenazione lo rende opaco.
+    .select(
+      "id,title,subtitle,authors,synopsis,synopsis_source,cover_url,published_year,page_count,language,isbn_13,isbn_10,categories,rating_sum,rating_count,reads_count,saves_count,likes_count,reviews_count,free_read_url,gutenberg_id,external_rating,external_ratings_count,work_key,created_at",
+    )
+    .eq("id", id)
+    .single();
   if (error) throw error;
   return data as Book;
 }
