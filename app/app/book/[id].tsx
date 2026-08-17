@@ -2,18 +2,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { getBook, getBookEditions, getExternalReviews, getSimilarBooks, requestBookEnrichment, requestSynopsis, bookAvgRating, type BookEdition } from "@/api/books";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { getBook, getBookEditions, getSimilarBooks, requestBookEnrichment, requestSynopsis, bookAvgRating, type BookEdition } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
-import { buyUrl } from "@/api/config";
-import { getReadInfo, amazonUrl } from "@/api/reading";
+import { getReadInfo } from "@/api/reading";
 import { track } from "@/api/analytics";
 import { BookCover } from "@/components/BookCover";
 import { BookRow } from "@/components/BookRow";
 import { RowHeader } from "@/components/RowHeader";
-import { Chip } from "@/components/ui/Chip";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
@@ -24,7 +22,7 @@ import { goBack } from "@/lib/nav";
 import { shareBookCard } from "@/lib/shareCard";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing, typography } from "@/theme";
-import type { ExternalReview, FeedItem } from "@/types/database";
+import type { FeedItem } from "@/types/database";
 
 export default function BookPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,11 +42,6 @@ export default function BookPage() {
     queryFn: () => getBookReviewsRanked(id!),
     enabled: !!id,
   });
-  const affiliate = useQuery({
-    queryKey: ["buy-url", id],
-    queryFn: () => buyUrl(id!),
-    enabled: !!book.data,
-  });
   // Free-read availability: matches the book to Project Gutenberg on demand
   // (and repairs classic author names as a side effect).
   const readInfo = useQuery({
@@ -65,11 +58,6 @@ export default function BookPage() {
   const similar = useQuery({
     queryKey: ["similar-books", id],
     queryFn: () => getSimilarBooks(id!, 12),
-    enabled: !!id,
-  });
-  const externals = useQuery({
-    queryKey: ["external-reviews", id],
-    queryFn: () => getExternalReviews(id!),
     enabled: !!id,
   });
 
@@ -133,14 +121,6 @@ export default function BookPage() {
   const isRead = ub?.status === "read";
   const isSaved = ub?.status === "want_to_read";
 
-  async function onBuyAmazon() {
-    // Server-built link: amazon.it, ISBN only for known-Italian editions,
-    // otherwise title+author so the reader gets the Italian edition.
-    const url = affiliate.data ?? amazonUrl(b);
-    void track("affiliate_click", { bookId: id, affiliate: !!affiliate.data });
-    Linking.openURL(url);
-  }
-
   async function onReviewLike(reviewId: string) {
     await toggleLike("review", reviewId);
     qc.invalidateQueries({ queryKey: ["book-reviews", id, userId] });
@@ -157,10 +137,14 @@ export default function BookPage() {
         {/* Rubric band. It used to also print "N°<n>" — a number derived from a
             hash of the title, purely decorative, but sitting next to real
             bibliographic data it read as a catalogue number the book doesn't
-            have. Shows the language instead, which is genuinely useful here. */}
+            have. Shows the language instead, which is genuinely useful here.
+            La categoria non compare più accanto a «Tomo»: era la stessa
+            classificazione grezza dei chip, e sulla fascia sembrava un dato
+            bibliografico verificato che non è. Resta «Tomo» da solo, così la
+            fascia conserva la sua ancora a sinistra e la lingua a destra. */}
         <View style={[styles.colBand, { backgroundColor: mark.band }]}>
           <Text style={[styles.colBandText, { color: bandInk }]} numberOfLines={1}>
-            Tomo · {b.categories[0] ?? "Libro"}
+            Tomo
           </Text>
           {b.language ? (
             <Text style={[styles.colBandText, { color: bandInk }]}>
@@ -237,14 +221,10 @@ export default function BookPage() {
           </View>
         ) : null}
 
-        {/* Categories */}
-        {b.categories.length > 0 ? (
-          <View style={styles.chips}>
-            {b.categories.map((c: string) => (
-              <Chip key={c} label={c} onPress={() => router.push(`/genre/${encodeURIComponent(c)}`)} />
-            ))}
-          </View>
-        ) : null}
+        {/* I chip delle categorie non si mostrano più: `books.categories` resta
+            nel modello perché serve a ricerca per genere, pagine genere e
+            consigli, ma qui in scheda erano etichette non curate — spesso in
+            inglese o duplicate — che rubavano il posto ai dati verificati. */}
 
         {/* Reading state — the primary taste signal */}
         <View style={styles.shelfBox}>
@@ -284,57 +264,32 @@ export default function BookPage() {
           </Pressable>
         ) : null}
 
-        {/* Read / buy — free public-domain read when we have it, Amazon always. */}
-        <View style={styles.readBox}>
-          {readInfo.data?.readable && readInfo.data.gutenberg_id ? (
-            <>
-              <Pressable
-                style={styles.readBtn}
-                onPress={() => {
-                  void track("read_open", { bookId: id });
-                  router.push(`/read/${readInfo.data!.gutenberg_id}?bookId=${b.id}`);
-                }}
-              >
-                <Icon name="review" color={colors.onPrimary} size={16} />
-                <Text style={styles.readBtnText}>Leggi gratis</Text>
-              </Pressable>
-              <Pressable style={styles.buyLink} onPress={onBuyAmazon}>
-                <Text style={styles.buyLinkText}>Compra su Amazon ↗</Text>
-              </Pressable>
-            </>
-          ) : readInfo.isLoading ? null : (
-            <>
-              <View style={styles.readBtnDisabled}>
-                <Text style={styles.readBtnDisabledText}>Non disponibile gratuitamente</Text>
-              </View>
-              <Pressable style={styles.buyBtn} onPress={onBuyAmazon}>
-                <Text style={styles.buyBtnText}>Compra su Amazon ↗</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-
-        {/* Dalla critica: attributed external voices — never fake community. */}
-        {(externals.data ?? []).length > 0 ? (
-          <View style={styles.critica}>
-            <RowHeader title="Dalla critica" flush />
-            {(externals.data ?? []).map((er: ExternalReview) => (
-              <View key={er.id} style={styles.criticaCard}>
-                <Text style={styles.criticaExcerpt}>«{er.excerpt}»</Text>
-                <Pressable
-                  disabled={!er.url}
-                  onPress={() => er.url && Linking.openURL(er.url)}
-                  hitSlop={6}
-                >
-                  <Text style={styles.criticaSource}>
-                    — {er.source_label}
-                    {er.url ? " ↗" : ""}
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
+        {/* Lettura gratuita, quando c'è. Con i link Amazon è caduto anche il
+            ramo negativo: il riquadro «Non disponibile gratuitamente» esisteva
+            per dare un contesto al pulsante d'acquisto, e da solo sarebbe un
+            contenitore che annuncia un'assenza senza offrire un'alternativa —
+            su gran parte del catalogo, cioè quasi sempre. Meglio niente che un
+            blocco vuoto: qui l'intero contenitore scompare, non solo il
+            pulsante. */}
+        {readInfo.data?.readable && readInfo.data.gutenberg_id ? (
+          <View style={styles.readBox}>
+            <Pressable
+              style={styles.readBtn}
+              onPress={() => {
+                void track("read_open", { bookId: id });
+                router.push(`/read/${readInfo.data!.gutenberg_id}?bookId=${b.id}`);
+              }}
+            >
+              <Icon name="review" color={colors.onPrimary} size={16} />
+              <Text style={styles.readBtnText}>Leggi gratis</Text>
+            </Pressable>
           </View>
         ) : null}
+
+        {/* Il blocco «Dalla critica» non c'è più: le voci esterne erano 238
+            contro 14 recensioni vere e la scheda finiva per parlare con la voce
+            di altri. I dati restano in `external_reviews`, semplicemente non si
+            leggono qui. */}
 
         {/* Semantic neighbours */}
         {(similar.data ?? []).length > 0 ? (
@@ -509,7 +464,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   rateLabel: { ...typography.bodyMuted },
-  readBox: { gap: spacing.sm, marginBottom: spacing.lg },
+  // Un solo figlio da quando è caduto il pulsante d'acquisto: niente gap.
+  readBox: { marginBottom: spacing.lg },
   readBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -529,49 +485,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  buyBtn: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  buyBtnText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-  readBtnDisabled: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: "dashed",
-  },
-  readBtnDisabledText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-  buyLink: { alignItems: "center", paddingVertical: spacing.sm },
-  buyLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
   editions: { marginBottom: spacing.lg },
   edList: { gap: spacing.sm, paddingTop: spacing.sm, paddingRight: spacing.lg },
   edItem: { width: 64, alignItems: "center", opacity: 0.85 },
   edItemOn: { opacity: 1 },
   edMeta: { color: colors.textMuted, fontSize: 10, fontWeight: "700", marginTop: 4 },
   edCurrent: { color: colors.primary, fontSize: 9, fontWeight: "800", textTransform: "uppercase" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
   synopsis: { marginBottom: spacing.lg },
   synFonte: {
     color: colors.textFaint,
@@ -594,26 +513,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
     textTransform: "uppercase",
     marginTop: 4,
-  },
-  critica: { marginTop: spacing.lg },
-  criticaCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  criticaExcerpt: { ...typography.body, fontStyle: "italic", lineHeight: 22 },
-  criticaSource: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginTop: spacing.sm,
   },
   similar: { marginHorizontal: -spacing.lg, marginTop: spacing.lg },
   reviewsHeader: { marginTop: spacing.md },
