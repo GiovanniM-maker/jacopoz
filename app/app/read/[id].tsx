@@ -57,20 +57,28 @@ export default function Reader() {
     enabled: !!bookId,
   });
 
-  // Restore last position + surface the bookmark once text and layout are ready.
-  useEffect(() => {
-    if (!restored.current && text.data && startState.data && contentH.current > 0 && viewH.current > 0) {
-      restored.current = true;
-      const p = startState.data.percent;
-      if (p > 1) {
-        scrollRef.current?.scrollTo({ y: (p / 100) * (contentH.current - viewH.current), animated: false });
-        setPercent(p);
-      }
-      if (startState.data.bookmark != null) {
-        setBookmark(startState.data.bookmark);
-        setShowJump(Math.abs(startState.data.bookmark - p) > 2);
-      }
+  // Restore last position + surface the bookmark once text AND layout are both
+  // ready. The layout dimensions arrive via onLayout/onContentSizeChange (not
+  // scroll), so this is called from there too — otherwise it would never fire
+  // on open, since the refs start at 0.
+  function tryRestore() {
+    if (restored.current || !text.data || !startState.data) return;
+    if (contentH.current <= 0 || viewH.current <= 0) return;
+    restored.current = true;
+    const p = startState.data.percent;
+    if (p > 1) {
+      scrollRef.current?.scrollTo({ y: (p / 100) * (contentH.current - viewH.current), animated: false });
+      setPercent(p);
     }
+    if (startState.data.bookmark != null) {
+      setBookmark(startState.data.bookmark);
+      setShowJump(Math.abs(startState.data.bookmark - p) > 2);
+    }
+  }
+
+  useEffect(() => {
+    tryRestore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text.data, startState.data]);
 
   function scrollToPercent(p: number) {
@@ -137,6 +145,14 @@ export default function Reader() {
           <ScrollView
             ref={scrollRef}
             onScroll={onScroll}
+            onLayout={(e) => {
+              viewH.current = e.nativeEvent.layout.height;
+              tryRestore();
+            }}
+            onContentSizeChange={(_w, h) => {
+              contentH.current = h;
+              tryRestore();
+            }}
             scrollEventThrottle={100}
             contentContainerStyle={styles.reader}
             showsVerticalScrollIndicator

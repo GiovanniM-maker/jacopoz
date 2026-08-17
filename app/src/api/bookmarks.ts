@@ -27,7 +27,9 @@ export async function toggleBookmark(
   const { error } = await supabase
     .from("bookmarks")
     .insert({ user_id: userId, target_type: targetType, target_id: targetId });
-  if (error) throw error;
+  // A rapid double-tap can race two inserts; the second violates the unique
+  // constraint — that's fine, the bookmark exists either way.
+  if (error && error.code !== "23505") throw error;
   return true;
 }
 

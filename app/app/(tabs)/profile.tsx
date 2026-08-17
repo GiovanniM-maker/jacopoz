@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { router } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useState } from "react";
 import { getProfileStats } from "@/api/profile";
 import { getFollowedLists, getUserLists } from "@/api/lists";
@@ -14,12 +14,12 @@ import { Avatar } from "@/components/ui/Avatar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { LoadingScreen } from "@/components/ui/ScreenState";
 import { useAuth } from "@/store/auth";
-import { contentWidth, collanaMark, colors, displayFont, onBand, radius, spacing, typography } from "@/theme";
+import { MAX_CONTENT, collanaMark, colors, displayFont, onBand, radius, spacing, typography } from "@/theme";
 import type { BookCard as BookCardType, BookList, ShelfStatus } from "@/types/database";
 
 type Section = "shelves" | "reviews" | "lists" | "liked";
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 const GOLD = colors.bands[2];
 
 const SECTIONS: { key: Section; label: string }[] = [
@@ -35,6 +35,10 @@ export default function ProfileScreen() {
   const { session, profile } = useAuth();
   const userId = session?.user.id;
   const qc = useQueryClient();
+  // Reactive width → shelves always lay out exactly three covers per row.
+  // (A module-load-time read of Dimensions is stale on web/PWA first paint.)
+  const { width } = useWindowDimensions();
+  const cardW = Math.floor((Math.min(width, MAX_CONTENT) - spacing.lg * 2 - spacing.md * 2) / 3);
   const [section, setSection] = useState<Section>("shelves");
   const [listTab, setListTab] = useState<"mine" | "followed">("mine");
   const [shelfTab, setShelfTab] = useState<ShelfStatus>("read");
@@ -70,7 +74,7 @@ export default function ProfileScreen() {
     enabled: !!userId && section === "shelves",
   });
 
-  if (!profile) return <ScreenContainer />;
+  if (!profile) return <LoadingScreen header={false} />;
   const s = stats.data;
   const readerNo = collanaMark(profile.username).number.padStart(3, "0");
 
@@ -78,14 +82,20 @@ export default function ProfileScreen() {
     <ScreenContainer edges={["top"]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.topRow}>
-          <Pressable style={styles.topTile} onPress={() => router.push("/saved")} hitSlop={8}
-            accessibilityLabel="Salvati">
-            <Icon name="bookmark" color={colors.text} size={19} />
+          <Pressable style={styles.topTile} onPress={() => router.push("/find-friends")} hitSlop={8}
+            accessibilityLabel="Trova lettori">
+            <Icon name="community" color={colors.text} size={19} />
           </Pressable>
-          <Pressable style={styles.topTile} onPress={() => router.push("/settings")} hitSlop={8}
-            accessibilityLabel="Impostazioni">
-            <Icon name="settings" color={colors.text} size={19} />
-          </Pressable>
+          <View style={styles.topRight}>
+            <Pressable style={styles.topTile} onPress={() => router.push("/saved")} hitSlop={8}
+              accessibilityLabel="Salvati">
+              <Icon name="bookmark" color={colors.text} size={19} />
+            </Pressable>
+            <Pressable style={styles.topTile} onPress={() => router.push("/settings")} hitSlop={8}
+              accessibilityLabel="Impostazioni">
+              <Icon name="settings" color={colors.text} size={19} />
+            </Pressable>
+          </View>
         </View>
 
         {/* Identity tessera */}
@@ -159,7 +169,7 @@ export default function ProfileScreen() {
             ) : (
               <View style={styles.gridFlush}>
                 {(shelf.data ?? []).map((b: BookCardType) => (
-                  <BookCard key={b.id} book={b} width={CARD_W} showMeta />
+                  <BookCard key={b.id} book={b} width={cardW} showMeta />
                 ))}
               </View>
             )}
@@ -184,6 +194,7 @@ export default function ProfileScreen() {
                   commentCount={r.comment_count}
                   bookTitle={r.book?.title}
                   bookCover={r.book?.cover_url}
+                bookId={r.book?.id}
                   onPress={() => router.push(`/review/${r.id}`)}
                   onBookPress={() => r.book && router.push(`/book/${r.book.id}`)}
                   onLike={async () => {
@@ -240,7 +251,7 @@ export default function ProfileScreen() {
               <SectionEmpty icon="❤️" title="Nessun libro piaciuto" msg="I libri a cui metti like appaiono qui." />
             ) : (
               (liked.data ?? []).map((b: BookCardType) => (
-                <BookCard key={b.id} book={b} width={CARD_W} showMeta />
+                <BookCard key={b.id} book={b} width={cardW} showMeta />
               ))
             )}
           </View>
@@ -301,10 +312,12 @@ function SectionEmpty({ icon, title, msg }: { icon: string; title: string; msg: 
 const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+  topRight: { flexDirection: "row", gap: spacing.sm },
   topTile: {
     width: 40,
     height: 36,

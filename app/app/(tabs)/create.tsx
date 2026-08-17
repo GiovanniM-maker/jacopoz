@@ -10,11 +10,11 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { useAuth } from "@/store/auth";
-import { contentWidth, colors, radius, spacing, typography } from "@/theme";
+import { colors, radius, spacing, typography } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 import { FlatList } from "react-native";
 
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 /**
  * "Create a review" hub. Proposes books the user already cares about —
@@ -22,6 +22,7 @@ const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
  * straight to the review composer.
  */
 export default function Create() {
+  const CARD_W = useGridCardWidth(3);
   const { session } = useAuth();
   const userId = session?.user.id;
 

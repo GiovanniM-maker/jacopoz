@@ -19,6 +19,7 @@ import { getBookmarkedIds, toggleBookmark } from "@/api/bookmarks";
 import { CommentItem } from "@/components/CommentItem";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { Icon } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { confirmDialog } from "@/lib/confirm";
 import { useAuth } from "@/store/auth";
@@ -36,6 +37,7 @@ export default function ReviewThread() {
   const [posting, setPosting] = useState(false);
   const [modMenu, setModMenu] = useState(false);
   const [reported, setReported] = useState(false);
+  const [reportedComments, setReportedComments] = useState<Set<string>>(new Set());
 
   const review = useQuery({
     queryKey: ["review", id, userId],
@@ -50,6 +52,11 @@ export default function ReviewThread() {
   const savedComments = useQuery({
     queryKey: ["saved-comment-ids", userId],
     queryFn: () => getBookmarkedIds(userId!, "comment"),
+    enabled: !!userId,
+  });
+  const savedReviews = useQuery({
+    queryKey: ["saved-review-ids", userId],
+    queryFn: () => getBookmarkedIds(userId!, "review"),
     enabled: !!userId,
   });
   const blocked = useQuery({
@@ -81,7 +88,13 @@ export default function ReviewThread() {
   }
 
   async function onReportComment(commentId: string) {
-    await reportContent("comment", commentId);
+    try {
+      await reportContent("comment", commentId);
+      // Visible acknowledgement: tapping the flag used to do nothing at all.
+      setReportedComments((prev) => new Set(prev).add(commentId));
+    } catch {
+      // leave the flag untouched so the reader can retry
+    }
     qc.invalidateQueries({ queryKey: ["comments", id, userId] });
   }
 
@@ -89,6 +102,12 @@ export default function ReviewThread() {
     if (!userId) return;
     await toggleBookmark(userId, "comment", commentId);
     qc.invalidateQueries({ queryKey: ["saved-comment-ids", userId] });
+  }
+
+  async function onSaveReview() {
+    if (!userId || !id) return;
+    await toggleBookmark(userId, "review", id);
+    qc.invalidateQueries({ queryKey: ["saved-review-ids", userId] });
   }
 
   async function onReviewLike() {
@@ -105,12 +124,19 @@ export default function ReviewThread() {
   async function onPost() {
     if (!userId || !id || text.trim().length === 0) return;
     setPosting(true);
-    await addComment(userId, id, text.trim(), replyTo?.id);
-    setText("");
-    setReplyTo(null);
-    qc.invalidateQueries({ queryKey: ["comments", id, userId] });
-    qc.invalidateQueries({ queryKey: ["review", id, userId] });
-    setPosting(false);
+    const parentId = replyTo?.id;
+    try {
+      await addComment(userId, id, text.trim(), parentId);
+      setText("");
+      setReplyTo(null);
+      qc.invalidateQueries({ queryKey: ["comments", id, userId] });
+      qc.invalidateQueries({ queryKey: ["review", id, userId] });
+      if (parentId) qc.invalidateQueries({ queryKey: ["replies", parentId, userId] });
+    } catch {
+      // keep the text so nothing is lost; surfacing via the disabled state.
+    } finally {
+      setPosting(false);
+    }
   }
 
   const r = review.data;
@@ -124,9 +150,31 @@ export default function ReviewThread() {
         <ScreenHeader
           title="Recensione"
           backFallback="/(tabs)/community"
-          rightIcon="flag"
-          rightColor={reported ? colors.primary : colors.textMuted}
-          onRightPress={() => setModMenu((v) => !v)}
+          right={
+            <View style={styles.hdrActions}>
+              <Pressable
+                style={styles.hdrTile}
+                hitSlop={8}
+                onPress={onSaveReview}
+                accessibilityLabel={savedReviews.data?.has(id!) ? "Rimuovi dai salvati" : "Salva"}
+              >
+                <Icon
+                  name="bookmark"
+                  color={savedReviews.data?.has(id!) ? colors.primary : colors.text}
+                  size={18}
+                  filled={savedReviews.data?.has(id!) ?? false}
+                />
+              </Pressable>
+              <Pressable
+                style={styles.hdrTile}
+                hitSlop={8}
+                onPress={() => setModMenu((v) => !v)}
+                accessibilityLabel="Segnala"
+              >
+                <Icon name="flag" color={reported ? colors.primary : colors.textMuted} size={18} />
+              </Pressable>
+            </View>
+          }
         />
 
         {modMenu ? (
@@ -171,6 +219,7 @@ export default function ReviewThread() {
                 onLike={() => onCommentLike(c.id)}
                 onReply={() => setReplyTo(c)}
                 onSave={() => onSaveComment(c.id)}
+                reported={reportedComments.has(c.id)}
                 onReport={() => onReportComment(c.id)}
               />
               {c.reply_count > 0 ? (
@@ -240,6 +289,16 @@ function ReplyList({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  hdrActions: { flexDirection: "row", gap: spacing.sm },
+  hdrTile: {
+    width: 40,
+    height: 36,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   modMenu: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.sm,

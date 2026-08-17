@@ -24,6 +24,7 @@ export interface Profile {
   following_count: number;
   books_read_count: number;
   points: number;
+  reading_language: string;
   onboarded_at: string | null;
   created_at: string;
 }
@@ -40,7 +41,11 @@ export interface Book {
   title: string;
   subtitle: string | null;
   authors: string[];
-  description: string | null;
+  /** Quello che il lettore legge. `source_blurb_internal` — la quarta di
+   *  copertina dell'editore — non compare in questo tipo di proposito: è
+   *  materiale di analisi e non deve mai finire in una schermata. */
+  synopsis: string | null;
+  synopsis_source: "publisher" | "ai" | null;
   cover_url: string | null;
   published_year: number | null;
   page_count: number | null;
@@ -61,15 +66,11 @@ export interface Book {
   created_at: string;
 }
 
-export interface ExternalReview {
-  id: UUID;
-  book_id: UUID;
-  source: "wikipedia" | "nyt" | "openlibrary";
-  source_label: string;
-  excerpt: string;
-  url: string | null;
-  license: string | null;
-}
+// Qui stava il tipo `ExternalReview`. Rimosso il 15 agosto 2026 con il blocco
+// «Dalla critica»: 238 recensioni di fonti esterne contro 14 di lettori veri
+// erano il contrario di quello che l'app promette. Il tipo non serve più perché
+// nessuna schermata legge più quella tabella — che però resta in database, con
+// le sue righe e la loro licenza, nel caso la sezione torni.
 
 export interface UserBook {
   user_id: UUID;
@@ -86,7 +87,12 @@ export interface UserBook {
 export interface Review {
   id: UUID;
   user_id: UUID;
+  /** L'edizione da cui la recensione è stata scritta: informazione vera, che
+   *  vale la pena conservare. Non è però il punto di attacco. */
   book_id: UUID;
+  /** L'opera. È qui che la recensione è appesa: una per lettore per opera,
+   *  visibile da qualunque edizione. Lo scrive un trigger, non il client. */
+  work_id: UUID;
   rating: number | null;
   body: string;
   contains_spoilers: boolean;

@@ -66,12 +66,12 @@ export async function saveBookmark(bookId: UUID, percent: number | null): Promis
   }
 }
 
-/**
- * A plain Amazon (.it) link for any book — by ISBN when we have it, else a
- * books search on title + author. No affiliate tag yet; we'll tag the
- * most-read titles later.
- */
-export function amazonUrl(book: { title: string; authors: string[]; isbn_13?: string | null }): string {
-  const term = book.isbn_13 ?? `${book.title} ${book.authors[0] ?? ""}`.trim();
-  return `https://www.amazon.it/s?k=${encodeURIComponent(term)}&i=stripbooks`;
-}
+// Qui stava `amazonUrl`, il link di ripiego verso amazon.it. Rimosso il
+// 15 agosto 2026 insieme al resto della superficie Amazon: il tag di
+// affiliazione salvato è `jacopoz-20`, un tag .com, e i link andavano su
+// amazon.it — marketplace diverso, tag ignorato, nessuna conversione mai
+// attribuita. Mandare i lettori fuori dall'app senza guadagnarci nulla non
+// vale il posto che occupava nella scheda libro.
+//
+// Nulla di tutto questo riguarda la lettura gratuita: `getReadInfo`,
+// `getBookText`, Gutenberg e `free_read_url` restano intatti.

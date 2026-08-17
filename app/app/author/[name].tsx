@@ -6,12 +6,13 @@ import { getBooksByAuthor } from "@/api/books";
 import { BookCard } from "@/components/BookCard";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { goBack } from "@/lib/nav";
-import { contentWidth, colors, displayFont, spacing, typography } from "@/theme";
+import { colors, displayFont, spacing, typography } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 export default function AuthorScreen() {
+  const CARD_W = useGridCardWidth(3);
   const { name } = useLocalSearchParams<{ name: string }>();
   const author = decodeURIComponent(name ?? "");
 
@@ -24,7 +25,7 @@ export default function AuthorScreen() {
   return (
     <ScreenContainer edges={["top"]}>
       <View style={styles.header}>
-        <Pressable onPress={() => goBack("/(tabs)/search")} hitSlop={10}>
+        <Pressable onPress={() => goBack("/search")} hitSlop={10}>
           <Text style={styles.back}>‹ Indietro</Text>
         </Pressable>
       </View>

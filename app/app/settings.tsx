@@ -1,13 +1,14 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { deleteAccount, updateProfile } from "@/api/profile";
+import { deleteAccount, setReadingLanguage, updateProfile } from "@/api/profile";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
 import { confirmDialog } from "@/lib/confirm";
 import { canInstall, isIos, onInstallChange, promptInstall } from "@/lib/pwaInstall";
+import { buildId, hardRefresh } from "@/lib/appVersion";
 import { useAuth } from "@/store/auth";
 import { activeTheme, colors, radius, setTheme, spacing, THEMES, typography } from "@/theme";
 
@@ -18,6 +19,8 @@ export default function Settings() {
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lang, setLang] = useState(profile?.reading_language ?? "it");
   const [installable, setInstallable] = useState(canInstall());
 
   useEffect(() => {
@@ -36,14 +39,43 @@ export default function Settings() {
     }
   }
 
+  async function onPickLang(code: string) {
+    if (!userId) return;
+    const prev = lang;
+    setLang(code);
+    try {
+      await setReadingLanguage(userId, code);
+      await refreshProfile();
+    } catch {
+      setLang(prev);
+      setError("Non è stato possibile cambiare lingua. Riprova.");
+    }
+  }
+
   async function onSaveProfile() {
     if (!userId) return;
     setSaving(true);
-    await updateProfile(userId, { display_name: displayName.trim(), bio: bio.trim() || null });
-    await refreshProfile();
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError(null);
+    try {
+      await updateProfile(userId, { display_name: displayName.trim(), bio: bio.trim() || null });
+      await refreshProfile();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setError("Non è stato possibile salvare le modifiche. Riprova.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onHardRefresh() {
+    const ok = await confirmDialog(
+      "Aggiornare l'app?",
+      "Svuota la cache e ricarica Tomo all'ultima versione. Non perdi nulla: i tuoi dati sono sul server.",
+      "Aggiorna",
+    );
+    if (!ok) return;
+    await hardRefresh();
   }
 
   async function onDelete() {
@@ -53,11 +85,15 @@ export default function Settings() {
       "Elimina tutto",
     );
     if (!ok) return;
+    // Only sign out if the deletion actually succeeded — otherwise the user
+    // would think the account is gone while their data is still on the server.
     try {
       await deleteAccount();
-    } finally {
-      await signOut();
+    } catch {
+      setError("Non è stato possibile eliminare l'account. Riprova o contattaci.");
+      return;
     }
+    await signOut();
   }
 
   return (
@@ -93,6 +129,33 @@ export default function Settings() {
           loading={saving}
           style={styles.save}
         />
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        {/* Reading language — the same preference chosen at onboarding. */}
+        <Text style={styles.section}>Lingua di lettura</Text>
+        <Text style={styles.langHint}>
+          Le edizioni in questa lingua vengono mostrate prima nelle ricerche.
+        </Text>
+        <View style={styles.langRow}>
+          {[
+            { code: "it", label: "Italiano" },
+            { code: "en", label: "English" },
+            { code: "es", label: "Español" },
+            { code: "fr", label: "Français" },
+            { code: "de", label: "Deutsch" },
+            { code: "pt", label: "Português" },
+          ].map((l) => (
+            <Pressable
+              key={l.code}
+              onPress={() => onPickLang(l.code)}
+              style={[styles.langChip, lang === l.code && styles.langChipOn]}
+            >
+              <Text style={[styles.langChipText, lang === l.code && styles.langChipTextOn]}>
+                {l.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
 
         {/* Appearance / theme */}
         <Text style={styles.section}>Aspetto</Text>
@@ -128,6 +191,13 @@ export default function Settings() {
         </Text>
         <Row icon="list" label="Informativa privacy" onPress={() => router.push("/legal/privacy")} />
         <Row icon="list" label="Termini di servizio" onPress={() => router.push("/legal/terms")} />
+
+        {/* Build + hard refresh: an installed PWA can pin an old bundle in its
+            service-worker cache, so this shows what is actually running and
+            gives a one-tap way out. */}
+        <Text style={styles.section}>App</Text>
+        <Text style={styles.note}>Versione installata: {buildId()}</Text>
+        <Row icon="download" label="Aggiorna all'ultima versione" onPress={onHardRefresh} />
 
         {/* Danger zone */}
         <Text style={[styles.section, { color: colors.primary }]}>Zona pericolosa</Text>
@@ -178,6 +248,19 @@ const styles = StyleSheet.create({
   },
   area: { minHeight: 84 },
   save: { marginTop: spacing.lg },
+  langHint: { color: colors.textMuted, fontSize: 13, marginBottom: spacing.sm },
+  langRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  langChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  langChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  langChipText: { color: colors.textMuted, fontSize: 13, fontWeight: "800" },
+  langChipTextOn: { color: colors.onPrimary },
+  errorText: { color: colors.accent, fontSize: 13, marginTop: spacing.sm, textAlign: "center" },
   row: {
     flexDirection: "row",
     alignItems: "center",

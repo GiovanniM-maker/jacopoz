@@ -26,7 +26,13 @@ export function HeartButton({ liked, count, size = 22, onPress }: Props) {
   }
 
   return (
-    <Pressable onPress={press} hitSlop={8} style={styles.row}>
+    <Pressable
+      onPress={press}
+      hitSlop={12}
+      style={styles.row}
+      accessibilityRole="button"
+      accessibilityLabel={liked ? "Togli like" : "Metti like"}
+    >
       <Animated.View style={{ transform: [{ scale }] }}>
         <Icon name="heart" color={liked ? LIKE_RED : colors.textMuted} filled={liked} size={size} />
       </Animated.View>

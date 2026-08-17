@@ -32,6 +32,31 @@ export async function searchUsers(query: string, limit = 30): Promise<Profile[]>
   return (data ?? []) as Profile[];
 }
 
+/**
+ * Readers to suggest following: the most active accounts the current user
+ * doesn't already follow (and isn't). Ranked by review activity, then
+ * followers. Powers the "Trova lettori" screen — the discovery half of the
+ * social loop. Overfetches then filters client-side so a handful of already
+ * followed accounts never empties the list.
+ */
+export async function getSuggestedReaders(limit = 20): Promise<Profile[]> {
+  const { data: sess } = await supabase.auth.getSession();
+  const me = sess.session?.user.id;
+
+  let followed: string[] = [];
+  if (me) followed = (await getFollowing(me)).map((u) => u.id);
+  const exclude = new Set<string>([...(me ? [me] : []), ...followed]);
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("followers_count", { ascending: false })
+    .order("books_read_count", { ascending: false })
+    .limit(limit + exclude.size + 10);
+  if (error) throw error;
+  return ((data ?? []) as Profile[]).filter((p) => !exclude.has(p.id)).slice(0, limit);
+}
+
 /** Permanently delete the signed-in user's account and all their data. */
 export async function deleteAccount(): Promise<void> {
   const { error } = await supabase.rpc("delete_my_account");
@@ -40,7 +65,7 @@ export async function deleteAccount(): Promise<void> {
 
 export async function updateProfile(
   id: UUID,
-  patch: Partial<Pick<Profile, "display_name" | "bio" | "avatar_url">>,
+  patch: Partial<Pick<Profile, "display_name" | "bio" | "avatar_url" | "reading_language">>,
 ): Promise<Profile> {
   const { data, error } = await supabase
     .from("profiles")
@@ -65,6 +90,15 @@ export async function getGenrePrefs(userId: UUID): Promise<string[]> {
 
 /** Replace the user's genre picks and stamp onboarded_at. Called from the
  *  onboarding taste picker — this is what solves reco cold-start. */
+/** The reader's preferred reading language — drives search ranking + imports. */
+export async function setReadingLanguage(userId: UUID, lang: string): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({ reading_language: lang })
+    .eq("id", userId);
+  if (error) throw error;
+}
+
 export async function saveOnboarding(userId: UUID, genreSlugs: string[]): Promise<void> {
   await supabase.from("user_genre_prefs").delete().eq("user_id", userId);
   if (genreSlugs.length) {
@@ -73,10 +107,13 @@ export async function saveOnboarding(userId: UUID, genreSlugs: string[]): Promis
       .insert(genreSlugs.map((slug) => ({ user_id: userId, genre_slug: slug })));
     if (error) throw error;
   }
-  await supabase
+  // Must succeed: onboarded_at is what lets the user out of the onboarding
+  // gate. If it silently failed, they'd be looping back here forever.
+  const { error: profErr } = await supabase
     .from("profiles")
     .update({ onboarded_at: new Date().toISOString() })
     .eq("id", userId);
+  if (profErr) throw profErr;
   void track("onboarding_completed", { genres: genreSlugs.length });
 }
 

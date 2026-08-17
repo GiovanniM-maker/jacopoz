@@ -1,0 +1,22 @@
+-- =====================================================================
+-- 0077 — Via anche la chiave di configurazione di Amazon
+--
+-- 0076 ha rimosso le funzioni e il client ha smesso di chiamarle. Restava una
+-- riga in `app_config`:
+--
+--     amazon_affiliate_tag = 'jacopoz-20'
+--
+-- `getAppConfig()` fa `select key,value from app_config` **senza filtro**, quindi
+-- quella riga viene consegnata a ogni client — configurazione commerciale di una
+-- funzione che non esiste più.
+--
+-- L'agente che ha fatto 0076 non l'ha cancellata, e ha fatto bene: cancellare
+-- dati non era nel suo mandato, ed è una decisione da prendere di proposito
+-- invece che di rimbalzo. Presa qui.
+--
+-- Il valore è scritto sopra per intero, quindi la riga si ricrea con una riga di
+-- SQL se un giorno l'affiliazione torna. Per la cronaca: era comunque **un tag
+-- .com puntato su link amazon.it**, quindi non ha mai attribuito una vendita.
+-- =====================================================================
+
+delete from public.app_config where key = 'amazon_affiliate_tag';

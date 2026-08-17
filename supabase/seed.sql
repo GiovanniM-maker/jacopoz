@@ -27,7 +27,11 @@ on conflict (slug) do nothing;
 -- --- Remote config / monetization switches ----------------------------
 insert into public.app_config (key, value, description) values
   ('ads_enabled',          'false'::jsonb,           'Master switch for in-app ads. OFF for the private beta.'),
-  ('amazon_affiliate_tag', '"jacopoz-20"'::jsonb,    'Amazon Associates tag appended to affiliate links.'),
+  -- `amazon_affiliate_tag` stava qui. Rimossa il 15 agosto 2026 insieme a
+  -- tutta la superficie Amazon (0076, 0077). Toglierla anche dal seme non è
+  -- un dettaglio: 0077 la cancella da un database esistente, ma un ambiente
+  -- creato da zero la riotterrebbe da qui, e la migrazione risulterebbe una
+  -- bugia proprio dove serve che sia vera.
   ('premium_enabled',      'false'::jsonb,           'Whether the Premium upsell is shown. OFF until features exist.'),
   ('min_app_version',      '"0.1.0"'::jsonb,         'Soft minimum client version for a forced-update nudge.')
 on conflict (key) do nothing;

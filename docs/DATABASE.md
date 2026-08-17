@@ -296,7 +296,12 @@ erDiagram
 - **entitlements:** one row per user (`tier billing_tier`, `is_active`, `provider`, `product_id`,
   `current_period_end`). Read own only; written by billing webhook (service_role). `is_premium()` gates.
 - **app_config:** global `key → jsonb value` remote flags read at launch (`ads_enabled`,
-  `amazon_affiliate_tag`, `premium_enabled`, `min_app_version`, seeded). Public read; moderators UPDATE.
+  `premium_enabled`, `min_app_version`, seeded). Public read; moderators UPDATE.
+  A fourth key, `amazon_affiliate_tag`, was **deleted** on 15 Aug 2026 (`0077`) after `0076` dropped the
+  two functions that read it (`amazon_affiliate_url`, `amazon_buy_url`): the tag was a `.com` Associates
+  tag while the links pointed at `amazon.it`, so no conversion was ever attributed. Clients read this
+  table unfiltered, so a leftover row would have kept shipping commercial config for a feature that no
+  longer exists.
 
 ---
 

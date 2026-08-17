@@ -1,0 +1,21 @@
+-- =====================================================================
+-- 0078 — Via l'indice della riga Home che non esiste più
+--
+-- `books_paid_recent_idx` è nato in 0075, un'ora prima di questa migrazione,
+-- per servire il ramo `p_free = false` di `get_reco_by_availability` — cioè la
+-- riga Home «Nuove scoperte · a pagamento», poi rinominata «Titoli recenti per
+-- te» e infine rimossa: senza i link Amazon quella riga era un sottoinsieme di
+-- «Consigliati per te» ordinato per data.
+--
+-- Nessuno chiama più la funzione con `p_free = false`, quindi l'indice non può
+-- essere usato da nessuna query. Tenerlo costerebbe spazio nel pool di buffer,
+-- che su questa istanza è la risorsa scarsa: 224 MB contro un set di lavoro che
+-- già non ci sta. Un indice che nessuno interroga è puro peso.
+--
+-- La funzione **resta com'è**, con il suo parametro booleano: il ramo gratis è
+-- vivo e serve «Gratis, consigliati per te». Così ripristinare la riga, se un
+-- giorno tornasse un motivo per averla, è una modifica di solo client — e
+-- ricreare l'indice è la riga di SQL che sta qui sotto, al contrario.
+-- =====================================================================
+
+drop index if exists public.books_paid_recent_idx;

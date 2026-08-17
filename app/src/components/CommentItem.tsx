@@ -10,6 +10,8 @@ interface Props {
   comment: CommentWithAuthor;
   isReply?: boolean;
   saved?: boolean;
+  /** Flag turns brass + label once the report is filed. */
+  reported?: boolean;
   onLike?: () => void;
   onReply?: () => void;
   onSave?: () => void;
@@ -22,7 +24,7 @@ interface Props {
  * avatar, bold author + uppercase timestamp, and micro-actions. Replies are
  * indented behind a dashed thread rule.
  */
-export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, onReport, onPress }: Props) {
+export function CommentItem({ comment, isReply, saved, reported, onLike, onReply, onSave, onReport, onPress }: Props) {
   return (
     <Pressable style={[styles.row, isReply && styles.reply]} onPress={onPress} disabled={!onPress}>
       <Avatar url={comment.author.avatar_url} name={comment.author.display_name} size={30} />
@@ -57,8 +59,16 @@ export function CommentItem({ comment, isReply, saved, onLike, onReply, onSave, 
             </Pressable>
           ) : null}
           {onReport ? (
-            <Pressable onPress={onReport} hitSlop={8} style={styles.reportBtn}>
-              <Icon name="flag" color={colors.textFaint} size={14} />
+            <Pressable
+              onPress={onReport}
+              hitSlop={12}
+              style={styles.reportBtn}
+              disabled={reported}
+              accessibilityRole="button"
+              accessibilityLabel={reported ? "Commento segnalato" : "Segnala commento"}
+            >
+              <Icon name="flag" color={reported ? colors.primary : colors.textFaint} size={14} filled={reported} />
+              {reported ? <Text style={styles.reportedLabel}>Segnalato</Text> : null}
             </Pressable>
           ) : null}
         </View>
@@ -102,6 +112,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   saveBtn: { flexDirection: "row", alignItems: "center", gap: 4 },
+  reportedLabel: { color: colors.primary, fontSize: 11, fontWeight: "700", marginLeft: 4 },
   savedOn: { color: colors.primary },
   reportBtn: { marginLeft: "auto" },
 });

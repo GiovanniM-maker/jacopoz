@@ -14,15 +14,17 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { confirmDialog } from "@/lib/confirm";
 import { goBack } from "@/lib/nav";
 import { useAuth } from "@/store/auth";
-import { contentWidth, colors, displayFont, spacing, typography } from "@/theme";
+import { colors, displayFont, spacing, typography } from "@/theme";
+import { useGridCardWidth } from "@/lib/useGrid";
 import type { BookCard as BookCardType } from "@/types/database";
 
-const CARD_W = (contentWidth() - spacing.lg * 2 - spacing.md * 2) / 3;
 
 export default function ListDetail() {
+  const CARD_W = useGridCardWidth(3);
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const qc = useQueryClient();
@@ -60,7 +62,12 @@ export default function ListDetail() {
     goBack("/(tabs)/profile");
   }
 
-  if (!list.data) return <ScreenContainer />;
+  if (list.isLoading) return <LoadingScreen backFallback="/(tabs)/profile" />;
+  if (list.isError) return <ErrorScreen backFallback="/(tabs)/profile" onRetry={() => list.refetch()} />;
+  if (!list.data)
+    return (
+      <ErrorScreen backFallback="/(tabs)/profile" title="Lista non trovata" message="Questa lista non esiste più." />
+    );
   const l = list.data;
 
   return (

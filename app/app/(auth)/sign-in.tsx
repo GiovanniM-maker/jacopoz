@@ -8,6 +8,15 @@ import { Wordmark } from "@/components/Wordmark";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { colors, spacing, typography } from "@/theme";
 
+/** Map the most common Supabase auth errors to Italian. */
+function itAuthError(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login")) return "Email o password non corretti.";
+  if (m.includes("email not confirmed")) return "Conferma prima la tua email, poi accedi.";
+  if (m.includes("rate limit") || m.includes("too many")) return "Troppi tentativi. Riprova tra poco.";
+  return "Accesso non riuscito. Riprova.";
+}
+
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,13 +31,13 @@ export default function SignIn() {
       const result = await Promise.race([
         supabase.auth.signInWithPassword({ email: email.trim(), password }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Request timed out. Check your connection.")), 15000),
+          setTimeout(() => reject(new Error("timeout")), 15000),
         ),
       ]);
-      if (result.error) setError(result.error.message);
+      if (result.error) setError(itAuthError(result.error.message));
       // On success the auth listener + gate navigate automatically.
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } catch {
+      setError("Connessione lenta o assente. Riprova.");
     } finally {
       setLoading(false);
     }
@@ -43,7 +52,7 @@ export default function SignIn() {
         <View style={styles.flex}>
           <View style={styles.header}>
             <Wordmark size={48} />
-            <Text style={styles.tagline}>Discover books through people like you.</Text>
+            <Text style={styles.tagline}>Scopri libri attraverso persone come te.</Text>
           </View>
 
           <View style={styles.form}>

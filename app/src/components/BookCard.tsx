@@ -17,16 +17,22 @@ function prefetchBook(id: string) {
 }
 
 interface Props {
-  book: BookCardType;
+  book: BookCardType & { reason?: string };
   width?: number;
   /** Netflix rows show only the artwork; meta is hidden by default. */
   showMeta?: boolean;
   /** "Non mi interessa": renders a small ✕ tile over the cover. */
   onDismiss?: () => void;
+  /**
+   * Show the personalised "why this book is here for you" line the recommender
+   * produced ("Dagli autori che ami", "Popolare tra lettori come te", …). Global
+   * genre labels say what a book *is*; this says what it is *to this reader*.
+   */
+  showReason?: boolean;
 }
 
 /** A tappable poster card used in dashboard rows and grids. */
-export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Props) {
+export function BookCard({ book, width = 120, showMeta = false, onDismiss, showReason }: Props) {
   return (
     <Pressable
       style={[styles.card, { width }]}
@@ -43,14 +49,19 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Pro
           <Icon name="close" color={colors.text} size={12} />
         </Pressable>
       ) : null}
-      <BookCover url={book.cover_url} title={book.title} width={width} />
+      <BookCover url={book.cover_url} title={book.title} width={width} bookId={book.id} />
+      {showReason && book.reason ? (
+        <Text style={styles.reason} numberOfLines={2}>
+          {book.reason}
+        </Text>
+      ) : null}
       {showMeta ? (
         <View style={styles.meta}>
           <Text style={styles.title} numberOfLines={2}>
             {book.title}
           </Text>
           <Text style={styles.author} numberOfLines={1}>
-            {book.authors[0] ?? "Unknown"}
+            {book.authors[0] ?? "Autore ignoto"}
           </Text>
         </View>
       ) : null}
@@ -59,7 +70,19 @@ export function BookCard({ book, width = 120, showMeta = false, onDismiss }: Pro
 }
 
 const styles = StyleSheet.create({
-  card: { marginRight: spacing.sm },
+  reason: {
+    color: colors.primary,
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.2,
+    marginTop: 4,
+  },
+  // No margin here. Every grid that holds these cards sizes its columns with
+  // gridCardWidth() and spaces them with `gap`, so a margin on the card is
+  // width the layout never budgeted for: three cards plus their margins came to
+  // 381pt inside 358pt on a 390pt phone, and the third one wrapped. That is the
+  // "profile shows two columns" report. Horizontal rows set their own gap.
+  card: {},
   dismiss: {
     position: "absolute",
     top: 4,

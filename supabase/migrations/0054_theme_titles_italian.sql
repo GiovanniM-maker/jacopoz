@@ -1,0 +1,217 @@
+-- =====================================================================
+-- 0054 — i nomi dei generi nelle sezioni della Home, in italiano
+--
+-- Uscito da un controllo H-4 eseguito come lettore vero invece che come
+-- anonimo: le sezioni personalizzate ci sono ("Ancora Michel Houellebecq",
+-- "Perché hai letto Il fu Mattia Pascal"), ma quelle per tema mostravano lo
+-- slug ripulito — "Il tuo filone: **Nonfiction**", "Il tuo filone: **Biography**"
+-- — cioè una parola inglese dentro una frase italiana.
+--
+-- I nomi italiani esistono già in `genres.name` (0051). Basta usarli, con
+-- ricaduta sullo slug se un tema non ha una riga corrispondente.
+-- =====================================================================
+
+create or replace function public.genre_label(p_slug text)
+returns text
+language sql
+stable
+set search_path = public, extensions
+as $$
+  select coalesce(
+    (select g.name from public.genres g where g.slug = p_slug),
+    initcap(replace(p_slug, '-', ' '))
+  );
+$$;
+grant execute on function public.genre_label(text) to authenticated, anon;
+
+-- get_home_sections riemessa con l'etichetta italiana al posto di
+-- initcap(replace(slug,'-',' ')).
+CREATE OR REPLACE FUNCTION public.get_home_sections(p_seed integer DEFAULT 0, p_max_sections integer DEFAULT 5, p_per_section integer DEFAULT 12)
+ RETURNS TABLE(section_key text, section_title text, section_rank integer, id uuid, title text, subtitle text, authors text[], cover_url text, published_year integer, categories text[], avg_rating numeric, reads_count integer, saves_count integer, likes_count integer, reviews_count integer)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'extensions'
+AS $function$
+declare
+  v_user  uuid := auth.uid();
+  v_specs jsonb := '[]'::jsonb;
+  v_spec  jsonb;
+  v_rank  int := 0;
+  v_emb   text;
+begin
+  -- Anchor books: things the reader demonstrably liked, rotated by the seed so
+  -- "Perché hai letto…" isn't always about the same book.
+  v_specs := v_specs || (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'kind', 'similar_to_book', 'ref', b.id::text,
+             'title', 'Perché hai letto ' || b.title)), '[]'::jsonb)
+    from (
+      select b.id, b.title
+      from public.books b
+      join public.user_books ub on ub.book_id = b.id
+      where ub.user_id = v_user
+        and (ub.liked or ub.status = 'read' or coalesce(ub.rating, 0) >= 4)
+        and b.embedding is not null
+      order by abs(hashtext(b.id::text || ':' || p_seed::text))
+      limit 3
+    ) b
+  );
+
+  -- Authors they rated highly.
+  v_specs := v_specs || (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'kind', 'more_by_author', 'ref', a.author,
+             'title', 'Ancora ' || a.author)), '[]'::jsonb)
+    from (
+      select distinct unnest(b.authors) as author
+      from public.books b
+      join public.user_books ub on ub.book_id = b.id
+      where ub.user_id = v_user
+        and (ub.liked or coalesce(ub.rating, 0) >= 4)
+      order by 1
+      limit 6
+    ) a
+    where a.author is not null
+  );
+
+  -- Dominant themes from the reader's taste clusters / explicit prefs.
+  v_specs := v_specs || (
+    select coalesce(jsonb_agg(jsonb_build_object(
+             'kind', 'theme', 'ref', t.cat,
+             'title', 'Il tuo filone: ' || public.genre_label(t.cat))), '[]'::jsonb)
+    from (
+      select unnest(b.categories) as cat
+      from public.books b
+      join public.user_taste_clusters tc on tc.medoid_book_id = b.id
+      where tc.user_id = v_user
+      union
+      select genre_slug from public.user_genre_prefs where user_id = v_user
+      limit 8
+    ) t
+    where t.cat is not null
+  );
+
+  -- Editorial angles that stay meaningful without personal history.
+  v_specs := v_specs || jsonb_build_array(
+    jsonb_build_object('kind', 'free_classics', 'ref', '', 'title', 'Classici da leggere gratis, ora'),
+    jsonb_build_object('kind', 'short_reads',   'ref', '', 'title', 'Brevi: finiscili in una sera'),
+    jsonb_build_object('kind', 'acclaimed',     'ref', '', 'title', 'Acclamati dai lettori di tutto il mondo'),
+    jsonb_build_object('kind', 'hidden_gems',   'ref', '', 'title', 'Piccole gemme da scoprire')
+  );
+
+  -- Pick and order the rows for this seed.
+  for v_spec in
+    select s.spec from (
+      select value as spec
+      from jsonb_array_elements(v_specs) value
+      order by abs(hashtext((value->>'kind') || (value->>'ref') || ':' || p_seed::text))
+      limit greatest(p_max_sections, 1)
+    ) s
+  loop
+    v_rank := v_rank + 1;
+
+    if v_spec->>'kind' = 'similar_to_book' then
+      -- Semantic neighbours of the anchor book. The vector is inlined so the
+      -- HNSW index is used (a bound parameter falls back to a seq scan).
+      select b.embedding::extensions.halfvec(512)::text into v_emb
+        from public.books b where b.id = (v_spec->>'ref')::uuid;
+      if v_emb is null then continue; end if;
+      return query execute format($q$
+        select %L::text, %L::text, %s::int,
+               b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+               case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+               b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+        from public.books b
+        where b.embedding is not null and b.cover_url is not null
+          and b.id <> %L::uuid
+          and not exists (select 1 from public.user_books ub where ub.user_id = %L::uuid and ub.book_id = b.id)
+        order by (b.embedding::extensions.halfvec(512)) <=> %L::extensions.halfvec(512)
+        limit %s
+      $q$, v_spec->>'kind' || ':' || (v_spec->>'ref'), v_spec->>'title', v_rank,
+           v_spec->>'ref', v_user, v_emb, p_per_section);
+
+    elsif v_spec->>'kind' = 'more_by_author' then
+      return query
+      select (v_spec->>'kind') || ':' || (v_spec->>'ref'), v_spec->>'title', v_rank,
+             b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+             case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+             b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+      from public.books b
+      where (v_spec->>'ref') = any(b.authors)
+        and b.cover_url is not null
+        and not exists (select 1 from public.user_books ub where ub.user_id = v_user and ub.book_id = b.id)
+      order by (b.reads_count + b.likes_count + b.saves_count) desc, b.published_year desc nulls last
+      limit p_per_section;
+
+    elsif v_spec->>'kind' = 'theme' then
+      return query
+      select (v_spec->>'kind') || ':' || (v_spec->>'ref'), v_spec->>'title', v_rank,
+             b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+             case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+             b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+      from public.books b
+      where (v_spec->>'ref') = any(b.categories)
+        and b.cover_url is not null
+        and not exists (select 1 from public.user_books ub where ub.user_id = v_user and ub.book_id = b.id)
+      order by (coalesce(b.external_rating, 0) * ln(2 + coalesce(b.external_ratings_count, 0))) desc,
+               (b.reads_count + b.likes_count) desc
+      limit p_per_section;
+
+    elsif v_spec->>'kind' = 'free_classics' then
+      return query
+      select v_spec->>'kind', v_spec->>'title', v_rank,
+             b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+             case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+             b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+      from public.books b
+      where b.free_read_url is not null and b.cover_url is not null
+        and not exists (select 1 from public.user_books ub where ub.user_id = v_user and ub.book_id = b.id)
+      order by (coalesce(b.external_rating, 0) * ln(2 + coalesce(b.external_ratings_count, 0)))
+               * (0.5 + (abs(hashtext(b.id::text || ':' || p_seed::text)) % 1000)::numeric / 1000) desc
+      limit p_per_section;
+
+    elsif v_spec->>'kind' = 'short_reads' then
+      return query
+      select v_spec->>'kind', v_spec->>'title', v_rank,
+             b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+             case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+             b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+      from public.books b
+      where b.page_count between 40 and 200 and b.cover_url is not null
+        and not exists (select 1 from public.user_books ub where ub.user_id = v_user and ub.book_id = b.id)
+      order by (coalesce(b.external_rating, 0) * ln(2 + coalesce(b.external_ratings_count, 0)))
+               * (0.5 + (abs(hashtext(b.id::text || ':' || p_seed::text)) % 1000)::numeric / 1000) desc
+      limit p_per_section;
+
+    elsif v_spec->>'kind' = 'acclaimed' then
+      return query
+      select v_spec->>'kind', v_spec->>'title', v_rank,
+             b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+             case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+             b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+      from public.books b
+      where coalesce(b.external_rating, 0) >= 4.2
+        and coalesce(b.external_ratings_count, 0) >= 500
+        and b.cover_url is not null
+        and not exists (select 1 from public.user_books ub where ub.user_id = v_user and ub.book_id = b.id)
+      order by (abs(hashtext(b.id::text || ':' || p_seed::text)) % 1000) desc
+      limit p_per_section;
+
+    else -- hidden_gems: well rated but not yet mainstream
+      return query
+      select v_spec->>'kind', v_spec->>'title', v_rank,
+             b.id, b.title, b.subtitle, b.authors, b.cover_url, b.published_year::int, b.categories,
+             case when b.rating_count > 0 then round(b.rating_sum::numeric / b.rating_count, 2) else null end,
+             b.reads_count, b.saves_count, b.likes_count, b.reviews_count
+      from public.books b
+      where coalesce(b.external_rating, 0) >= 4.0
+        and coalesce(b.external_ratings_count, 0) between 20 and 400
+        and b.cover_url is not null
+        and not exists (select 1 from public.user_books ub where ub.user_id = v_user and ub.book_id = b.id)
+      order by (abs(hashtext(b.id::text || ':' || p_seed::text)) % 1000) desc
+      limit p_per_section;
+    end if;
+  end loop;
+end;
+$function$;
+grant execute on function public.get_home_sections(int, int, int) to authenticated;

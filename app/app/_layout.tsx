@@ -5,7 +5,9 @@ import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { queryClient } from "@/lib/queryClient";
+import { syncPushIfGranted } from "@/lib/push";
 import { AuthProvider, useAuth } from "@/store/auth";
 import { colors } from "@/theme";
 
@@ -41,8 +43,14 @@ function useAuthGate() {
 }
 
 function RootNavigator() {
-  const { loading } = useAuth();
+  const { loading, session } = useAuth();
   useAuthGate();
+
+  // If the user already granted push permission, keep their device
+  // subscription fresh (endpoints rotate). Never prompts.
+  useEffect(() => {
+    if (session) void syncPushIfGranted();
+  }, [session]);
 
   if (loading) {
     return (
@@ -70,6 +78,16 @@ function RootNavigator() {
       <Stack.Screen name="user/[username]" />
       <Stack.Screen name="author/[name]" />
       <Stack.Screen name="genre/[slug]" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="find-friends" />
+      {/* Anteprima «Feed-first»: recuperata da main il 15 agosto, prima di
+          unire i due rami. Su main era un'anteprima raggiungibile da una
+          pastiglia nella Home; qui la rotta è dichiarata ma **non c'è nessun
+          punto di ingresso dall'app** — ci si arriva solo con l'URL
+          /feed-home. La pastiglia non l'ho rimessa perché la Home è appena
+          stata alleggerita di proposito, e riaggiungerci un elemento è una
+          scelta di prodotto, non un recupero. */}
       <Stack.Screen name="feed-home" />
     </Stack>
   );
@@ -82,6 +100,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <StatusBar style="light" />
+            <OfflineBanner />
             <RootNavigator />
           </AuthProvider>
         </QueryClientProvider>

@@ -24,7 +24,14 @@ export function RatingStars({ value, size = 18, onChange }: Props) {
           </Text>
         );
         return onChange ? (
-          <Pressable key={i} onPress={() => onChange(i)} hitSlop={6} style={styles.tap}>
+          <Pressable
+            key={i}
+            onPress={() => onChange(i)}
+            hitSlop={10}
+            style={styles.tap}
+            accessibilityRole="button"
+            accessibilityLabel={`Vota ${i} ${i === 1 ? "stella" : "stelle"}`}
+          >
             {star}
           </Pressable>
         ) : (

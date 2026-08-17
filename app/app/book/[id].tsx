@@ -1,35 +1,35 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { getBook, getExternalReviews, getSimilarBooks, requestBookEnrichment, bookAvgRating } from "@/api/books";
+import { useEffect, useRef, useState } from "react";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { getBook, getBookEditions, getSimilarBooks, requestBookEnrichment, requestSynopsis, bookAvgRating, type BookEdition } from "@/api/books";
 import { getBookReviewsRanked } from "@/api/feed";
 import { getUserBook, setShelf } from "@/api/shelves";
 import { toggleLike } from "@/api/social";
-import { affiliateUrl } from "@/api/config";
-import { getReadInfo, amazonUrl } from "@/api/reading";
+import { getReadInfo } from "@/api/reading";
 import { track } from "@/api/analytics";
 import { BookCover } from "@/components/BookCover";
 import { BookRow } from "@/components/BookRow";
 import { RowHeader } from "@/components/RowHeader";
-import { Chip } from "@/components/ui/Chip";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { RatingStars } from "@/components/ui/RatingStars";
 import { ReviewCard } from "@/components/ReviewCard";
 import { ShelfControl } from "@/components/ShelfControl";
 import { ScreenContainer } from "@/components/ui/ScreenContainer";
+import { ErrorScreen, LoadingScreen } from "@/components/ui/ScreenState";
 import { goBack } from "@/lib/nav";
 import { shareBookCard } from "@/lib/shareCard";
 import { useAuth } from "@/store/auth";
 import { collanaMark, colors, displayFont, hardShadow, onBand, radius, spacing, typography } from "@/theme";
-import type { ExternalReview, FeedItem } from "@/types/database";
+import type { FeedItem } from "@/types/database";
 
 export default function BookPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const userId = session?.user.id;
   const qc = useQueryClient();
+  const shelfBusy = useRef(false);
 
   const book = useQuery({ queryKey: ["book", id], queryFn: () => getBook(id!), enabled: !!id });
   const userBook = useQuery({
@@ -42,11 +42,6 @@ export default function BookPage() {
     queryFn: () => getBookReviewsRanked(id!),
     enabled: !!id,
   });
-  const affiliate = useQuery({
-    queryKey: ["affiliate", book.data?.isbn_13],
-    queryFn: () => affiliateUrl(book.data?.isbn_13 ?? null),
-    enabled: !!book.data,
-  });
   // Free-read availability: matches the book to Project Gutenberg on demand
   // (and repairs classic author names as a side effect).
   const readInfo = useQuery({
@@ -55,16 +50,22 @@ export default function BookPage() {
     enabled: !!id,
     staleTime: 1000 * 60 * 60,
   });
+  const editions = useQuery({
+    queryKey: ["book-editions", id],
+    queryFn: () => getBookEditions(id!),
+    enabled: !!id,
+  });
   const similar = useQuery({
     queryKey: ["similar-books", id],
     queryFn: () => getSimilarBooks(id!, 12),
     enabled: !!id,
   });
-  const externals = useQuery({
-    queryKey: ["external-reviews", id],
-    queryFn: () => getExternalReviews(id!),
-    enabled: !!id,
-  });
+
+  // La sinossi si chiede una volta sola per apertura, e solo se manca davvero:
+  // `book.data` arriva dopo, quindi l'effetto aspetta il libro invece di partire
+  // sull'id e chiedere una sinossi che magari c'è già.
+  const [synopsisPending, setSynopsisPending] = useState(false);
+  const synopsisAsked = useRef<string>("");
 
   useEffect(() => {
     if (id) {
@@ -74,29 +75,51 @@ export default function BookPage() {
     }
   }, [id]);
 
+  useEffect(() => {
+    const b = book.data;
+    if (!id || !b || b.synopsis || synopsisAsked.current === id) return;
+    synopsisAsked.current = id;
+    setSynopsisPending(true);
+    void requestSynopsis(id)
+      .then(() => book.refetch())
+      .finally(() => setSynopsisPending(false));
+  }, [id, book.data]);
+
   async function mutateShelf(patch: Parameters<typeof setShelf>[2]) {
     if (!userId || !id) return;
-    await setShelf(userId, id, patch);
+    // setShelf is read-modify-write; serialise so two quick taps (e.g. rating
+    // then like) can't overwrite each other with a stale snapshot.
+    if (shelfBusy.current) return;
+    shelfBusy.current = true;
+    try {
+      await setShelf(userId, id, patch);
+    } finally {
+      shelfBusy.current = false;
+    }
     qc.invalidateQueries({ queryKey: ["user-book", id, userId] });
     qc.invalidateQueries({ queryKey: ["book", id] });
     qc.invalidateQueries({ queryKey: ["shelf", userId] });
+    // Rating changes now flow into the user's review too — refresh it.
+    qc.invalidateQueries({ queryKey: ["book-reviews", id, userId] });
+    qc.invalidateQueries({ queryKey: ["my-review", id, userId] });
   }
 
-  if (!book.data) return <ScreenContainer />;
+  if (book.isLoading) return <LoadingScreen backFallback="/(tabs)" />;
+  if (book.isError) return <ErrorScreen backFallback="/(tabs)" onRetry={() => book.refetch()} />;
+  if (!book.data)
+    return (
+      <ErrorScreen
+        backFallback="/(tabs)"
+        title="Libro non trovato"
+        message="Questo libro non è più disponibile."
+      />
+    );
   const b = book.data;
   const ub = userBook.data;
   const mark = collanaMark(b.title);
   const bandInk = onBand(mark.band);
   const isRead = ub?.status === "read";
   const isSaved = ub?.status === "want_to_read";
-
-  async function onBuyAmazon() {
-    // Prefer the affiliate URL when we have one (ISBN-backed); otherwise fall
-    // back to a plain Amazon books search so every book has a buy path.
-    const url = affiliate.data ?? amazonUrl(b);
-    void track("affiliate_click", { bookId: id, affiliate: !!affiliate.data });
-    Linking.openURL(url);
-  }
 
   async function onReviewLike(reviewId: string) {
     await toggleLike("review", reviewId);
@@ -111,50 +134,98 @@ export default function BookPage() {
           <Text style={styles.backText}>‹ Indietro</Text>
         </Pressable>
 
-        {/* Collana band: this book is an issue of the series. */}
+        {/* Rubric band. It used to also print "N°<n>" — a number derived from a
+            hash of the title, purely decorative, but sitting next to real
+            bibliographic data it read as a catalogue number the book doesn't
+            have. Shows the language instead, which is genuinely useful here.
+            La categoria non compare più accanto a «Tomo»: era la stessa
+            classificazione grezza dei chip, e sulla fascia sembrava un dato
+            bibliografico verificato che non è. Resta «Tomo» da solo, così la
+            fascia conserva la sua ancora a sinistra e la lingua a destra. */}
         <View style={[styles.colBand, { backgroundColor: mark.band }]}>
           <Text style={[styles.colBandText, { color: bandInk }]} numberOfLines={1}>
-            Tomo · {b.categories[0] ?? "Libro"}
+            Tomo
           </Text>
-          <Text style={[styles.colBandText, { color: bandInk }]}>N°{mark.number}</Text>
+          {b.language ? (
+            <Text style={[styles.colBandText, { color: bandInk }]}>
+              {b.language.toUpperCase()}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.hero}>
           <BookCover url={b.cover_url} title={b.title} width={130} />
           <View style={styles.heroInfo}>
-            <Text style={styles.title}>{b.title}</Text>
-            <Text style={styles.author}>{b.authors.join(", ")}</Text>
+            <Text style={styles.title} numberOfLines={3}>{b.title}</Text>
+            <Text style={styles.author} numberOfLines={2}>{b.authors.join(", ")}</Text>
             <View style={styles.ratingRow}>
               <RatingStars value={bookAvgRating(b)} size={16} />
               <Text style={styles.ratingText}>
                 {bookAvgRating(b) ? `${bookAvgRating(b)} · ${b.rating_count}` : "Nessuna valutazione"}
               </Text>
             </View>
-            {b.external_rating && b.external_ratings_count ? (
-              <Text style={styles.webRating}>
-                Web: {Number(b.external_rating).toFixed(1)}/5 · {b.external_ratings_count} voti
-              </Text>
-            ) : null}
+            {/* Qui stava «Web: 4,2/5 · 1.200 voti», il voto aggregato di Open
+                Library. Via per lo stesso motivo delle recensioni esterne: un
+                numero preso da internet accanto ai voti dei lettori di Tomo, che
+                essendo pochi ne uscivano schiacciati. `external_rating` resta in
+                tabella — sei funzioni la usano per ordinare consigli e code — ma
+                non si mostra. */}
             {b.published_year ? <Text style={styles.meta}>{b.published_year}</Text> : null}
           </View>
         </View>
 
-        {/* Synopsis — right under the average rating */}
-        {b.description ? (
-          <View style={styles.synopsis}>
-            <Text style={styles.synTitle}>Sinossi</Text>
-            <Text style={styles.description}>{b.description}</Text>
+        {/* Sinossi. Tre stati, e il terzo è dichiarare che non c'è: una scheda
+            vuota è più onesta di una trama inventata. */}
+        <View style={styles.synopsis}>
+          <Text style={styles.synTitle}>Sinossi</Text>
+          {b.synopsis ? (
+            <>
+              <Text style={styles.description}>{b.synopsis}</Text>
+              {b.synopsis_source === "ai" ? (
+                // Visibile e in chiaro, non in un tooltip: chi legge deve sapere
+                // che questo testo l'ha scritto una macchina.
+                <Text style={styles.synFonte}>Sintesi generata automaticamente</Text>
+              ) : null}
+            </>
+          ) : synopsisPending ? (
+            <Text style={styles.synAttesa}>Stiamo scrivendo la sinossi…</Text>
+          ) : (
+            <Text style={styles.synAttesa}>
+              Per questo libro non abbiamo ancora abbastanza informazioni per una sinossi.
+            </Text>
+          )}
+        </View>
+
+        {/* Editions of the same work. Search now returns one row per work, so
+            this is where the other printings live: tap one to switch to it. */}
+        {(editions.data ?? []).length > 1 ? (
+          <View style={styles.editions}>
+            <Text style={styles.synTitle}>Edizioni ({(editions.data ?? []).length})</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.edList}>
+              {(editions.data ?? []).map((e: BookEdition) => (
+                <Pressable
+                  key={e.id}
+                  style={[styles.edItem, e.is_current && styles.edItemOn]}
+                  onPress={() => {
+                    if (!e.is_current) router.replace(`/book/${e.id}`);
+                  }}
+                >
+                  <BookCover url={e.cover_url} title={e.title} width={64} />
+                  <Text style={styles.edMeta} numberOfLines={1}>
+                    {e.language ? e.language.toUpperCase() : "—"}
+                    {e.published_year ? ` · ${e.published_year}` : ""}
+                  </Text>
+                  {e.is_current ? <Text style={styles.edCurrent}>in lettura</Text> : null}
+                </Pressable>
+              ))}
+            </ScrollView>
           </View>
         ) : null}
 
-        {/* Categories */}
-        {b.categories.length > 0 ? (
-          <View style={styles.chips}>
-            {b.categories.map((c: string) => (
-              <Chip key={c} label={c} onPress={() => router.push(`/genre/${encodeURIComponent(c)}`)} />
-            ))}
-          </View>
-        ) : null}
+        {/* I chip delle categorie non si mostrano più: `books.categories` resta
+            nel modello perché serve a ricerca per genere, pagine genere e
+            consigli, ma qui in scheda erano etichette non curate — spesso in
+            inglese o duplicate — che rubavano il posto ai dati verificati. */}
 
         {/* Reading state — the primary taste signal */}
         <View style={styles.shelfBox}>
@@ -194,57 +265,32 @@ export default function BookPage() {
           </Pressable>
         ) : null}
 
-        {/* Read / buy — free public-domain read when we have it, Amazon always. */}
-        <View style={styles.readBox}>
-          {readInfo.data?.readable && readInfo.data.gutenberg_id ? (
-            <>
-              <Pressable
-                style={styles.readBtn}
-                onPress={() => {
-                  void track("read_open", { bookId: id });
-                  router.push(`/read/${readInfo.data!.gutenberg_id}?bookId=${b.id}`);
-                }}
-              >
-                <Icon name="review" color={colors.onPrimary} size={16} />
-                <Text style={styles.readBtnText}>Leggi gratis</Text>
-              </Pressable>
-              <Pressable style={styles.buyLink} onPress={onBuyAmazon}>
-                <Text style={styles.buyLinkText}>Compra su Amazon ↗</Text>
-              </Pressable>
-            </>
-          ) : readInfo.isLoading ? null : (
-            <>
-              <View style={styles.readBtnDisabled}>
-                <Text style={styles.readBtnDisabledText}>Non disponibile gratuitamente</Text>
-              </View>
-              <Pressable style={styles.buyBtn} onPress={onBuyAmazon}>
-                <Text style={styles.buyBtnText}>Compra su Amazon ↗</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-
-        {/* Dalla critica: attributed external voices — never fake community. */}
-        {(externals.data ?? []).length > 0 ? (
-          <View style={styles.critica}>
-            <RowHeader title="Dalla critica" flush />
-            {(externals.data ?? []).map((er: ExternalReview) => (
-              <View key={er.id} style={styles.criticaCard}>
-                <Text style={styles.criticaExcerpt}>«{er.excerpt}»</Text>
-                <Pressable
-                  disabled={!er.url}
-                  onPress={() => er.url && Linking.openURL(er.url)}
-                  hitSlop={6}
-                >
-                  <Text style={styles.criticaSource}>
-                    — {er.source_label}
-                    {er.url ? " ↗" : ""}
-                  </Text>
-                </Pressable>
-              </View>
-            ))}
+        {/* Lettura gratuita, quando c'è. Con i link Amazon è caduto anche il
+            ramo negativo: il riquadro «Non disponibile gratuitamente» esisteva
+            per dare un contesto al pulsante d'acquisto, e da solo sarebbe un
+            contenitore che annuncia un'assenza senza offrire un'alternativa —
+            su gran parte del catalogo, cioè quasi sempre. Meglio niente che un
+            blocco vuoto: qui l'intero contenitore scompare, non solo il
+            pulsante. */}
+        {readInfo.data?.readable && readInfo.data.gutenberg_id ? (
+          <View style={styles.readBox}>
+            <Pressable
+              style={styles.readBtn}
+              onPress={() => {
+                void track("read_open", { bookId: id });
+                router.push(`/read/${readInfo.data!.gutenberg_id}?bookId=${b.id}`);
+              }}
+            >
+              <Icon name="review" color={colors.onPrimary} size={16} />
+              <Text style={styles.readBtnText}>Leggi gratis</Text>
+            </Pressable>
           </View>
         ) : null}
+
+        {/* Il blocco «Dalla critica» non c'è più: le voci esterne erano 238
+            contro 14 recensioni vere e la scheda finiva per parlare con la voce
+            di altri. I dati restano in `external_reviews`, semplicemente non si
+            leggono qui. */}
 
         {/* Semantic neighbours */}
         {(similar.data ?? []).length > 0 ? (
@@ -419,7 +465,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   rateLabel: { ...typography.bodyMuted },
-  readBox: { gap: spacing.sm, marginBottom: spacing.lg },
+  // Un solo figlio da quando è caduto il pulsante d'acquisto: niente gap.
+  readBox: { marginBottom: spacing.lg },
   readBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -439,44 +486,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
   },
-  buyBtn: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  buyBtnText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-  readBtnDisabled: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.md,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.sm,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: "dashed",
-  },
-  readBtnDisabledText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "800",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-  },
-  buyLink: { alignItems: "center", paddingVertical: spacing.sm },
-  buyLinkText: { color: colors.textMuted, fontSize: 13, fontWeight: "600" },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginBottom: spacing.lg },
+  editions: { marginBottom: spacing.lg },
+  edList: { gap: spacing.sm, paddingTop: spacing.sm, paddingRight: spacing.lg },
+  edItem: { width: 64, alignItems: "center", opacity: 0.85 },
+  edItemOn: { opacity: 1 },
+  edMeta: { color: colors.textMuted, fontSize: 10, fontWeight: "700", marginTop: 4 },
+  edCurrent: { color: colors.primary, fontSize: 9, fontWeight: "800", textTransform: "uppercase" },
   synopsis: { marginBottom: spacing.lg },
+  synFonte: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontStyle: "italic",
+    marginTop: 6,
+  },
+  synAttesa: { color: colors.textMuted, fontSize: 14, lineHeight: 20, fontStyle: "italic" },
   synTitle: {
     ...typography.caption,
     textTransform: "uppercase",
@@ -484,34 +507,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   description: { ...typography.body, lineHeight: 22 },
-  webRating: {
-    color: colors.textFaint,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginTop: 4,
-  },
-  critica: { marginTop: spacing.lg },
-  criticaCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  criticaExcerpt: { ...typography.body, fontStyle: "italic", lineHeight: 22 },
-  criticaSource: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginTop: spacing.sm,
-  },
   similar: { marginHorizontal: -spacing.lg, marginTop: spacing.lg },
   reviewsHeader: { marginTop: spacing.md },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },

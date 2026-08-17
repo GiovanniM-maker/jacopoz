@@ -7,6 +7,8 @@ import { BookCover } from "./BookCover";
 import { HeartButton } from "./HeartButton";
 import { Icon } from "./ui/Icon";
 import { RatingStars } from "./ui/RatingStars";
+import { RichText } from "./ui/RichText";
+import { useIsFree } from "@/lib/freeBooks";
 
 export interface ReviewCardProps {
   authorName: string;
@@ -20,6 +22,8 @@ export interface ReviewCardProps {
   likedByViewer?: boolean;
   bookTitle?: string;
   bookCover?: string | null;
+  /** Enables the "Gratis" tag on the book strip when the book is free. */
+  bookId?: string | null;
   onPress?: () => void;
   onLike?: () => void;
   onBookPress?: () => void;
@@ -62,6 +66,7 @@ export function ReviewCard(props: ReviewCardProps) {
           <Text style={styles.bookTitle} numberOfLines={1}>
             {props.bookTitle}
           </Text>
+          <FreeTag bookId={props.bookId} />
           <Text style={styles.bookChev}>›</Text>
         </Pressable>
       ) : null}
@@ -72,9 +77,7 @@ export function ReviewCard(props: ReviewCardProps) {
           <Text style={styles.spoilerText}>⚠ Contiene spoiler — tocca per leggere</Text>
         </Pressable>
       ) : (
-        <Text style={styles.body} numberOfLines={props.onPress ? 6 : undefined}>
-          {props.body}
-        </Text>
+        <RichText style={styles.body} numberOfLines={props.onPress ? 6 : undefined} text={props.body} />
       )}
 
       {/* Footer rule + actions */}
@@ -90,7 +93,28 @@ export function ReviewCard(props: ReviewCardProps) {
   );
 }
 
+/** Compact "free to read" marker for the book strip, where the cover thumbnail
+ *  is far too small to carry a badge. */
+function FreeTag({ bookId }: { bookId?: string | null }) {
+  const isFree = useIsFree(bookId);
+  if (!isFree) return null;
+  return (
+    <View style={styles.freeChip}>
+      <Text style={styles.freeChipText}>GRATIS</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  freeChip: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 4,
+  },
+  freeChipText: { color: colors.onPrimary, fontSize: 9, fontWeight: "900", letterSpacing: 0.5 },
   card: {
     borderWidth: 2,
     borderColor: colors.border,

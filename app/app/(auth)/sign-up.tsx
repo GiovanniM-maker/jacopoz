@@ -18,7 +18,7 @@ export default function SignUp() {
     setError(null);
     setNotice(null);
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError("La password deve avere almeno 8 caratteri.");
       return;
     }
     setLoading(true);
@@ -31,11 +31,16 @@ export default function SignUp() {
     });
     setLoading(false);
     if (error) {
-      setError(error.message);
+      const m = error.message.toLowerCase();
+      setError(
+        m.includes("already registered") || m.includes("already exists")
+          ? "Esiste già un account con questa email."
+          : "Registrazione non riuscita. Riprova.",
+      );
       return;
     }
     if (!data.session) {
-      setNotice("Check your email to confirm your account, then sign in.");
+      setNotice("Controlla la tua email per confermare l'account, poi accedi.");
     }
     // With confirmations off, the session appears and the gate navigates.
   }
@@ -47,10 +52,10 @@ export default function SignUp() {
         style={styles.flex}
       >
         <View style={styles.form}>
-          <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.title}>Crea il tuo account</Text>
           <TextInput
             style={styles.input}
-            placeholder="Display name"
+            placeholder="Nome visualizzato"
             placeholderTextColor={colors.textFaint}
             value={displayName}
             onChangeText={setDisplayName}
@@ -66,7 +71,7 @@ export default function SignUp() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Password (min 8 chars)"
+            placeholder="Password (min 8 caratteri)"
             placeholderTextColor={colors.textFaint}
             secureTextEntry
             value={password}

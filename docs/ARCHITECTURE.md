@@ -177,7 +177,9 @@ The costly-to-migrate tables (`profiles`, `books`, `user_books`, `reviews`) are 
   migration of hot tables.
 - **Monetization** (0009): `entitlements` + `is_premium()` + `app_config` flags are present.
   Enabling premium/ads = flip `app_config` values and wire a billing webhook (service_role) — again no
-  hot-table migration. Affiliate is already live via `amazon_affiliate_url`.
+  hot-table migration. **No revenue channel is live:** the Amazon affiliate hand-off was removed on
+  15 Aug 2026 (`0076` drops `amazon_affiliate_url` / `amazon_buy_url`) because the stored tag was a
+  `.com` tag on `amazon.it` links, so nothing was ever attributed.
 
 This is deliberate: the schema pays a small "cold storage" cost now to avoid migrating high-traffic
 tables under load in v2.

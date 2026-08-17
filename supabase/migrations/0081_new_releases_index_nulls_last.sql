@@ -1,0 +1,44 @@
+-- =====================================================================
+-- 0081 — Un indice creato su una diagnosi sbagliata, e la sua rimozione
+--
+-- Questa migrazione, nella sua prima stesura, creava
+-- `books_new_releases_nl_idx` su `(published_year desc nulls last)`. Il
+-- ragionamento era: PostgREST emette `nulls last`, un indice `desc` in Postgres
+-- è `nulls first`, quindi l'indice di 0079 non viene usato dal client.
+--
+-- **Era falso, e l'ho creduto perché ho letto un tempo senza un controllo.**
+--
+-- Cosa avevo misurato: chiamando l'endpoint REST con la chiave anon, la query
+-- delle nuove uscite tornava in 710 – 3.091 ms. Ho concluso «l'indice non viene
+-- usato». Cosa non avevo misurato: **quanto costa una chiamata HTTP qualunque**
+-- da quella postazione.
+--
+--   una riga da `genres` (tabella da 15 righe)   339 – 555 ms
+--   una riga da `books` per chiave primaria      300 – 519 ms
+--
+-- Il pavimento è 300–555 ms. I 710 ms non erano una query lenta: erano rete più
+-- un primo giro a freddo. E la prova definitiva:
+--
+--   books_new_releases_idx     (0079, `desc`)        22 scansioni
+--   books_new_releases_nl_idx  (questa, `nulls last`)  0 scansioni
+--
+-- PostgREST stava già usando l'indice di 0079. Quello creato qui non è servito a
+-- nessuna query, nemmeno una volta.
+--
+-- --------------------------------------------------------------------
+-- Perché resta scritto invece di essere cancellato
+-- --------------------------------------------------------------------
+-- Potevo riscrivere questo file come se non fosse mai esistito. Ma nelle ultime
+-- quarantott'ore ho trovato **tre** indici che sembravano servire una query e
+-- non la servivano — `books_free_read_idx` (una condizione in più),
+-- `books_popularity_idx` (l'espressione senza `reviews_count`),
+-- `books_paid_recent_idx` (nessun chiamante) — e ne ho creato un quarto per
+-- eccesso di zelo su quello stesso timore.
+--
+-- La regola che ne esce non è «attenzione all'ordine dei null». È: **un numero
+-- senza un controllo non è una misura.** Vale per i tempi HTTP quanto per i
+-- piani di query, e il modo di verificarlo era a portata di mano — `idx_scan`,
+-- la stessa colonna che aveva smascherato gli altri tre.
+-- =====================================================================
+
+drop index if exists public.books_new_releases_nl_idx;

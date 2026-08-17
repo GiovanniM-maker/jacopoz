@@ -4,6 +4,13 @@ A candid pass over the risks that actually kill a social-discovery reading app, 
 problem**, a **severity**, and the **fix already in the schema**. Then the simplifications we imposed to
 ship a private beta at ~€0 infra, and the MVP/Beta/v2 line.
 
+> **Note added 15 Aug 2026.** This review is a dated snapshot and is left as written. One of its
+> conclusions has since been reversed: the affiliate channel in §6 — called "ENABLED in beta, zero UX
+> cost, real upside" — was removed outright. It had zero upside, not real upside: the tag in
+> `app_config` is a `.com` Associates tag while every link pointed at `amazon.it`, so no conversion was
+> ever attributed. Beta now ships with no live revenue channel. Current state lives in
+> `SPECIFICA.md` ("Requisiti ritirati").
+
 ---
 
 ## 1. Cold-start & empty community — **CRITICAL**
@@ -94,6 +101,9 @@ architecting revenue means a painful migration of hot tables later.
 **Fix.** All three channels are **architected now, mostly dormant** (0009):
 - **Affiliate — ENABLED in beta.** Zero UX cost, real upside. `amazon_affiliate_url(isbn)` builds an
   Amazon Associates link; tag lives in `app_config` (rotate without an app update).
+  → **Superseded 15 Aug 2026: removed, client and database** (`0076`). The mismatch between a `.com`
+  tag and `amazon.it` links meant nothing was ever attributed, so the "real upside" was zero and the
+  UX cost — a button sending readers out of the app for free — was not.
 - **Premium (ad-free) — modelled, nothing gated.** `entitlements` + `is_premium()` exist; billing state
   written by a webhook via service_role. `premium_enabled` flag = false.
 - **Ads — config present, OFF.** `ads_enabled` = false in `app_config`. No ad SDK in beta.
@@ -133,7 +143,8 @@ book page, shelves (status/like/rating), short reviews, profile. Proves the cata
 
 **Beta (100–500 invited users):** everything in MVP **plus** the social layer that is the actual product
 — follows, likes, comments, the **non-chronological community feed**, **blended recommendations**,
-Netflix-style Home rows, reporting + moderation, analytics events, avatar upload, **affiliate links on**.
+Netflix-style Home rows, reporting + moderation, analytics events, avatar upload, ~~**affiliate links
+on**~~ (withdrawn 15 Aug 2026 — see the note at the top and §6).
 Gamification and premium remain scaffolded/dormant; ads OFF.
 
 **v2 (public):** activate gamification (XP/levels/streaks/badges), premium features + paywall, ad

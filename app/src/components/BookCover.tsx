@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { useIsFree } from "@/lib/freeBooks";
 import {
   COVER_ASPECT,
   collanaMark,
@@ -16,6 +17,8 @@ interface Props {
   url?: string | null;
   title: string;
   width: number;
+  /** When given, the cover shows a "GRATIS" tag if the book is free to read. */
+  bookId?: string | null;
 }
 
 /**
@@ -25,7 +28,7 @@ interface Props {
  *    number up top, condensed title on the paper plate).
  * Tiny sizes (thumbnails in review rows) drop the banding and stay minimal.
  */
-export function BookCover({ url, title, width }: Props) {
+export function BookCover({ url, title, width, bookId }: Props) {
   const height = width / COVER_ASPECT;
   const compact = width < 64;
   const { band, number } = collanaMark(title);
@@ -34,6 +37,16 @@ export function BookCover({ url, title, width }: Props) {
   // frame. Reset the failed flag whenever the URL changes (list recycling).
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
+
+  // Half the catalogue is readable free in-app; say so on the artwork. Hidden on
+  // thumbnails, where a tag would cover the cover.
+  const isFree = useIsFree(bookId);
+  const tag =
+    isFree && !compact ? (
+      <View style={styles.freeTag} pointerEvents="none">
+        <Text style={styles.freeTagText}>GRATIS</Text>
+      </View>
+    ) : null;
 
   if (url && !failed) {
     return (
@@ -45,6 +58,7 @@ export function BookCover({ url, title, width }: Props) {
           transition={150}
           onError={() => setFailed(true)}
         />
+        {tag}
       </View>
     );
   }
@@ -73,11 +87,28 @@ export function BookCover({ url, title, width }: Props) {
         </Text>
       </View>
       <View style={[styles.bandBottom, { backgroundColor: band }]} />
+      {tag}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  freeTag: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  freeTagText: {
+    color: colors.onPrimary,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
   frame: {
     borderRadius: radius.sm,
     borderWidth: 2,

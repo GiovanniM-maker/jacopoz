@@ -30,6 +30,37 @@ export function contentWidth(): number {
   return Math.min(Dimensions.get("window").width, MAX_CONTENT);
 }
 
+/** Gap between cards in the book grids. */
+export const GRID_GAP = spacing.md;
+
+/**
+ * Width of one card in an N-column book grid.
+ *
+ * The naive `(inner - gaps) / 3` lands on exactly the available width (e.g.
+ * 111.33 × 3 + 24 = 358.00 inside 358 on a 390pt phone), and a hair of
+ * sub-pixel rounding on web then wraps the third card onto its own line — which
+ * is why grids silently rendered two columns. Floor it and shave a pixel so the
+ * row is always strictly narrower than its container.
+ */
+export function gridCardWidth(windowWidth: number, columns = 3): number {
+  const inner = Math.min(windowWidth, MAX_CONTENT) - spacing.lg * 2;
+  return Math.max(60, Math.floor((inner - GRID_GAP * (columns - 1) - 1) / columns));
+}
+
+/**
+ * Column count for the book grids, from the window width.
+ *
+ * Three is right on a phone held upright and is what the feed and the shelves
+ * are designed around, so it is the floor. Sideways, or on a tablet, the same
+ * three columns stretched each cover to ~256pt; aiming for a ~150pt card keeps
+ * a cover looking like a cover.
+ */
+export function gridColumns(windowWidth: number): number {
+  const inner = Math.min(windowWidth, MAX_CONTENT) - spacing.lg * 2;
+  const target = 150;
+  return Math.max(3, Math.min(6, Math.round((inner + GRID_GAP) / (target + GRID_GAP))));
+}
+
 // Display faces, no bundled webfonts. Collana uses a condensed heavy
 // "poster" stack (Impact-adjacent — on-brand for pulp); Rivista uses a
 // light editorial serif à la Lucy. Resolved per active theme below.
@@ -88,10 +119,10 @@ export const palettes: Record<ThemeName, Palette> = {
   // brass as the touch colour, diamond ratings. The default.
   rivista: {
     bg: "#FFFFFF", surface: "#F6F6F3", surfaceAlt: "#ECEBE6", border: "#E4E4DE",
-    text: "#101010", textMuted: "#5A5A5A", textFaint: "#A3A3A3",
+    text: "#101010", textMuted: "#5A5A5A", textFaint: "#767676",
     primary: "#C49A2B", primaryDim: "#EAD9A8", accent: "#3549D3",
     success: "#00A947", star: "#101010", overlay: "rgba(16,16,16,0.5)",
-    onPrimary: "#FFFFFF", tabBar: "#FFFFFF", isDark: false,
+    onPrimary: "#101010", tabBar: "#FFFFFF", isDark: false,
     radius: SOFT, shadow: "rgba(16,16,16,0.16)", bands: BANDS_RIVISTA,
     coverPaper: "#F6F6F3", coverInk: "#101010", wordmarkGhost: "transparent",
     texture: false, serifLogo: true, diamonds: true, soft: true,

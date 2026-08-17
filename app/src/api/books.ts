@@ -1,25 +1,118 @@
 import { supabase } from "@/lib/supabase";
-import type { Book, BookCard, ExternalReview, Genre, UUID } from "@/types/database";
+import type { Book, BookCard, Genre, UUID } from "@/types/database";
 
 /** Full catalog search via the search_books RPC (FTS + trigram fallback). */
-export async function searchBooks(query: string, limit = 20, offset = 0): Promise<BookCard[]> {
+export async function searchBooks(
+  query: string,
+  limit = 20,
+  offset = 0,
+  lang?: string | null,
+): Promise<BookCard[]> {
   const { data, error } = await supabase.rpc("search_books", {
     p_query: query,
     p_limit: limit,
     p_offset: offset,
+    p_lang: lang ?? null,
   });
   if (error) throw error;
-  return (data ?? []) as BookCard[];
+  return mergeEditions((data ?? []) as BookCard[]);
 }
 
-/** Attributed external voices for the "Dalla critica" section. */
-export async function getExternalReviews(bookId: UUID): Promise<ExternalReview[]> {
-  const { data, error } = await supabase
-    .from("external_reviews")
-    .select("id,book_id,source,source_label,excerpt,url,license")
-    .eq("book_id", bookId);
-  if (error) throw error;
-  return (data ?? []) as ExternalReview[];
+/** Normalise a title for comparison: drop edition parentheticals, accents,
+ *  punctuation and case, so "A' Ciascuno Il Suo (Gli Adelphi)" ≡ "A ciascuno il suo".
+ *  A leading article goes too — providers disagree about it on the same work
+ *  ("Notti Bianche" and "Le notti bianche" are the same book). */
+function normTitle(t: string): string {
+  const flat = (t || "")
+    .replace(/\([^)]*\)/g, " ")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+  return flat.replace(/^(?:il|lo|la|i|gli|le|l|un|uno|una|the|a|an)\s+/, "").replace(/\s+/g, "");
+}
+
+/** Any author in common, compared on accent-folded full names. Providers list
+ *  translators, editors and imprints ahead of the author, so the *first* author
+ *  is not a reliable identity — "Notti bianche" arrives credited to Cortese,
+ *  Martinulli or Dostoevskij depending on the edition, with Dostoevskij present
+ *  further down the list. Requiring a shared name still keeps two different
+ *  works that happen to share a title apart. */
+function sharesAuthor(a: string[] | null, b: string[] | null): boolean {
+  const fold = (s: string) =>
+    s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const setA = new Set((a ?? []).map(fold).filter(Boolean));
+  if (setA.size === 0) return false;
+  return (b ?? []).map(fold).some((n) => n && setA.has(n));
+}
+
+/** True when two same-length titles differ in a single character — catches
+ *  provider typos like "a ciascuno il suo" vs "a ciascuno il sur". */
+function oneCharApart(a: string, b: string): boolean {
+  if (a.length !== b.length || a.length < 10) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && ++diff > 1) return false;
+  }
+  return diff === 1;
+}
+
+/** How complete a row is — decides which edition survives a merge. */
+function completeness(b: BookCard): number {
+  return (
+    (b.cover_url ? 4 : 0) +
+    (b.avg_rating ? 1 : 0) +
+    Math.min(3, (b.reads_count + b.saves_count + b.likes_count + b.reviews_count) / 5)
+  );
+}
+
+/**
+ * Collapse duplicate *editions* of the same work. Providers hand us the same
+ * book several times — a translated edition, an "(Gli Adelphi)" reprint, and
+ * sometimes a typo'd title — each as its own row with its own ISBN. Merge rows
+ * that share an author and whose titles match exactly once normalised, or differ
+ * by a single character (a typo). Deliberately conservative: series like
+ * "The Dark Tower I"/"II" differ in length and are left alone.
+ */
+export function mergeEditions(rows: BookCard[]): BookCard[] {
+  const kept: { norm: string; book: BookCard }[] = [];
+  for (const b of rows) {
+    const norm = normTitle(b.title);
+    const hit = kept.find(
+      (k) =>
+        (k.norm === norm || oneCharApart(k.norm, norm)) && sharesAuthor(k.book.authors, b.authors),
+    );
+    if (!hit) {
+      kept.push({ norm, book: b });
+    } else if (completeness(b) > completeness(hit.book)) {
+      hit.book = b; // keep the richer edition
+      hit.norm = norm;
+    }
+  }
+  return kept.map((k) => k.book);
+}
+
+// Qui stava `getExternalReviews`, che alimentava il blocco «Dalla critica».
+// Rimosso il 15 agosto 2026: in catalogo c'erano 238 recensioni prese da fonti
+// esterne contro 14 recensioni scritte da lettori veri. Una scheda libro in cui
+// la voce di fuori copre quella di dentro tradisce la promessa dell'app, che è
+// leggere e farsi leggere da altri lettori, non riportare Wikipedia.
+//
+// La tabella `external_reviews` e le sue 238 righe restano (attribuzione e
+// licenza CC BY-SA incluse): si smette di mostrarle e di scriverne di nuove,
+// non si cancella niente. Se un giorno «Dalla critica» tornerà, è già lì.
+
+/**
+ * Chiede la sinossi per un libro che non ce l'ha. Si chiama all'apertura della
+ * scheda: non blocca niente, e al ritorno la scheda si aggiorna da sola.
+ */
+export async function requestSynopsis(bookId: UUID): Promise<void> {
+  try {
+    await supabase.functions.invoke("synopsis", { body: { book_id: bookId } });
+  } catch {
+    // best-effort: senza sinossi la scheda mostra lo stato vuoto onesto
+  }
 }
 
 /** Fire-and-forget: ask the pipeline to enrich this book (circle 2). */
@@ -46,6 +139,16 @@ export async function getTrendingBooks(limit = 20, offset = 0): Promise<BookCard
   const { data, error } = await supabase.rpc("get_trending_books", {
     p_limit: limit,
     p_offset: offset,
+  });
+  if (error) throw error;
+  return (data ?? []) as BookCard[];
+}
+
+/** Trending, rotated by `seed` so the row isn't frozen between visits. */
+export async function getTrendingSeeded(limit = 20, seed = 0): Promise<BookCard[]> {
+  const { data, error } = await supabase.rpc("get_trending_seeded", {
+    p_limit: limit,
+    p_seed: seed,
   });
   if (error) throw error;
   return (data ?? []) as BookCard[];
@@ -146,7 +249,17 @@ export async function getBooksByAuthor(author: string, limit = 40): Promise<Book
 
 /** Single canonical book row. */
 export async function getBook(id: UUID): Promise<Book> {
-  const { data, error } = await supabase.from("books").select("*").eq("id", id).single();
+  // Colonne esplicite, mai `*`: `source_blurb_internal` è testo dell'editore e
+  // non deve poter arrivare al client nemmeno per distrazione.
+  const { data, error } = await supabase
+    .from("books")
+    // Una stringa sola, non concatenata: supabase-js analizza il testo del
+    // select a livello di tipi, e la concatenazione lo rende opaco.
+    .select(
+      "id,title,subtitle,authors,synopsis,synopsis_source,cover_url,published_year,page_count,language,isbn_13,isbn_10,categories,rating_sum,rating_count,reads_count,saves_count,likes_count,reviews_count,free_read_url,gutenberg_id,external_rating,external_ratings_count,work_key,created_at",
+    )
+    .eq("id", id)
+    .single();
   if (error) throw error;
   return data as Book;
 }
@@ -169,24 +282,73 @@ export function bookAvgRating(book: Pick<Book, "rating_sum" | "rating_count">): 
  * providers into the catalog. Called when local search is thin so results
  * populate over time. Best-effort — failure just means no new imports.
  */
-export async function importFromProviders(query: string, limit = 10): Promise<void> {
+export async function importFromProviders(
+  query: string,
+  limit = 10,
+  lang?: string | null,
+  expand = false,
+  mode?: "author",
+): Promise<void> {
   try {
-    await supabase.functions.invoke("ingest-book", { body: { query, limit } });
+    // Passing the reader's language makes the provider return editions in that
+    // language first, so searching an Italian title imports the Italian edition
+    // instead of whichever translation ranks globally.
+    //
+    // `expand` also pulls the cluster around the hits (same author, same
+    // subject). It used to be a second, unconditional Edge invocation on every
+    // search; folding it in here means a search costs one provider round-trip
+    // instead of two.
+    await supabase.functions.invoke("ingest-book", { body: { query, limit, lang, expand, mode } });
   } catch {
     // ignore — catalog stays as-is
   }
 }
 
+export interface GenreHit {
+  slug: string;
+  name: string;
+  book_count: number;
+}
+
+/** Ricerca per genere: nome, slug e sinonimi nelle due lingue, coi refusi. */
+export async function searchGenres(query: string, limit = 20): Promise<GenreHit[]> {
+  if (!query.trim()) return [];
+  const { data, error } = await supabase.rpc("search_genres", { p_query: query, p_limit: limit });
+  if (error) throw error;
+  return (data ?? []) as GenreHit[];
+}
+
+export interface CatalogLanguage {
+  language: string;
+  book_count: number;
+}
+
+/** Languages the catalogue actually carries, for the search filter. */
+export async function getCatalogLanguages(): Promise<CatalogLanguage[]> {
+  const { data, error } = await supabase.rpc("get_catalog_languages");
+  if (error) return [];
+  return (data ?? []) as CatalogLanguage[];
+}
+
+export interface BookEdition {
+  id: string;
+  title: string;
+  authors: string[];
+  cover_url: string | null;
+  language: string | null;
+  published_year: number | null;
+  isbn_13: string | null;
+  page_count: number | null;
+  is_current: boolean;
+}
+
 /**
- * Grow the catalog *around* a search: imports the searched books plus a
- * cluster of related titles (same author / same subject). Fire-and-forget,
- * runs in the background so it never blocks the results the user sees —
- * next time this corner of the catalog is richer for search and reco.
+ * Every edition of the work this book belongs to, best-for-this-reader first.
+ * Lets the book page offer an edition picker instead of scattering the same work
+ * across several search results.
  */
-export async function expandCatalog(query: string, limit = 10): Promise<void> {
-  try {
-    await supabase.functions.invoke("ingest-book", { body: { query, limit, expand: true } });
-  } catch {
-    // best-effort catalog growth
-  }
+export async function getBookEditions(bookId: string): Promise<BookEdition[]> {
+  const { data, error } = await supabase.rpc("get_book_editions", { p_book_id: bookId });
+  if (error) return [];
+  return (data ?? []) as BookEdition[];
 }
