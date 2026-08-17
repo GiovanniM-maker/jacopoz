@@ -66,15 +66,11 @@ export interface Book {
   created_at: string;
 }
 
-export interface ExternalReview {
-  id: UUID;
-  book_id: UUID;
-  source: "wikipedia" | "nyt" | "openlibrary";
-  source_label: string;
-  excerpt: string;
-  url: string | null;
-  license: string | null;
-}
+// Qui stava il tipo `ExternalReview`. Rimosso il 15 agosto 2026 con il blocco
+// «Dalla critica»: 238 recensioni di fonti esterne contro 14 di lettori veri
+// erano il contrario di quello che l'app promette. Il tipo non serve più perché
+// nessuna schermata legge più quella tabella — che però resta in database, con
+// le sue righe e la loro licenza, nel caso la sezione torni.
 
 export interface UserBook {
   user_id: UUID;

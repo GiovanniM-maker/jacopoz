@@ -76,7 +76,9 @@ export async function getFreeReadsForYou(limit = 15): Promise<BookCard[]> {
   return (data ?? []) as BookCard[];
 }
 
-/** Taste-ranked PAID discoveries (newer titles, buy via Amazon). */
+/** Scoperte non di pubblico dominio, ordinate per gusto: titoli recenti che
+ *  non si leggono gratis qui. (Prima diceva «buy via Amazon»: quel pezzo non
+ *  esiste più.) */
 export async function getPaidDiscoveries(limit = 15): Promise<BookCard[]> {
   const { data, error } = await supabase.rpc("get_reco_by_availability", {
     p_free: false,

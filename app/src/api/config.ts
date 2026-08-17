@@ -16,24 +16,10 @@ export async function isPremium(): Promise<boolean> {
   return !!data;
 }
 
-/** Build an Amazon affiliate URL for a book from its ISBN, via the DB helper
- *  (keeps the associate tag server-side and rotatable). */
-export async function affiliateUrl(isbn: string | null): Promise<string | null> {
-  if (!isbn) return null;
-  const { data, error } = await supabase.rpc("amazon_affiliate_url", { p_isbn: isbn });
-  if (error) return null;
-  return (data as string) ?? null;
-}
-
-/**
- * Buy link for a specific book on the Italian storefront. Prefers the ISBN only
- * when the row is known to be an Italian edition — a stored ISBN is often the
- * English/foreign one, which is why "Compra su Amazon" used to land on editions
- * in the wrong language. Otherwise it searches by title + author, which
- * amazon.it resolves to the Italian edition.
- */
-export async function buyUrl(bookId: string): Promise<string | null> {
-  const { data, error } = await supabase.rpc("amazon_buy_url", { p_book_id: bookId });
-  if (error) return null;
-  return (data as string) ?? null;
-}
+// Qui stavano `affiliateUrl` (RPC `amazon_affiliate_url`) e `buyUrl` (RPC
+// `amazon_buy_url`). Rimosse il 15 agosto 2026 perché l'affiliazione non poteva
+// funzionare: il tag memorizzato in `app_config` è `jacopoz-20`, un tag del
+// programma .com, mentre i link generati puntavano su amazon.it. Un tag di un
+// altro marketplace viene ignorato, quindi nessuna conversione è mai stata
+// attribuita — il pezzo non ha reso niente, in nessun momento. Le due funzioni
+// SQL sono eliminate dalla migrazione 0076.

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Book, BookCard, ExternalReview, Genre, UUID } from "@/types/database";
+import type { Book, BookCard, Genre, UUID } from "@/types/database";
 
 /** Full catalog search via the search_books RPC (FTS + trigram fallback). */
 export async function searchBooks(
@@ -93,15 +93,15 @@ export function mergeEditions(rows: BookCard[]): BookCard[] {
   return kept.map((k) => k.book);
 }
 
-/** Attributed external voices for the "Dalla critica" section. */
-export async function getExternalReviews(bookId: UUID): Promise<ExternalReview[]> {
-  const { data, error } = await supabase
-    .from("external_reviews")
-    .select("id,book_id,source,source_label,excerpt,url,license")
-    .eq("book_id", bookId);
-  if (error) throw error;
-  return (data ?? []) as ExternalReview[];
-}
+// Qui stava `getExternalReviews`, che alimentava il blocco «Dalla critica».
+// Rimosso il 15 agosto 2026: in catalogo c'erano 238 recensioni prese da fonti
+// esterne contro 14 recensioni scritte da lettori veri. Una scheda libro in cui
+// la voce di fuori copre quella di dentro tradisce la promessa dell'app, che è
+// leggere e farsi leggere da altri lettori, non riportare Wikipedia.
+//
+// La tabella `external_reviews` e le sue 238 righe restano (attribuzione e
+// licenza CC BY-SA incluse): si smette di mostrarle e di scriverne di nuove,
+// non si cancella niente. Se un giorno «Dalla critica» tornerà, è già lì.
 
 /**
  * Chiede la sinossi per un libro che non ce l'ha. Si chiama all'apertura della

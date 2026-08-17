@@ -198,6 +198,17 @@ tutto**. Nessun agente lavori su questo prima che sia deciso.
 1. `npx tsc --noEmit` — deve tornare pulito solo **dopo** che A e B hanno finito.
 2. `npm run lint`.
 3. `python3 scripts/spec-test.py` — attesi tutti verdi, con B-4 non più presente.
-4. Ricerca dei residui: `grep -rn "amazon\|external_review\|ExternalReview"` su
-   `app/` e `supabase/functions/` deve tornare vuota.
+4. Ricerca dei residui — **il controllo come l'avevo scritto era sbagliato.**
+   Chiedeva che `grep -rn "amazon\|external_review\|ExternalReview"` tornasse
+   vuoto, ma la regola «commenta il perché» impone di lasciare scritto nel codice
+   *perché* una cosa è stata rimossa, e quei commenti citano `amazon.it` e
+   `jacopoz-20`. Le due regole erano in contraddizione, e l'agente B l'ha fatto
+   notare invece di scegliere di testa sua.
+   Vince il commento: una riga che spiega perché un pezzo non c'è più vale più
+   di un grep pulito. Il controllo giusto è **nessun uso di codice**, i commenti
+   restano:
+   ```
+   grep -rn "amazon\|ExternalReview" app/src app/app --include=*.ts --include=*.tsx \
+     | grep -vE ": *[0-9]+: *(//|\*|/\*)"
+   ```
 5. Un solo commit, con i tre rapporti riassunti nel messaggio.
