@@ -81,6 +81,14 @@ function RootNavigator() {
       <Stack.Screen name="search" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="find-friends" />
+      {/* Anteprima «Feed-first»: recuperata da main il 15 agosto, prima di
+          unire i due rami. Su main era un'anteprima raggiungibile da una
+          pastiglia nella Home; qui la rotta è dichiarata ma **non c'è nessun
+          punto di ingresso dall'app** — ci si arriva solo con l'URL
+          /feed-home. La pastiglia non l'ho rimessa perché la Home è appena
+          stata alleggerita di proposito, e riaggiungerci un elemento è una
+          scelta di prodotto, non un recupero. */}
+      <Stack.Screen name="feed-home" />
     </Stack>
   );
 }
