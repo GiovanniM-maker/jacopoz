@@ -1,0 +1,112 @@
+# Controlla che l'app risponda davvero, e avvisa se non lo fa.
+#
+# Perché esiste: il 15 agosto il database è stato irraggiungibile per circa due
+# ore. Nessuno se n'è accorto — l'ho scoperto per caso, perché mi ero
+# programmato una sveglia per un'altra cosa. Senza quella, l'avrebbe scoperto
+# Giovanni quando un amico gli scriveva.
+#
+# --------------------------------------------------------------------
+# Perché non basta controllare che il sito risponda
+# --------------------------------------------------------------------
+# `https://jacopoz.vercel.app/` restituisce **200 anche col database giù**: è una
+# pagina statica, il guscio di una SPA. Durante quelle due ore rispondeva 200
+# mentre nell'app non funzionava niente. Verificato di nuovo il 17 agosto: 200.
+#
+# Quindi il controllo deve chiedere **dei dati**, e per farlo serve la chiave
+# anon.
+#
+# --------------------------------------------------------------------
+# Perché la chiave non è un segreto del repository
+# --------------------------------------------------------------------
+# La chiave anon è pubblica per costruzione: sta dentro il bundle web, la legge
+# qualunque browser. Metterla fra i segreti avrebbe voluto dire un passaggio di
+# configurazione a mano, e — peggio — un allarme che **smette di funzionare in
+# silenzio** il giorno in cui le chiavi vengono ruotate (cosa che va fatta prima
+# di aprire al pubblico).
+#
+# Quindi il controllo fa quello che fa un browser: scarica la pagina, trova il
+# bundle, ne estrae URL e chiave, e interroga i dati. Si riconfigura da solo
+# dopo una rotazione. Se l'estrazione si rompe, il lavoro **falla** — che è la
+# direzione giusta in cui sbagliare: un falso allarme si nota, un allarme muto no.
+name: l-app-risponde
+
+on:
+  schedule:
+    # Ogni dieci minuti. GitHub non garantisce la puntualità dei lavori
+    # pianificati e spesso ritarda: per accorgersi di un guasto di due ore va
+    # benissimo, per un obiettivo di secondi servirebbe altro.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+# Un solo controllo per volta: se uno tarda, il successivo non gli si accavalla.
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: il sito e i dati rispondono
+        shell: bash
+        run: |
+          set -uo pipefail
+          SITO="https://jacopoz.vercel.app"
+
+          # Tre tentativi a trenta secondi: un singolo inciampo di rete non deve
+          # svegliare nessuno, due ore di guasto sì. Senza questo il primo
+          # errore transitorio insegnerebbe a ignorare l'allarme.
+          for tentativo in 1 2 3; do
+            errore=""
+
+            # Il codice HTTP va guardato, non solo il corpo: un dominio
+            # sbagliato o un errore di Vercel restituiscono una pagina piena di
+            # contenuto, e il controllo successivo direbbe «bundle non trovato»
+            # — una diagnosi sbagliata che manda a cercare nel posto sbagliato.
+            pagina=$(mktemp)
+            stato=$(curl -sS --max-time 25 -o "$pagina" -w '%{http_code}' "$SITO/" || echo "000")
+            html=$(cat "$pagina")
+            if [ "$stato" != "200" ]; then errore="il sito risponde $stato"; fi
+
+            if [ -z "$errore" ]; then
+              bundle=$(printf '%s' "$html" | grep -oE '/_expo/static/js/web/[^"]+\.js' | head -1)
+              if [ -z "$bundle" ]; then errore="bundle non trovato nella pagina"; fi
+            fi
+
+            if [ -z "$errore" ]; then
+              js=$(curl -sS --max-time 60 "$SITO$bundle" || echo "")
+              url=$(printf '%s' "$js" | grep -oE 'https://[a-z0-9]+\.supabase\.co' | head -1)
+              key=$(printf '%s' "$js" | grep -oE 'eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{10,}' | head -1)
+              if [ -z "$url" ] || [ -z "$key" ]; then
+                errore="URL o chiave non estraibili dal bundle"
+              fi
+            fi
+
+            if [ -z "$errore" ]; then
+              # Una lettura vera, non un endpoint di salute: `books` è la tabella
+              # da cui dipende ogni schermata. `-w` per il codice, `-o` per il
+              # corpo: servono entrambi, perché un 200 con corpo vuoto è a sua
+              # volta un guasto.
+              corpo=$(mktemp)
+              codice=$(curl -sS --max-time 25 -o "$corpo" -w '%{http_code}' \
+                -H "apikey: $key" -H "Authorization: Bearer $key" \
+                "$url/rest/v1/books?select=id&limit=1" || echo "000")
+              righe=$(grep -c '"id"' "$corpo" || true)
+              if [ "$codice" != "200" ]; then
+                errore="i dati rispondono $codice"
+              elif [ "$righe" -lt 1 ]; then
+                errore="i dati rispondono 200 ma il catalogo è vuoto"
+              fi
+            fi
+
+            if [ -z "$errore" ]; then
+              echo "tentativo $tentativo: tutto risponde"
+              exit 0
+            fi
+
+            echo "tentativo $tentativo fallito: $errore"
+            [ "$tentativo" -lt 3 ] && sleep 30
+          done
+
+          echo "::error::L'app non risponde dopo tre tentativi: $errore"
+          exit 1

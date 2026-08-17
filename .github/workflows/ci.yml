@@ -1,0 +1,52 @@
+# Controlli su ogni push. Prima non c'era niente: `typecheck` e `lint` esistevano
+# come script e nessuno li eseguiva, e `lint` non aveva nemmeno un file di
+# configurazione ESLint. Le tre regressioni del 13 agosto — una colonna
+# rinominata che ha rotto l'import per ore, una funzione esposta ad `anon`, un
+# select che restituiva il testo dell'editore — sarebbero state prese qui invece
+# che a mano ore dopo.
+name: controlli
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: installa
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+      - name: typecheck
+        working-directory: app
+        run: npx tsc --noEmit
+      - name: lint
+        working-directory: app
+        run: npx eslint . --ext .ts,.tsx
+
+  errori-silenziosi:
+    # Vieta `const { data } = await supabase` senza `error` e senza un commento
+    # che dica perché. Tre volte in due giorni un guasto si è presentato come un
+    # successo su questo progetto; questo controllo è la ragione per cui la
+    # quarta si nota al push.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/check-silent-errors.py
+
+  scelta-descrizioni:
+    # La prova del modulo che scegle fra i risultati di Google Books gira su
+    # payload catturati su disco: nessuna rete, nessuna quota consumata, quindi
+    # può girare a ogni push senza costo.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: node --experimental-strip-types supabase/functions/blurbs/scelta.test.ts

@@ -112,6 +112,11 @@ export async function unfollowList(userId: UUID, listId: UUID): Promise<void> {
 }
 
 export async function isFollowingList(userId: UUID, listId: UUID): Promise<boolean> {
+  // Errore ignorato di proposito, e vale la pena dirlo: questa lettura decora,
+  // non porta contenuto. Se fallisce il cuore resta vuoto; farla propagare
+  // svuoterebbe l'intera schermata per un'icona. Il caso opposto —
+  // «getSaved*», dove un errore diventerebbe «non hai niente salvato» — è
+  // trattato in modo contrario, e la differenza è deliberata.
   const { data } = await supabase
     .from("list_follows")
     .select("list_id")

@@ -41,7 +41,6 @@ export default function FeedHome() {
   const feed: FeedItem[] = thin
     ? comm
     : [...foll, ...comm.filter((c: FeedItem) => !foll.some((f: FeedItem) => f.review_id === c.review_id))];
-  const feedKey = thin ? "ff-community" : "ff-following";
 
   // Active readers strip (stories-like) — distinct authors from the community.
   const readers = dedupeAuthors(comm).slice(0, 12);

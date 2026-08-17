@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image } from "expo-image";
 import { Stack, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -118,8 +117,6 @@ export default function BookPage() {
   const ub = userBook.data;
   const mark = collanaMark(b.title);
   const bandInk = onBand(mark.band);
-  const isRead = ub?.status === "read";
-  const isSaved = ub?.status === "want_to_read";
 
   async function onReviewLike(reviewId: string) {
     await toggleLike("review", reviewId);

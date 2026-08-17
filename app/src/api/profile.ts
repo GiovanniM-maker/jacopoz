@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { Genre, Profile, ProfileStats, UUID } from "@/types/database";
+import type { Profile, ProfileStats, UUID } from "@/types/database";
 import { track } from "./analytics";
 
 export async function getProfile(id: UUID): Promise<Profile> {

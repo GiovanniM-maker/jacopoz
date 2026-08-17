@@ -106,6 +106,11 @@ async function attachViewerLikes(
 ): Promise<ReviewWithAuthor[]> {
   if (!viewerId || reviews.length === 0) return reviews;
   const ids = reviews.map((r) => r.id);
+  // Errore ignorato di proposito, e vale la pena dirlo: questa lettura decora,
+  // non porta contenuto. Se fallisce il cuore resta vuoto; farla propagare
+  // svuoterebbe l'intera schermata per un'icona. Il caso opposto —
+  // «getSaved*», dove un errore diventerebbe «non hai niente salvato» — è
+  // trattato in modo contrario, e la differenza è deliberata.
   const { data } = await supabase
     .from("likes")
     .select("target_id")
