@@ -76,17 +76,11 @@ export async function getFreeReadsForYou(limit = 15): Promise<BookCard[]> {
   return (data ?? []) as BookCard[];
 }
 
-/** Scoperte non di pubblico dominio, ordinate per gusto: titoli recenti che
- *  non si leggono gratis qui. (Prima diceva «buy via Amazon»: quel pezzo non
- *  esiste più.) */
-export async function getPaidDiscoveries(limit = 15): Promise<BookCard[]> {
-  const { data, error } = await supabase.rpc("get_reco_by_availability", {
-    p_free: false,
-    p_limit: limit,
-  });
-  if (error) throw error;
-  return (data ?? []) as BookCard[];
-}
+// `getPaidDiscoveries` stava qui, unica chiamante di `get_reco_by_availability`
+// con `p_free = false`. Rimossa insieme alla riga della Home che la usava: il
+// senso di quella riga per il lettore era «questo lo puoi comprare», e senza i
+// link Amazon era un sottoinsieme di «Consigliati per te» ordinato per data.
+// La RPC resta e serve «Gratis, consigliati per te» con `p_free = true`.
 
 /**
  * Log which recommendations were actually shown — the denominator of CTR.

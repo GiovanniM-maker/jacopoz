@@ -19,7 +19,6 @@ import {
   getContinueReading,
   getFreeReadsForYou,
   getHomeSections,
-  getPaidDiscoveries,
   getRecommendations,
   logRecoImpressions,
   type ContinueReadingBook,
@@ -75,11 +74,6 @@ export default function Home() {
     queryFn: () => getFreeReadsForYou(15),
     enabled: primoDisegno,
   });
-  const paidPicks = useQuery({
-    queryKey: ["paid-discoveries"],
-    queryFn: () => getPaidDiscoveries(15),
-    enabled: primoDisegno,
-  });
   const newReleases = useQuery({
     queryKey: ["new-releases"],
     queryFn: () => getNewReleases(20),
@@ -127,7 +121,6 @@ export default function Home() {
     setSeed(Math.floor(Math.random() * 1_000_000));
     await Promise.allSettled([
       qc.invalidateQueries({ queryKey: ["free-reads"] }),
-      qc.invalidateQueries({ queryKey: ["paid-discoveries"] }),
       qc.invalidateQueries({ queryKey: ["new-releases"] }),
       qc.invalidateQueries({ queryKey: ["continue-reading"] }),
     ]);
@@ -157,7 +150,6 @@ export default function Home() {
   const freeRow = dedupe(freeReads.data);
   const trendingRow: BookCardType[] = trending.data ?? [];
   trendingRow.forEach((b) => seen.add(b.id));
-  const paidRow = dedupe(paidPicks.data);
   const newRow = dedupe(newReleases.data);
   const genreExclude = Array.from(seen);
 
@@ -207,9 +199,11 @@ export default function Home() {
             return books.length >= 4 ? <BookRow key={s.key} title={s.title} books={books} /> : null;
           })}
 
-          {paidRow.length > 0 ? (
-            <BookRow title="Titoli recenti per te" books={paidRow} />
-          ) : null}
+          {/* Qui stava «Nuove scoperte · a pagamento», poi «Titoli recenti per
+              te». Rimossa del tutto: il suo senso per il lettore era «questo lo
+              puoi comprare», e senza i link Amazon restava un sottoinsieme di
+              «Consigliati per te» ordinato per data. Tre righe di consigli su
+              cui due dicono la stessa cosa sono una riga di troppo. */}
 
           {(prefs.data ?? []).map((slug: string) => (
             <GenreRow key={slug} slug={slug} title={genreName(slug)} exclude={genreExclude} />
