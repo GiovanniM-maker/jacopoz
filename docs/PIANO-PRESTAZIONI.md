@@ -98,6 +98,28 @@ decide il primo schermo e non so quale dei suoi pezzi costa. Da fare con
 
 Non propongo una correzione che non ho misurato.
 
+> **Aggiornamento del 17 agosto, e va letto con cautela.** Strumentata mentre
+> facevo il filtro italiano (0082–0083), con `explain analyze` dentro una
+> transazione col ruolo `authenticated`, tre giri, su lettori veri:
+>
+> ```
+> get_home_sections        63 – 74 ms      (era 1.050 – 3.165)
+> get_recommendations     240 – 263 ms     (era 774)
+> get_reco_by_availability 23 –  27 ms
+> get_trending_seeded       4 –   5 ms
+> ```
+>
+> **Non concludo che A-2 è risolta**, per due motivi. Il primo è che i numeri
+> vecchi erano tempi HTTP dall'esterno e questi sono tempi lato server: non sono
+> la stessa grandezza, e confrontarli sarebbe l'errore di 0081 rifatto. Il
+> secondo è che il primo giro di ogni misura sta fra 1 e 6 secondi, sempre — a
+> freddo il divario è quello, e il primo lettore della giornata paga il giro a
+> freddo. Quello che è misurato è che **a caldo il costo non sta più qui**.
+>
+> Il resto di A-2 è quindi: perché il giro a freddo costa 1–6 s, che è una
+> domanda su 224 MB di `shared_buffers` contro un set di lavoro di 270 MB, non
+> su questa funzione.
+
 ### A-3 · Le scansioni sequenziali su `books`
 **Impatto: medio (era alto). Costo: già in parte pagato.**
 

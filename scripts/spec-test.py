@@ -536,6 +536,75 @@ def test_home():
     check("H-3", "«Continua a leggere» espone l'id per riaprire il libro",
           "gutenberg_id" in (ret[0]["r"] if ret else ""), "")
 
+    # H-7: le vetrine in italiano, la ricerca no. Si guardano i libri veri che
+    # escono da ogni riga, non il testo delle funzioni: un `language = 'it'`
+    # scritto nel posto sbagliato passerebbe una grep e non un lettore.
+    vetrine = {
+        "consigliati":  "select id from public.get_recommendations(20, 0, 7)",
+        "gratis":       "select id from public.get_reco_by_availability(true, 15)",
+        "classifica":   "select id from public.get_trending_seeded(20, 7)",
+        "sezioni Home": "select id from public.get_home_sections(7, 5, 12)",
+    }
+    stranieri, vuote = {}, []
+    for nome, chiamata in vetrine.items():
+        righe = as_reader(
+            f"select b.language as lingua from ({chiamata}) t "
+            f"join public.books b on b.id = t.id;")
+        # Nessuna riga non è una prova che il filtro funzioni: è una riga che non
+        # si è potuta guardare, e va detto invece di contarla come verde.
+        if not righe:
+            vuote.append(nome)
+            continue
+        fuori = [r["lingua"] for r in righe if r["lingua"] != "it"]
+        if fuori:
+            stranieri[nome] = f"{len(fuori)}/{len(righe)} {sorted(set(fuori))}"
+    # E la riga «Nuove uscite», che il client interroga da sé.
+    books_ts = open("app/src/api/books.ts", encoding="utf-8").read()
+    nuove_filtrate = 'eq("language", "it")' in books_ts
+    check("H-7a", "le vetrine della Home mostrano solo italiano",
+          None if vuote else (not stranieri and nuove_filtrate),
+          (f"righe non verificabili: {vuote}; " if vuote else "")
+          + (f"righe con libri non italiani: {stranieri}; " if stranieri else "")
+          + f"«Nuove uscite» filtrata nel client={nuove_filtrate}")
+
+    # L'altra metà del requisito, e la più facile da rompere per zelo: la
+    # ricerca deve continuare a trovare i libri stranieri.
+    trovati = {}
+    for termine in ("The Great Gatsby", "Better", "Pride and Prejudice"):
+        righe = q("select b.language as lingua from public.search_books("
+                  f"'{lit(termine)}', 20) t join public.books b on b.id = t.id;") or []
+        trovati[termine] = sum(1 for r in righe if r["lingua"] != "it")
+    check("H-7b", "la ricerca continua a trovare i libri stranieri",
+          all(n > 0 for n in trovati.values()),
+          "risultati non italiani per termine: " + str(trovati))
+
+    # H-8: nessuna sezione proposta che non possa riempirsi. Si contano le
+    # sezioni estratte contro quelle che arrivano a quattro carte, su più semi:
+    # con un solo seme il sorteggio non dice niente.
+    estratte = mostrabili = 0
+    for seme in (1, 7, 13, 42, 99):
+        righe = as_reader(
+            f"select section_key, count(*) as n from public.get_home_sections({seme}, 5, 12) "
+            "group by section_key;") or []
+        estratte += len(righe)
+        mostrabili += sum(1 for r in righe if int(r["n"]) >= 4)
+    check("H-8", "nessuna sezione proposta che non possa riempirsi",
+          None if estratte == 0 else mostrabili == estratte,
+          f"{mostrabili} riempibili su {estratte} estratte, su cinque semi")
+
+    # H-9: una riga ordinata per una colonna vuota non è ordinata. Il controllo
+    # è sul testo delle funzioni perché il difetto è lì: l'ordinamento sbagliato
+    # produce comunque delle righe, quindi guardare l'esito non lo rivela.
+    src = q("select pg_get_functiondef(p.oid) as d from pg_proc p "
+            "join pg_namespace n on n.oid=p.pronamespace "
+            "where n.nspname='public' and p.proname='get_home_sections';")
+    testo = src[0]["d"] if src else ""
+    ordini_morti = testo.count("external_rating, 0) * ln(")
+    check("H-9", "le righe della Home non ordinano per una colonna vuota",
+          bool(testo) and ordini_morti == 0,
+          f"ordinamenti per external_rating rimasti: {ordini_morti} "
+          "(external_rating è popolato su 245 righe su 69.029)")
+
 
 def test_social():
     # F-3: i contatori memorizzati devono coincidere col conteggio reale.

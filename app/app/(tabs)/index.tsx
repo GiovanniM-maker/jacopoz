@@ -131,7 +131,7 @@ export default function Home() {
     genres.data?.find((g: Genre) => g.slug === slug)?.name ?? slug;
   const hero: BookReco | undefined = recos.data?.[0] ?? trending.data?.[0] ?? undefined;
 
-  // The recommendation slices (recos / free / paid) all sort the same pool, so
+  // The recommendation slices (recos / free) all sort the same pool, so
   // a book easily lands in several carousels — and the hero is recos[0]. Dedupe
   // top-to-bottom so nothing repeats down the page. Top 10 keeps its full
   // ranking (it's a distinct ranked list) but still suppresses later repeats.
@@ -307,7 +307,12 @@ function ContinueReadingRow({ books }: { books: ContinueReadingBook[] }) {
 }
 
 function GenreRow({ slug, title, exclude }: { slug: string; title: string; exclude: string[] }) {
-  const q = useQuery({ queryKey: ["genre-books", slug], queryFn: () => getBooksByGenre(slug, 20) });
+  // `true` = solo italiano: questa è una vetrina della Home. La schermata del
+  // genere chiama la stessa funzione senza il filtro, perché lì si naviga.
+  const q = useQuery({
+    queryKey: ["genre-books", slug, "it"],
+    queryFn: () => getBooksByGenre(slug, 20, true),
+  });
   const ex = new Set(exclude);
   const books = (q.data ?? []).filter((b: BookCardType) => !ex.has(b.id));
   return <BookRow title={title} books={books} />;

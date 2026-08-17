@@ -176,6 +176,26 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
   "Ancora <autore>"), non etichette di genere generiche.
 - **H-5** — Scorrendo in fondo arriva altro, senza ricaricare la pagina.
 - **H-6** — Lo stesso libro non compare in due caroselli della stessa schermata.
+- **H-7** — **Le vetrine sono in italiano, la ricerca no.** Tutto ciò che la
+  Home propone senza che nessuno l'abbia chiesto — consigliati, gratis per te,
+  classifica, sezioni con un nome, riga di genere, nuove uscite — mostra solo
+  libri in italiano. La ricerca, la pagina di un genere, "Simili a questo" e le
+  edizioni di un libro continuano a mostrare tutto il catalogo.
+
+  Il perché sta nei numeri: 8.401 libri su 69.029 sono in italiano, e di 33.526
+  leggibili gratis solo 1.020 sono entrambe le cose. Un filtro unico su tutta
+  l'app ridurrebbe il catalogo a un ottavo e toglierebbe il GRATIS al 97% dei
+  casi; separare le due cose dà una Home italiana **e** una ricerca che trova
+  «Better di Carrie Leighton».
+- **H-8** — Una sezione della Home che non può riempirsi **non viene proposta**.
+  Le sezioni si estraggono a sorte da un serbatoio: una specifica che non ha
+  quattro carte da mostrare non produce una riga vuota, produce una riga in
+  meno. Vale per gli angoli editoriali (una soglia che nessun libro raggiunge) e
+  per "Ancora \<autore\>" (un autore con meno di quattro libri italiani).
+- **H-9** — Una riga della Home è **ordinata per qualcosa che il catalogo ha**.
+  Ordinare per una colonna popolata sullo 0,35% delle righe è un pareggio fra
+  decine di migliaia di libri: l'ordine risultante è quello che restituisce la
+  scansione, e il seme che dovrebbe far ruotare la riga non la fa ruotare.
 
 ---
 
