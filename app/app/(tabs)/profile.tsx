@@ -240,7 +240,7 @@ export default function ProfileScreen() {
             ) : (followedLists.data ?? []).length === 0 ? (
               <SectionEmpty icon="🔖" title="Nessuna lista seguita" msg="Segui le liste pubbliche che ti piacciono." />
             ) : (
-              (followedLists.data ?? []).map((l: BookList) => <ListRow key={l.id} list={l} showAuthor />)
+              (followedLists.data ?? []).map((l: BookList) => <ListRow key={l.id} list={l} />)
             )}
           </View>
         ) : null}
@@ -282,7 +282,11 @@ function Stat({
   );
 }
 
-function ListRow({ list, showAuthor }: { list: BookList; showAuthor?: boolean }) {
+// Nota: qui c'era un parametro `showAuthor`, passato dalle liste seguite e
+// **mai letto dentro la funzione**. Non era un residuo: era una funzione
+// annunciata e non scritta — nelle liste che segui non si è mai visto di chi
+// sono. Il parametro è via; la funzione, se la vuoi, va scritta.
+function ListRow({ list }: { list: BookList }) {
   return (
     <Pressable style={styles.listRow} onPress={() => router.push(`/list/${list.id}`)}>
       <View style={styles.listThumb}>

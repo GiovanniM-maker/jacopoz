@@ -35,6 +35,14 @@ export async function toggleBookmark(
 
 /** Bookmarked target ids of a type for the user (for filled/empty icons). */
 export async function getBookmarkedIds(userId: UUID, targetType: BookmarkType): Promise<Set<UUID>> {
+  // Decoro, non contenuto — e l'avevo classificata al contrario prima di
+  // guardare chi la chiama: la usa solo `review/[id].tsx`, per decidere se
+  // l'icona del salvataggio è piena o vuota. Farla propagare svuoterebbe la
+  // pagina di una recensione perché un'icona non si è risolta.
+  //
+  // Il caso contrario sono `getSavedReviewsFallback` e `getSavedComments` qui
+  // sotto: quelle **sono** il contenuto della schermata «salvati», e lì un
+  // errore silenzioso direbbe «non hai niente salvato» a chi ha dei salvataggi.
   const { data } = await supabase
     .from("bookmarks")
     .select("target_id")
@@ -67,10 +75,11 @@ async function getSavedReviewsFallback(userId: UUID): Promise<ReviewWithAuthor[]
     .order("created_at", { ascending: false });
   const list = (ids ?? []).map((r) => r.target_id);
   if (list.length === 0) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("reviews")
     .select("*, author:profiles!reviews_user_id_fkey(id,username,display_name,avatar_url)")
     .in("id", list);
+  if (error) throw error;
   return (data ?? []) as unknown as ReviewWithAuthor[];
 }
 
@@ -84,9 +93,10 @@ export async function getSavedComments(userId: UUID): Promise<CommentWithAuthor[
     .order("created_at", { ascending: false });
   const list = (ids ?? []).map((r) => r.target_id);
   if (list.length === 0) return [];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("comments")
     .select("*, author:profiles!comments_user_id_fkey(id,username,display_name,avatar_url)")
     .in("id", list);
+  if (error) throw error;
   return (data ?? []) as unknown as CommentWithAuthor[];
 }

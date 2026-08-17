@@ -43,11 +43,15 @@ export interface ReadState {
 }
 
 export async function getReadProgress(bookId: UUID): Promise<ReadState> {
-  const { data } = await supabase
+  // Se questa fallisce in silenzio il lettore riparte da pagina uno senza
+  // sapere perché: il segnaposto non è un ornamento, è la ragione per cui
+  // riapre il libro.
+  const { data, error } = await supabase
     .from("book_read_progress")
     .select("percent, bookmark_percent")
     .eq("book_id", bookId)
     .maybeSingle();
+  if (error) throw error;
   return {
     percent: data ? Number(data.percent) : 0,
     bookmark: data?.bookmark_percent != null ? Number(data.bookmark_percent) : null,

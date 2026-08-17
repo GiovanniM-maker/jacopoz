@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { getSuggestedReaders } from "@/api/profile";
 import { FollowButton } from "@/components/FollowButton";
 import { ScreenHeader } from "@/components/ScreenHeader";

@@ -324,3 +324,72 @@ invertito, 612 contro 647, cioè niente.
 **La regola che ne esce non è tecnica: un numero senza un controllo non è una
 misura.** Vale per i tempi HTTP quanto per i piani di query, e in entrambi i
 casi il controllo costava trenta secondi.
+
+
+---
+
+## Esito, 17 agosto — D-1, D-2 e C-1
+
+**D-1 · L'allarme c'è** (`.github/workflows/monitor.yml`). Ogni dieci minuti.
+
+Il punto delicato: `jacopoz.vercel.app` restituisce **200 anche col database
+giù** — è il guscio statico di una SPA, ed è precisamente per questo che le due
+ore del 15 agosto sono passate inosservate. Quindi il controllo chiede **dei
+dati**, non un segno di vita.
+
+Per farlo serve la chiave anon, e la chiave **non** è un segreto del repository:
+sta già nel bundle, la legge qualunque browser. Metterla fra i segreti avrebbe
+significato un passaggio di configurazione a mano e — peggio — un allarme che
+smette di funzionare **in silenzio** il giorno in cui le chiavi vengono ruotate.
+Il controllo fa quello che fa un browser: scarica la pagina, trova il bundle, ne
+estrae URL e chiave. Si riconfigura da solo.
+
+Provato nei due sensi, che è la parte che conta: verde in produzione, e **rosso**
+con un dominio inesistente e con un endpoint dati irraggiungibile. Un allarme che
+non ho visto suonare non è un allarme.
+
+Una correzione lungo la strada: la prima versione, con un dominio sbagliato,
+diceva «bundle non trovato» invece di «il sito risponde 404», perché guardava il
+corpo e non il codice HTTP. Una diagnosi sbagliata manda a cercare nel posto
+sbagliato, ed è il costo che ho pagato più volte questa settimana.
+
+**D-2 · La CI c'è** (`.github/workflows/ci.yml`): typecheck, lint, la prova del
+modulo di scelta descrizioni, e il controllo sugli errori silenziosi.
+
+`npm run lint` **non aveva alcuna configurazione ESLint**: lo script esisteva e
+non era mai stato eseguito. Aggiunta, e le sue 14 segnalazioni erano tutte
+codice morto reale — import mai usati, variabili calcolate e mai lette. Fra
+queste una che non era un residuo: `ListRow` accettava un parametro `showAuthor`,
+**passato dal chiamante e mai letto dentro la funzione**. Nelle liste che segui
+non si è mai visto di chi sono. Il parametro è via; la funzione, se la si vuole,
+va scritta.
+
+**C-1 · Gli errori non diventano più liste vuote** — ma non con la stessa cura
+per tutte le letture, perché non sono la stessa cosa:
+
+| lettura | trattamento |
+|---|---|
+| `getSavedReviewsFallback`, `getSavedComments`, `getReadProgress` | l'errore **propaga**: sono contenuto, e «non hai niente salvato» a chi ha dei salvataggi è una bugia |
+| `isFollowing`, `isFollowingList`, `attachViewerLikes`, `getBookmarkedIds` | l'errore **si ignora, dichiarandolo**: decorano. Propagare svuoterebbe una schermata perché un cuore non si è risolto |
+
+`getBookmarkedIds` l'avevo classificata fra le prime, e avevo torto: guardando
+chi la chiama, la usa solo la pagina di una recensione per decidere se l'icona è
+piena o vuota. Corretta.
+
+E perché la distinzione non torni ad essere folklore, `scripts/check-silent-errors.py`
+la impone: una lettura che scarta `error` deve avere, **attaccato**, un commento
+che dica perché. Il criterio guarda il commento attaccato all'istruzione e non
+una finestra fissa di righe — la prima versione ne guardava sei e bocciava un
+commento di otto scritto bene.
+
+### Resta aperto
+
+- **La production branch di Vercel è il ramo di lavoro, non `main`.** Due click
+  nel pannello, e sono i tuoi: finché è così, il prossimo ramo va in produzione
+  appena viene spinto e `main` non conta niente.
+- **A-2**: `get_home_sections` fra 1 e 3 secondi, da strumentare prima di
+  toccarla.
+- **B-2**: la divisione del bundle, incerta e da misurare.
+- **B-3**: le copertine che si ridisegnano tutte a ogni lotto risolto.
+- **D-3**: ripristino puntuale disattivato.
+- **D-4**: le chiavi da ruotare.

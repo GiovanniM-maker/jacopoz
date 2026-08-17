@@ -104,7 +104,6 @@ export const THEMES: { name: ThemeName; label: string; hint: string }[] = [
   { name: "notturno", label: "Notturno", hint: "Scuro ed elegante · ottone" },
 ];
 
-const SHARP: Radius = { sm: 0, md: 0, lg: 2, pill: 999 };
 const ROUND: Radius = { sm: 2, md: 4, lg: 8, pill: 999 };
 const SOFT: Radius = { sm: 8, md: 10, lg: 14, pill: 999 };
 
