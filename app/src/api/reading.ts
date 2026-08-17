@@ -28,13 +28,32 @@ export async function getBookText(gutenbergId: number): Promise<string> {
   return data.text as string;
 }
 
-/** Persist reading position; ≥90% marks the book read (strongest signal). */
+/**
+ * Persist reading position; ≥90% marks the book read (strongest signal).
+ *
+ * Questa funzione ha nascosto un guasto per tre settimane, e vale la pena
+ * scrivere come. `save_read_progress` falliva con un errore di tipo per **ogni**
+ * lettore fra il 3% e il 90% di un libro (0084). Qui c'era
+ *
+ *     try { await supabase.rpc(...) } catch { /* best-effort *\/ }
+ *
+ * e il `catch` non catturava niente, perché supabase-js **non solleva**:
+ * restituisce `{ data, error }`. Nessuno leggeva `error`, quindi la chiamata
+ * sembrava riuscita. Quindici righe in `book_read_progress`, tutte sotto il 2%:
+ * chi leggeva mezzo libro e riapriva l'app lo ritrovava all'inizio.
+ *
+ * Perché non solleva nemmeno adesso: si chiama con un ritardo di 1,2 s a ogni
+ * scorrimento, e far arrivare un'eccezione lì vorrebbe dire un errore non
+ * gestito per ogni gesto. Ma **l'errore non è più invisibile**: viene letto e
+ * scritto. Un guasto silenzioso e un guasto rumoroso in console non sono la
+ * stessa cosa — il secondo si trova.
+ */
 export async function saveReadProgress(bookId: UUID, percent: number): Promise<void> {
-  try {
-    await supabase.rpc("save_read_progress", { p_book_id: bookId, p_percent: Math.round(percent) });
-  } catch {
-    // best-effort
-  }
+  const { error } = await supabase.rpc("save_read_progress", {
+    p_book_id: bookId,
+    p_percent: Math.round(percent),
+  });
+  if (error) console.warn("posizione di lettura non salvata:", error.message);
 }
 
 export interface ReadState {
@@ -58,16 +77,21 @@ export async function getReadProgress(bookId: UUID): Promise<ReadState> {
   };
 }
 
-/** Drop (or clear, with null) a deliberate bookmark at a scroll position. */
+/**
+ * Drop (or clear, with null) a deliberate bookmark at a scroll position.
+ *
+ * Questa solleva, al contrario di `saveReadProgress`, e la differenza è
+ * l'intenzione del lettore: la posizione si salva da sola mentre scorre, il
+ * segnaposto lo mette lui premendo un tasto — e la schermata gli risponde
+ * «salvato». Ingoiare l'errore qui vorrebbe dire scrivere «salvato» quando non
+ * lo è, che è la bugia più facile da evitare.
+ */
 export async function saveBookmark(bookId: UUID, percent: number | null): Promise<void> {
-  try {
-    await supabase.rpc("save_bookmark", {
-      p_book_id: bookId,
-      p_percent: percent == null ? null : Math.round(percent),
-    });
-  } catch {
-    // best-effort
-  }
+  const { error } = await supabase.rpc("save_bookmark", {
+    p_book_id: bookId,
+    p_percent: percent == null ? null : Math.round(percent),
+  });
+  if (error) throw error;
 }
 
 // Qui stava `amazonUrl`, il link di ripiego verso amazon.it. Rimosso il

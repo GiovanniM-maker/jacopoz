@@ -209,6 +209,66 @@ corrette — hanno restituito 503 con il motivo. La differenza fra le due giorna
 funzionato». Aggiungere un controllo alla suite che vieti il ritorno silenzioso
 di lista vuota su una lettura fallita.
 
+*Fatto il 17 agosto: `scripts/check-silent-errors.py` + un lavoro di CI.*
+
+### C-2 · La forma che il controllo di C-1 non vedeva
+
+**Impatto: alto, ed è misurato, non temuto. Costo: pagato il 17 agosto.**
+
+`check-silent-errors.py` cercava `const { data } = await supabase...`: una
+lettura che destruttura `data` e lascia fuori `error`. Ma esiste una seconda
+forma, che non destruttura niente:
+
+```ts
+try { await supabase.rpc("save_read_progress", { … }); } catch { /* best-effort */ }
+```
+
+supabase-js **non solleva**: restituisce `{ data, error }`. Quel `try/catch` non
+aveva niente da catturare, e nessuno leggeva `error`. Nove chiamate nel client
+avevano questa forma.
+
+Quanto è costato saperlo tardi:
+
+```
+save_read_progress   errore di tipo 42804 per ogni percentuale fra 3 e 90
+book_read_progress   15 righe dal 24 luglio al 17 agosto
+                     percent fra 3 e 89 →  0
+                     percent >= 90      →  0
+                     percent < 3        → 15
+```
+
+Tre settimane in cui nessuna posizione di lettura è stata salvata oltre il 2%.
+Il lettore leggeva mezzo libro, riapriva, ripartiva dall'inizio — e non c'era un
+errore da nessuna parte, né a schermo né nei log.
+
+**Fatto:** il controllo ora vede anche `await supabase...` il cui risultato non
+viene guardato; delle nove chiamate, tre propagano l'errore (posizione di
+lettura, segnaposto, cancellazione delle preferenze in onboarding) e sei hanno la
+giustificazione scritta. Il difetto nel database è corretto in 0084, e B-7 nella
+specifica lo verifica alle percentuali di mezzo — perché al 95% funzionava.
+
+### C-3 · Quattro RPC che il lettore non poteva chiamare
+
+**Impatto: alto. Costo: pagato il 17 agosto.**
+
+Trovate chiamando una per una tutte le 31 RPC che il client usa, con l'identità
+di un lettore vero:
+
+```
+get_my_review        42501  → il compositore di recensioni
+upsert_review        42501  → salvare una recensione, impossibile
+get_similar_books    42501  → «Simili a questo» sulla scheda libro
+get_trending_books   42501  → nessun chiamante nel client
+```
+
+S-5 protegge `books` togliendo il `select` sulla tabella e ridandolo colonna per
+colonna: una funzione senza `security definer` perde il permesso appena tocca
+una colonna aggiunta dopo (`work_id`) o la riga intera
+(`book_avg_rating(b)`). Le prime due sono una regressione di 0071.
+
+**Fatto:** 0084, e S-6 nella specifica — un controllo che le chiama tutte, perché
+nessuna lettura del codice mostrava il problema.
+
 ---
 
 ## D. Infrastruttura

@@ -109,6 +109,9 @@ export function mergeEditions(rows: BookCard[]): BookCard[] {
  */
 export async function requestSynopsis(bookId: UUID): Promise<void> {
   try {
+    // Ignorato di proposito: è una richiesta di lavoro futuro, non un dato del
+    // lettore. Se non parte, la scheda mostra lo stato vuoto onesto e la coda
+    // del cron ci arriverà comunque.
     await supabase.functions.invoke("synopsis", { body: { book_id: bookId } });
   } catch {
     // best-effort: senza sinossi la scheda mostra lo stato vuoto onesto
@@ -118,6 +121,8 @@ export async function requestSynopsis(bookId: UUID): Promise<void> {
 /** Fire-and-forget: ask the pipeline to enrich this book (circle 2). */
 export async function requestBookEnrichment(bookId: UUID): Promise<void> {
   try {
+    // Ignorato di proposito: come sopra, mette in coda un arricchimento. Il
+    // lettore non aspetta niente e non perde niente.
     await supabase.rpc("request_book_enrichment", { p_book_id: bookId });
   } catch {
     // enrichment is best-effort
@@ -318,6 +323,9 @@ export async function importFromProviders(
     // subject). It used to be a second, unconditional Edge invocation on every
     // search; folding it in here means a search costs one provider round-trip
     // instead of two.
+    // Ignorato di proposito: se l'import non riesce, il catalogo resta com'è e
+    // la ricerca mostra quello che ha. R-8 pretende che la schermata lo dica,
+    // ed è lì che l'esito si vede, non qui.
     await supabase.functions.invoke("ingest-book", { body: { query, limit, lang, expand, mode } });
   } catch {
     // ignore — catalog stays as-is

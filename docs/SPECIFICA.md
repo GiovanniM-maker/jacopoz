@@ -220,6 +220,18 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
 - **B-3** — Le edizioni sono selezionabili dalla scheda.
 - **B-5** — Se il libro è gratis si legge dentro l'app (testo Gutenberg) o si
   apre il lettore esterno.
+- **B-7** — **La posizione di lettura si salva anche a metà libro**, e se non si
+  salva l'app non finge il contrario.
+
+  Dal 24 luglio al 17 agosto non si è salvata: `save_read_progress` falliva con
+  un errore di tipo per ogni percentuale fra il 3% e il 90% — cioè per un lettore
+  a metà di un libro — e il client scartava l'errore. Quindici righe in
+  `book_read_progress`, **tutte sotto il 2%**. Chi leggeva mezzo libro e riapriva
+  l'app lo ritrovava all'inizio.
+
+  Per questo il controllo prova le percentuali di mezzo e non una sola: al 95%
+  funzionava. E per questo il segnaposto, che il lettore mette a mano e a cui
+  l'app risponde «salvato», scrive quella conferma **dopo** che è salvato.
 - **B-6** — **Una recensione parla dell'opera, non dell'edizione.** Chi apre
   l'Adelphi vede la recensione scritta sull'Einaudi, il conteggio è lo stesso su
   entrambe le schede, e lo stesso lettore non può recensire due volte lo stesso
@@ -245,6 +257,18 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
   tabella la protezione è un permesso; nelle Edge Function il permesso non
   c'entra, perché leggono con la chiave di servizio — lì è il codice a dover
   scegliere cosa mettere nella risposta.
+- **S-6** — **Ogni funzione che il client chiama è chiamabile da un lettore
+  vero.** Non «esiste», non «ha il grant di esecuzione»: si chiama, e risponde.
+
+  Il requisito nasce da quattro RPC che il 17 agosto fallivano con 42501 per
+  ogni lettore autenticato, fra cui `upsert_review` — cioè **salvare una
+  recensione era impossibile** da quando le recensioni sono passate all'opera.
+  La causa è che S-5 protegge `books` togliendo il permesso sulla tabella e
+  ridandolo colonna per colonna, quindi una funzione senza `security definer`
+  perde il permesso appena tocca una colonna aggiunta dopo, o la riga intera.
+
+  Leggere il codice non lo mostra: il grant sulla funzione c'è, la funzione
+  esiste, la firma è giusta. Solo la chiamata lo dice.
 
 ---
 
