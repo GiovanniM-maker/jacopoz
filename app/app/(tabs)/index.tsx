@@ -208,7 +208,7 @@ export default function Home() {
           })}
 
           {paidRow.length > 0 ? (
-            <BookRow title="Nuove scoperte · a pagamento" books={paidRow} />
+            <BookRow title="Titoli recenti per te" books={paidRow} />
           ) : null}
 
           {(prefs.data ?? []).map((slug: string) => (

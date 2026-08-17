@@ -164,11 +164,12 @@ export default function BookPage() {
                 {bookAvgRating(b) ? `${bookAvgRating(b)} · ${b.rating_count}` : "Nessuna valutazione"}
               </Text>
             </View>
-            {b.external_rating && b.external_ratings_count ? (
-              <Text style={styles.webRating}>
-                Web: {Number(b.external_rating).toFixed(1)}/5 · {b.external_ratings_count} voti
-              </Text>
-            ) : null}
+            {/* Qui stava «Web: 4,2/5 · 1.200 voti», il voto aggregato di Open
+                Library. Via per lo stesso motivo delle recensioni esterne: un
+                numero preso da internet accanto ai voti dei lettori di Tomo, che
+                essendo pochi ne uscivano schiacciati. `external_rating` resta in
+                tabella — sei funzioni la usano per ordinare consigli e code — ma
+                non si mostra. */}
             {b.published_year ? <Text style={styles.meta}>{b.published_year}</Text> : null}
           </View>
         </View>
@@ -506,14 +507,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   description: { ...typography.body, lineHeight: 22 },
-  webRating: {
-    color: colors.textFaint,
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
-    marginTop: 4,
-  },
   similar: { marginHorizontal: -spacing.lg, marginTop: spacing.lg },
   reviewsHeader: { marginTop: spacing.md },
   noReviews: { ...typography.bodyMuted, marginBottom: spacing.lg },
