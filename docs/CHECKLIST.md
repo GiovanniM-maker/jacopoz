@@ -11,7 +11,10 @@ Legenda effort: **S** = poche ore · **M** = 1–2 giorni · **L** = settimana+.
 
 **Lettura & catalogo**
 - [x] Lettore in-app per libri di pubblico dominio (scroll, progresso salvato, 90% → "letto")
-- [x] Link Amazon su **ogni** libro; badge "Leggi gratis" / "Non disponibile gratuitamente"
+- [x] Badge "Leggi gratis" / "Non disponibile gratuitamente" su **ogni** libro
+      (i link Amazon che stavano qui sono stati rimossi il 15 agosto 2026: il tag
+      memorizzato era un tag `.com` su link `amazon.it`, quindi nessuna conversione
+      è mai stata attribuita — vedi `SPECIFICA.md`, «Requisiti ritirati»)
 - [x] Nomi autori normalizzati (cirillico → latino, patronimico rimosso) su tutte le fonti
 - [x] Filtro spazzatura (atti di convegni/seminari, guide di studio)
 - [x] Import automatico su ricerca a vuoto (Gutenberg + Google + Open Library)
@@ -22,7 +25,10 @@ Legenda effort: **S** = poche ore · **M** = 1–2 giorni · **L** = settimana+.
 **Scoperta & profilazione**
 - [x] Onboarding a 2 step: generi + **sottogeneri** (36) e "libri che hai letto" + voti (semina il vettore di gusto)
 - [x] Righe home "Gratis, consigliati per te" e "Nuove scoperte · a pagamento"
-- [x] Tag categoria cliccabili → pagina Sezione; **sottogeneri navigabili** (chip + ricerca per nome)
+- [x] **Sottogeneri navigabili** (chip + ricerca per nome) → pagina Sezione
+      (i tag categoria nella **scheda libro** sono stati rimossi il 15 agosto 2026: erano
+      slug interni accanto alla sinossi. La colonna `books.categories` resta e continua a
+      reggere ricerca per genere, pagine genere e consigli)
 - [x] **Scaffali stile Goodreads**: Voglio leggere / Sto leggendo / Letto / **Non finito (DNF)**, controllo a segmenti sul libro + sezione "Scaffali" nel profilo
 - [x] Fix ricerca onboarding (locale-first, import in background, niente blocco)
 
@@ -64,7 +70,10 @@ Legenda effort: **S** = poche ore · **M** = 1–2 giorni · **L** = settimana+.
 Cose economiche che migliorano il prodotto prima di cercare utenti.
 
 - [ ] **Standard Ebooks** come seconda fonte pubblico dominio (impaginazione migliore dei classici) — **M**
-- [ ] **Tag affiliazione Amazon** (Associates) sui libri più letti, non su tutti — **S**
+- ~~**Tag affiliazione Amazon** (Associates) sui libri più letti, non su tutti~~ →
+      **ritirato il 15 agosto 2026**: il tag memorizzato (`jacopoz-20`) è del programma
+      `.com` mentre i link puntavano su `amazon.it`, quindi non ha mai reso nulla. Tolta
+      tutta la superficie, client e database (migrazioni `0076` e `0077`)
 - [ ] Migliorare il match Gutenberg cross-lingua (ora l'edizione IT non trova il testo EN) — **M**
 - [ ] **Segnalibri multipli** per lo stesso libro (ora è uno solo) — **S**
 - [ ] Empty-state curati su feed/ricerca/profilo quando è tutto vuoto — **S**
@@ -115,11 +124,17 @@ non solo consultare libri. In ordine di leva (vedi analisi in chat).
 Hanno senso solo con traffico reale — non prima.
 
 - [ ] **Layer "gratis ora"**: monitorare le promo a tempo (es. Kindle gratis oggi) e mostrare
-      "Gratis ora su [fonte] ↗" durante la finestra, poi tornare al link d'acquisto — **L**
+      "Gratis ora su [fonte] ↗" durante la finestra, poi tornare al badge normale — **L**
+      (non più "tornare al link d'acquisto": dal 15 agosto 2026 nella scheda non c'è
+      nessun link d'acquisto)
       → è **monitoraggio di disponibilità + link**, mai download/hosting del file
 - [ ] **Indie gratis legali** (reader-magnet: sito autore / BookFunnel / promo KDP) come link-out — **M**
 - [ ] Submission agli store nativi (EAS build → App Store / Play Store) — **L**
-- [ ] Recensioni esterne su più libri (pipeline enrichment già presente, allargare copertura) — **M**
+- ~~Recensioni esterne su più libri (pipeline enrichment già presente, allargare copertura)~~ →
+      **ritirato il 15 agosto 2026**: erano 238 voci enciclopediche contro 14 recensioni vere di
+      lettori, e allargare la copertura avrebbe peggiorato il rapporto. La tabella
+      `external_reviews` e le sue righe restano (attribuzione + CC BY-SA), ma non si legge e
+      non si scrive più
 - [ ] StoryGraph-style: tag mood/ritmo per raffinare i consigli — **M**
 
 ---

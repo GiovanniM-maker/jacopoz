@@ -14,7 +14,10 @@ export type AnalyticsEvent =
   | "review_liked"
   | "comment_created"
   | "user_followed"
-  | "affiliate_click"
+  // `affiliate_click` era qui: nessuna schermata lo emette più da quando i
+  // pulsanti Amazon sono stati rimossi. Le righe storiche in
+  // `analytics_events` conservano quel nome — questo elenco dice cosa si può
+  // scrivere da oggi, non cosa è stato scritto ieri.
   | "read_open"
   | "read_progress"
   | "feed_opened";

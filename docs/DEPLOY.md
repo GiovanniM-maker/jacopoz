@@ -126,7 +126,8 @@ The change takes effect on the user's next request (RLS re-evaluates `is_moderat
 
 ## 5. Turning on monetization later (`app_config` flags)
 
-All revenue channels are architected; beta ships with only affiliate live. Flip flags in `app_config`
+All revenue channels are architected; **beta ships with none of them live** (the Amazon affiliate
+hand-off, the only one that used to be on, was removed on 15 Aug 2026). Flip flags in `app_config`
 (moderator-writable) — the client reads them at launch, so **no app update required**.
 
 ```sql
@@ -136,16 +137,16 @@ update public.app_config set value = 'true'::jsonb  where key = 'premium_enabled
 -- Turn on in-app ads (OFF for beta).
 update public.app_config set value = 'true'::jsonb  where key = 'ads_enabled';
 
--- Rotate the Amazon Associates affiliate tag without shipping an app update.
-update public.app_config set value = '"your-new-tag-20"'::jsonb where key = 'amazon_affiliate_tag';
-
 -- Bump the soft minimum client version (forced-update nudge).
 update public.app_config set value = '"0.2.0"'::jsonb where key = 'min_app_version';
 ```
 
 Notes:
-- **Affiliate** is already on: `amazon_affiliate_url(isbn)` uses `amazon_affiliate_tag` (default
-  `jacopoz-20`); the buy button hides when a book has no ISBN.
+- **Affiliate** is **gone**, not dormant: migration `0076` (15 Aug 2026) drops
+  `amazon_affiliate_url(isbn)` and `amazon_buy_url(book_id)`, `0077` deletes the
+  `amazon_affiliate_tag` row from `app_config`, and the buy button is out of the app. The stored tag was
+  a `.com` Associates tag while the links pointed at `amazon.it`, so no conversion was ever attributed —
+  there was no revenue to lose. Bringing it back means a new migration, not a flag flip.
 - **Premium** requires wiring a billing webhook (RevenueCat/Stripe) that writes `entitlements` via
   **service_role**; `is_premium()` then gates features. `premium_enabled` only controls showing the
   upsell.

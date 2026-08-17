@@ -198,7 +198,6 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
 - **B-2** — Voto in rombi: **uno solo per utente per libro**, e coincide con
   quello della propria recensione.
 - **B-3** — Le edizioni sono selezionabili dalla scheda.
-- **B-4** — "Compra su Amazon" porta all'edizione giusta per lingua.
 - **B-5** — Se il libro è gratis si legge dentro l'app (testo Gutenberg) o si
   apre il lettore esterno.
 - **B-6** — **Una recensione parla dell'opera, non dell'edizione.** Chi apre
@@ -209,6 +208,9 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
   L'edizione da cui la recensione è stata scritta resta registrata — è
   informazione vera — ma non è il punto di attacco: quello è `work_id`, un'
   identità stabile che non cambia se qualcuno corregge un refuso nel titolo.
+
+> Fra **B-3** e **B-5** manca **B-4**: è stato ritirato, vedi
+> «Requisiti ritirati» in fondo al documento.
 
 ---
 
@@ -223,6 +225,33 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
   tabella la protezione è un permesso; nelle Edge Function il permesso non
   c'entra, perché leggono con la chiave di servizio — lì è il codice a dover
   scegliere cosa mettere nella risposta.
+
+---
+
+## Requisiti ritirati
+
+Un identificativo è un riferimento stabile: è citato qui, negli altri documenti,
+nei commenti delle migrazioni e nei messaggi di commit. Quando un requisito cade
+**non si rinumerano gli altri** — resta un buco, e questa sezione lo spiega.
+
+| Identificativo | Requisito | Ritirato il | Perché |
+|---|---|---|---|
+| **B-4** | «Compra su Amazon» porta all'edizione giusta per lingua | 15 agosto 2026 | Il tag di affiliazione memorizzato (`jacopoz-20`) è un tag `.com`, mentre i link puntavano su `amazon.it`: **nessuna conversione è mai stata attribuita**. Si è tolta una complicazione che non rendeva niente. |
+
+Nella stessa decisione sono cadute due cose che non erano requisiti — non
+avevano un identificativo, e per questo si annotano qui, perché la scheda libro
+oggi mostra meno di ieri e la ragione non deve andare perduta:
+
+- **Le recensioni da fonti esterne** (blocco «Dalla critica»). Erano **238 voci
+  enciclopediche contro 14 recensioni vere di lettori**: una scheda in cui la
+  voce di fuori copre diciassette volte quella di dentro tradisce la promessa
+  dell'app, *la collana che leggi con gli amici*. La tabella `external_reviews`
+  **non è stata cancellata** — i dati restano, con attribuzione e licenza — ma
+  non si legge e non si scrive più.
+- **Le categorie nella scheda libro.** Sono slug interni: il lettore non li ha
+  chiesti e non aggiungono nulla accanto a una sinossi. Restano invece **tutti**
+  i requisiti su ricerca e generi (**G-1**…**G-5**), che poggiano sulla stessa
+  colonna `books.categories`: quella serve e non si tocca.
 
 ---
 

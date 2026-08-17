@@ -20,7 +20,7 @@ loved it.**
 | A Goodreads clone / cataloging tool | We do not compete on completeness of metadata, editions, or shelving taxonomy. The catalog is a means, not the product. |
 | A reading tracker with rich progress logging | Page-by-page progress, reading challenges, yearly goals → deferred / out of scope for beta. |
 | A long-form review platform | Reviews are short social reactions, not essays. Length is capped and rating-only posts are first-class. |
-| A store / e-reader | No in-app reading, no DRM, no cart. Purchase is a single affiliate hand-off. |
+| A store / e-reader | No DRM, no cart, **no purchase hand-off at all** since the Amazon affiliate link was removed (15 Aug 2026). Reading in-app is limited to legally free texts (Gutenberg / free Google ebooks). |
 | A chat / DM / realtime app | No direct messaging, no live presence in beta. |
 | An ML recommender | Recommendations are transparent SQL heuristics (see `ALGORITHMS.md`). ML is a swap-in, not a requirement. |
 
@@ -92,7 +92,7 @@ Legend: ✅ in-scope for that milestone · ⬚ not in that milestone · ➕ new 
 | Reporting + moderation lifecycle | ⬚ | ✅ | ✅ |
 | Analytics event sink | ⬚ | ✅ | ✅ |
 | Avatar upload to Storage | ⬚ | ✅ | ✅ |
-| Amazon affiliate hand-off (`amazon_affiliate_url`) | ⬚ | ✅ | ✅ |
+| ~~Amazon affiliate hand-off (`amazon_affiliate_url`)~~ — **withdrawn 15 Aug 2026** | ⬚ | ⬚ | ⬚ |
 | Gamification (XP, levels, streaks, badges) — *scaffold only* | ⬚ | ⬚ (design) | ✅ (activate) |
 | Premium / ad-free entitlement — *scaffold only* | ⬚ | ⬚ (dormant) | ✅ |
 | In-app ads | ⬚ | ⬚ (OFF) | ✅ |
@@ -139,8 +139,16 @@ A single book (`books.id`). Sections:
    rating. Writes are plain RLS-guarded upserts to `user_books` (canonical rating source).
 4. **Community reactions** — visible reviews for this book (`reviews` where `status='visible'`), each
    with author, rating, body, spoiler flag (blurred until tapped), like + comment counts, comments.
-5. **Buy** — affiliate button via `amazon_affiliate_url(isbn_13)`; hidden when no ISBN is known.
+5. **Read for free** — in-app reader (Gutenberg text) or external reader link, only when the book is
+   legally free; nothing is shown otherwise. The Amazon buy button that used to sit here was removed
+   on 15 Aug 2026: the stored affiliate tag was a `.com` tag while the links pointed at `amazon.it`,
+   so no conversion was ever attributed.
 6. **Description** — provider description text.
+
+Deliberately **not** on the page: category slugs (internal taxonomy, nothing a reader asked for next
+to a synopsis) and reviews sourced from encyclopedias — 238 of those against 14 real reader reviews,
+which inverts the promise of the product. Both removed 15 Aug 2026; see `SPECIFICA.md`
+("Requisiti ritirati").
 
 If the book is not yet in the catalog (arrived via search), the client triggers `ingest-book` to
 create/resolve the canonical row before rendering.

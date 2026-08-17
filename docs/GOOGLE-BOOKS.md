@@ -31,9 +31,13 @@ Pirandello ora risulta gratis via Google, oltre ai testi Gutenberg.
 
 ## Da valutare
 
-- **`saleInfo.buyLink` e `retailPrice`** — un link d'acquisto vero, con prezzo,
-  al posto della ricerca Amazon costruita a mano. Da soppesare: l'affiliazione
-  Amazon è una fonte di ricavo, il link Google no.
+- **`saleInfo.buyLink` e `retailPrice`** — un link d'acquisto vero, con prezzo.
+  Il confronto con Amazon non c'è più: il 15 agosto 2026 la ricerca Amazon
+  costruita a mano è stata rimossa del tutto (il tag memorizzato era `.com` e i
+  link puntavano su `amazon.it`, quindi non ha mai attribuito una conversione).
+  Oggi nella scheda **non c'è nessun link d'acquisto**, e se un giorno tornerà
+  questo è l'unico candidato: non rende niente, ma almeno porta all'edizione
+  giusta invece di una pagina di risultati.
 - **`orderBy=newest`** — una sezione "uscite recenti" senza doverla dedurre da
   `published_year`.
 - **`subject:"…"`** — riempire un genere con titoli veri invece di sperare che

@@ -94,8 +94,12 @@ await supabase.from('profiles').update({ onboarded_at: new Date().toISOString() 
 
 ```ts
 const { data } = await supabase.from('app_config').select('key, value');
-// { ads_enabled:false, amazon_affiliate_tag:'jacopoz-20', premium_enabled:false, min_app_version:'0.1.0' }
+// { ads_enabled:false, premium_enabled:false, min_app_version:'0.1.0' }
 ```
+`amazon_affiliate_tag` used to be in this payload; it was deleted on 15 Aug 2026 (`0077`) along with the
+Amazon hand-off (`0076`) — the stored tag was a `.com` Associates tag while the links pointed at
+`amazon.it`, so no conversion was ever attributed. Note that this `select` has **no key filter**: every
+row here reaches every client, which is why dead commercial config does not get to sit around.
 
 ---
 
@@ -172,13 +176,11 @@ const { data: premium } = await supabase.rpc('is_premium');
 ```
 Grants: `authenticated`.
 
-### amazon_affiliate_url(p_isbn) → text
-Builds an Amazon Associates search URL for an ISBN; tag from `app_config.amazon_affiliate_tag`
-(default `jacopoz-20`). Returns `null` when ISBN is empty → hide the buy button.
-```ts
-const { data: url } = await supabase.rpc('amazon_affiliate_url', { p_isbn: book.isbn_13 });
-```
-Grants: `authenticated`, `anon`.
+### ~~amazon_affiliate_url(p_isbn)~~ / ~~amazon_buy_url(p_book_id)~~ — removed
+Dropped on 15 Aug 2026 (migration `0076`) together with the "Compra su Amazon" button. The stored
+affiliate tag was a `.com` tag while the links pointed at `amazon.it`, so no conversion was ever
+attributed: the feature cost maintenance and returned nothing. There is no purchase hand-off in the
+app; the only outbound book link is the free-reading one (`free_read_url` / Gutenberg).
 
 ---
 
@@ -273,7 +275,7 @@ small, documented set; put context in `props`.
 | `review_created` | review inserted | `{ book_id, rating, length }` |
 | `review_liked` | `toggle_like` on a review → liked | `{ review_id }` |
 | `comment_created` | comment inserted | `{ review_id, is_reply }` |
-| `affiliate_click` | buy button tapped | `{ book_id, isbn_13 }` |
+| `affiliate_click` | **retired** (15 Aug 2026, with the Amazon button) — documented because rows already in `analytics_events` carry the name | `{ book_id, isbn_13 }` |
 | `search_performed` | `search_books` issued | `{ query_len, result_count }` |
 
 Additional useful (optional): `follow_added`, `feed_impression`, `reco_impression`, `content_reported`.

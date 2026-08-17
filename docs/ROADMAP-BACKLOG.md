@@ -4,6 +4,14 @@ Phased roadmap to a stable private beta, then a prioritized engineering TODO, th
 database backend is already built and validated (`supabase/migrations/0001..0010`, `seed.sql`,
 `functions/ingest-book`); remaining work is mostly app (`app/`) + glue + content.
 
+> **Note (15 Aug 2026) — one line of this plan was withdrawn.** Everything below about **affiliate
+> links** (Phase 5, and the P1 row "Affiliate button wired") is **superseded**: the Amazon hand-off was
+> built, then removed entirely — client and database — because the stored Associates tag (`jacopoz-20`)
+> is a `.com` tag while the links pointed at `amazon.it`, so no conversion was ever attributed. It did
+> not earn little, it earned nothing. Beta therefore ships with **no live revenue channel**. The
+> entries are left as written: this file records what we intended, and a plan edited after the fact
+> stops being evidence of anything. See `SPECIFICA.md` ("Requisiti ritirati") for the current state.
+
 ---
 
 ## 1. Phased roadmap
@@ -57,7 +65,7 @@ flowchart LR
 | Report UI (`report_content`) | safety from day one | S |
 | Basic moderator surface (list reports, `moderate_content`) | operability | M |
 | **Analytics event emission** (vocabulary in `API.md`) | measure activation/retention/engagement | M |
-| Affiliate button wired (`amazon_affiliate_url`, `affiliate_click` event) | only live revenue channel | S |
+| Affiliate button wired (`amazon_affiliate_url`, `affiliate_click` event) — *done, then **withdrawn** 15 Aug 2026 (see note at top)* | only live revenue channel | S |
 | Read `app_config` at launch (flags, min version) | remote control without app update | S |
 
 **P2 — nice to have before public**

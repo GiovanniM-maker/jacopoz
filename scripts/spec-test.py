@@ -603,14 +603,10 @@ def test_book():
     check("B-2", "un solo voto per utente per libro (vincolo di schema)",
           int(idx[0]["n"]) > 0, f"indici unici (user_id, book_id): {idx[0]['n']}")
 
-    # B-4: il link d'acquisto deve essere sensato e sul dominio italiano.
-    row = q("""
-      select public.amazon_buy_url(b.id) u from public.books b
-      where b.cover_url is not null order by b.reads_count desc limit 1;
-    """)
-    url = (row[0]["u"] if row else "") or ""
-    check("B-4", "«Compra su Amazon» punta al dominio italiano",
-          url.startswith("https://www.amazon.it/"), url[:80])
+    # B-4 non è più qui: il requisito è stato ritirato il 15 agosto 2026 perché
+    # il tag di affiliazione era un tag .com su link amazon.it, quindi nessuna
+    # conversione è mai stata attribuita. Vedi «Requisiti ritirati» in
+    # docs/SPECIFICA.md. L'identificativo resta un buco: non si rinumera.
 
     # B-3/C-5: le edizioni si raggiungono dalla scheda.
     ed = q("""
