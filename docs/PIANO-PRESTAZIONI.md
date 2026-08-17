@@ -268,3 +268,59 @@ Le scrivo perché un piano che elenca solo i difetti fa sembrare tutto rotto.
   altre cinque dietro `primoDisegno`. La struttura è giusta.
 - **Le intestazioni di cache su Vercel sono giuste**: `immutable` per un anno
   sugli asset statici, `must-revalidate` sul service worker.
+
+
+---
+
+## Esito, 15 agosto — cosa è stato fatto e cosa si è imparato
+
+**A-1 fatto, e il difetto era peggiore di come l'avevo scritto.** Il piano diceva
+che il caso del lettore autenticato «va misurato a parte». Misurato:
+**29.977 ms** per la carta «gratis» e **15.629 ms** per quella dei titoli
+recenti, contro un `statement_timeout` di 8 secondi. Non erano lente: **non
+arrivavano mai a nessuno che avesse uno scaffale.** Ora 9–102 ms (0075).
+
+**B-1 fatto**: `gcTime` allineato alle 24 ore del persister.
+
+**Lo strato di cache (0079, 0080): costruito, misurato, lasciato inutilizzato.**
+Le funzioni esistono e sono corrette; il client non le chiama. Il motivo è nei
+numeri:
+
+| lettura | prima | con l'indice | con la cache |
+|---|---|---|---|
+| nuove uscite | 353 – 3.992 ms | **0,1 ms** | 2,3 ms |
+| classifica | 409 – 437 ms | **4,3 ms** | 3,6 ms |
+| scheda libro | 1,8 – 49 ms | (chiave primaria) | 1,5 ms |
+
+Gli indici vincono. Sulle nuove uscite la cache è venti volte più lenta.
+
+I trigger di invalidazione restano attivi anche se nessuno legge la cache:
+misurati su 200 righe, **612 ms con e 647 ms senza** — cioè niente. Così il
+giorno in cui servisse, la cache è già corretta invece di essere da rifare.
+
+### Quattro indici che sembravano servire una query e non la servivano
+
+Il filo che tiene insieme quasi tutto il lavoro di questi due giorni:
+
+| indice | perché non veniva usato |
+|---|---|
+| `books_free_read_idx` | una condizione in più (`cover_url is not null`) che la query non chiede |
+| `books_popularity_idx` | espressione `(reads+saves+likes)` contro `(reads+saves+likes+reviews)` |
+| `books_paid_recent_idx` | nessun chiamante, dopo la rimozione della riga Home |
+| `books_new_releases_nl_idx` | **creato da me su una diagnosi sbagliata**, zero scansioni |
+
+L'ultimo merita di essere raccontato perché l'errore è mio e recente. Avevo
+misurato la query delle nuove uscite sull'endpoint REST — 710–3.091 ms — e
+concluso che l'indice non venisse usato. Quello che non avevo misurato è **quanto
+costa una chiamata HTTP qualunque** da quella postazione: 300–555 ms per una
+singola riga da una tabella di quindici. Il pavimento era quello. `idx_scan`
+diceva 22 scansioni sull'indice che credevo ignorato, e 0 su quello che avevo
+creato per rimediare.
+
+Stessa cosa dieci minuti dopo con i trigger: prima misura 10.330 ms contro
+1.787, quindi «costano 5,8 volte»; con un giro di riscaldamento e l'ordine
+invertito, 612 contro 647, cioè niente.
+
+**La regola che ne esce non è tecnica: un numero senza un controllo non è una
+misura.** Vale per i tempi HTTP quanto per i piani di query, e in entrambi i
+casi il controllo costava trenta secondi.
