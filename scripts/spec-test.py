@@ -364,7 +364,10 @@ def _autore_in_catalogo(surname):
 
 def test_import():
     if not ANON:
-        check("R-7", "un libro assente viene importato quando lo si cerca", False,
+        # `None`, non `False`: una chiave che manca all'ambiente non è un difetto
+        # del prodotto. Riportarlo rosso insegna a ignorare il rosso — è la
+        # regola scritta in `check()`, e qui era stata disattesa.
+        check("R-7", "un libro assente viene importato quando lo si cerca", None,
               "TOMO_ANON_KEY non impostata: test non eseguito")
         return
 
