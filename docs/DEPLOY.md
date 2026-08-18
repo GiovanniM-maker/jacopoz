@@ -79,7 +79,34 @@ Set the production Supabase env for the build profile (EAS secrets / `eas.json` 
 
 The repo ships a root `vercel.json` that builds the Expo web SPA from the `app/`
 subdirectory, so a Vercel project connected to the repo root needs **no build
-settings** — just environment variables. Every push to the branch triggers a deploy.
+settings** — just environment variables.
+
+### Production branch: `main`
+
+**Vercel → Project → Settings → Git → Production Branch → `main`.**
+
+Non è una preferenza di stile ed è l'unica impostazione di deploy che non sta in
+questo repository: `vercel.json` non ha un campo per dichiararla, quindi vive
+solo nel pannello di Vercel e va scritta qui perché qualcuno la sappia.
+
+Perché conta: fino al 18 agosto 2026 la branch di produzione era la branch di
+lavoro. Ogni `git push` andava **direttamente ai lettori**, senza che niente
+stesse in mezzo — la CI girava dopo, e una PR non era una prova di niente perché
+il codice era già live. In quel periodo sono passate in produzione senza
+fermarsi quattro RPC che nessun lettore poteva chiamare (0084).
+
+Con `main` come produzione:
+
+- un push sulla branch di lavoro produce un **deploy di anteprima**, con un suo
+  URL, che è il posto giusto per guardare una modifica prima che la veda qualcuno;
+- la produzione cambia **solo** quando qualcosa entra in `main`, cioè dopo che i
+  controlli sono verdi;
+- `l-app-risponde` continua a controllare l'URL di produzione — che dopo il
+  cambio è quello costruito da `main`, ed è ciò che si vuole sorvegliare.
+
+Le variabili d'ambiente vanno impostate per **Production e Preview** entrambe
+(sotto), altrimenti gli URL di anteprima costruiscono un bundle senza chiavi e
+sembrano rotti per un motivo che non c'entra con la modifica.
 
 `vercel.json` (already committed) sets:
 

@@ -343,29 +343,6 @@ una CI al momento del push invece che ore dopo.
 che esegue la suite contro produzione. La chiave anon serve come segreto del
 repository, non nel codice.
 
-### D-4 · L'allarme campiona ogni 25–40 minuti, non ogni 10
-
-**Impatto: medio. Costo: dipende da cosa si vuole.**
-
-Il 18 agosto ho fermato la base dati **due volte** lavorando ai filoni (vedi
-A-4). Il lavoro pianificato `l-app-risponde` è passato in mezzo ai due guasti e
-ha riportato verde. Non è un difetto del controllo: è la sua cadenza vera.
-
-```
-esecuzioni del 18 agosto   06:17 · 07:09 · 07:52 · 08:32 · 09:06 · 09:46 · 10:11 · 10:49
-distanza fra due           52 · 43 · 40 · 34 · 40 · 25 · 38 minuti
-```
-
-Il `cron` dice `*/10`. GitHub non garantisce la puntualità dei lavori pianificati
-e nei fatti li dirada di tre o quattro volte — cosa che il commento in
-`monitor.yml` prevedeva («spesso ritarda») ma senza un numero. Ora il numero c'è:
-**la finestra cieca è di mezz'ora**, e un guasto di sei minuti ci passa dentro
-senza essere visto.
-
-Va bene per ciò per cui è stato costruito — un'indisponibilità di due ore non
-sfugge. Non va bene per accorgersi di un guasto breve. Se serve quello, il
-controllo non può stare su un `cron` di GitHub.
-
 ### D-3 · Fino a 24 ore di dati a rischio
 **Impatto: medio ora, alto dopo il lancio. Costo: soldi.**
 
@@ -532,14 +509,45 @@ che dica perché. Il criterio guarda il commento attaccato all'istruzione e non
 una finestra fissa di righe — la prima versione ne guardava sei e bocciava un
 commento di otto scritto bene.
 
+### D-5 · L'allarme campiona ogni 25–40 minuti, non ogni 10
+
+**Impatto: medio. Costo: dipende da cosa si vuole.**
+
+Il 18 agosto ho fermato la base dati **due volte** lavorando ai filoni (vedi
+A-4). Il lavoro pianificato `l-app-risponde` è passato in mezzo ai due guasti e
+ha riportato verde. Non è un difetto del controllo: è la sua cadenza vera.
+
+```
+esecuzioni del 18 agosto   06:17 · 07:09 · 07:52 · 08:32 · 09:06 · 09:46 · 10:11 · 10:49
+distanza fra due           52 · 43 · 40 · 34 · 40 · 25 · 38 minuti
+```
+
+Il `cron` dice `*/10`. GitHub non garantisce la puntualità dei lavori pianificati
+e nei fatti li dirada di tre o quattro volte — cosa che il commento in
+`monitor.yml` prevedeva («spesso ritarda») ma senza un numero. Ora il numero c'è:
+**la finestra cieca è di mezz'ora**, e un guasto di sei minuti ci passa dentro
+senza essere visto.
+
+Va bene per ciò per cui è stato costruito — un'indisponibilità di due ore non
+sfugge. Non va bene per accorgersi di un guasto breve. Se serve quello, il
+controllo non può stare su un `cron` di GitHub.
+
 ### Resta aperto
 
-- **La production branch di Vercel è il ramo di lavoro, non `main`.** Due click
-  nel pannello, e sono i tuoi: finché è così, il prossimo ramo va in produzione
-  appena viene spinto e `main` non conta niente.
+- **La production branch di Vercel.** Due click nel pannello, e sono i tuoi:
+  *Settings → Git → Production Branch → `main`*. È l'unica impostazione di
+  deploy che non sta nel repository — `vercel.json` non ha un campo per
+  dichiararla — quindi è scritta in `docs/DEPLOY.md`, dove c'è anche il perché.
+  Finché è il ramo di lavoro, il prossimo ramo va in produzione appena viene
+  spinto e `main` non conta niente. Ricordarsi di impostare le variabili
+  d'ambiente anche per **Preview**, altrimenti le anteprime costruiscono un
+  bundle senza chiavi e sembrano rotte per il motivo sbagliato.
 - **A-2**: `get_home_sections` fra 1 e 3 secondi, da strumentare prima di
   toccarla.
 - **B-2**: la divisione del bundle, incerta e da misurare.
 - **B-3**: le copertine che si ridisegnano tutte a ogni lotto risolto.
 - **D-3**: ripristino puntuale disattivato.
 - **D-4**: le chiavi da ruotare.
+- **D-5**: la finestra cieca di mezz'ora dell'allarme. Va bene per un'
+  indisponibilità di due ore, non per una di sei minuti; se serve la seconda, il
+  controllo non può stare su un `cron` di GitHub.
