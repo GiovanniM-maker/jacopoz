@@ -37,6 +37,19 @@ const PRECONNECT = SUPABASE_ORIGIN
 
 const BUILD_ID = String(Date.now());
 
+// Quale commit è in produzione? Fino al 18 agosto 2026 questa domanda non aveva
+// risposta dall'esterno: il marcatore conteneva solo un istante, che dice
+// «quando» ma non «cosa». È diventato un problema il giorno in cui si è dovuto
+// verificare se la produzione di Vercel puntasse davvero a `main` — un timestamp
+// da solo non distingue «l'impostazione non è cambiata» da «è cambiata dopo
+// l'ultimo build».
+//
+// Vercel espone il commit e il ramo come variabili di build. In locale non ci
+// sono, e va bene: lì il marcatore resta il solo istante.
+const COMMIT = (process.env.VERCEL_GIT_COMMIT_SHA || "").slice(0, 7);
+const REF = process.env.VERCEL_GIT_COMMIT_REF || "";
+const MARCATORE = [BUILD_ID, COMMIT, REF].filter(Boolean).join(" ");
+
 // 1. Stamp the build id into the service worker (rotates the cache per deploy).
 const swPath = "dist/sw.js";
 try {
@@ -69,7 +82,7 @@ const reg =
   "}).catch(function(){})})}";
 
 const head = `
-    <meta name="tomo-build" content="${BUILD_ID}" />
+    <meta name="tomo-build" content="${MARCATORE}" />
 ${PRECONNECT}
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#ECE1C8" />
