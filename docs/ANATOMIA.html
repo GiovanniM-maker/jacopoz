@@ -1,0 +1,900 @@
+<title>Anatomia di Tomo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=JetBrains+Mono:wght@400;600&display=swap" />
+
+<style>
+  :root {
+    --carta:       #ECE1C8;
+    --carta-alta:  #F5EEDE;
+    --carta-bassa: #DCCFB2;
+    --inchiostro:  #1B1610;
+    --grigio:      #5B5344;
+    --tenue:       #857B67;
+    --filo:        #C8B896;
+
+    --dorso-1: #D9531E;
+    --dorso-2: #1C3C86;
+    --dorso-3: #216F60;
+    --dorso-4: #BE3327;
+    --dorso-5: #E3A11F;
+    --dorso-6: #7A2E4A;
+    --oro:     #9A7415;
+
+    --buono:   #216F60;
+    --allarme: #BE3327;
+
+    --misura: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --carta:       #14110C;
+      --carta-alta:  #1E1912;
+      --carta-bassa: #2A2318;
+      --inchiostro:  #EFE7DA;
+      --grigio:      #B4A88F;
+      --tenue:       #8A7F69;
+      --filo:        #3A3122;
+
+      --dorso-1: #F0764A;
+      --dorso-2: #7C97E0;
+      --dorso-3: #5FB39C;
+      --dorso-4: #E4705F;
+      --dorso-5: #EFC059;
+      --dorso-6: #C07293;
+      --oro:     #D2A93A;
+
+      --buono:   #5FB39C;
+      --allarme: #E4705F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --carta:       #14110C;
+    --carta-alta:  #1E1912;
+    --carta-bassa: #2A2318;
+    --inchiostro:  #EFE7DA;
+    --grigio:      #B4A88F;
+    --tenue:       #8A7F69;
+    --filo:        #3A3122;
+    --dorso-1: #F0764A;
+    --dorso-2: #7C97E0;
+    --dorso-3: #5FB39C;
+    --dorso-4: #E4705F;
+    --dorso-5: #EFC059;
+    --dorso-6: #C07293;
+    --oro:     #D2A93A;
+    --buono:   #5FB39C;
+    --allarme: #E4705F;
+  }
+
+  :root[data-theme="light"] {
+    --carta:       #ECE1C8;
+    --carta-alta:  #F5EEDE;
+    --carta-bassa: #DCCFB2;
+    --inchiostro:  #1B1610;
+    --grigio:      #5B5344;
+    --tenue:       #857B67;
+    --filo:        #C8B896;
+    --dorso-1: #D9531E;
+    --dorso-2: #1C3C86;
+    --dorso-3: #216F60;
+    --dorso-4: #BE3327;
+    --dorso-5: #E3A11F;
+    --dorso-6: #7A2E4A;
+    --oro:     #9A7415;
+    --buono:   #216F60;
+    --allarme: #BE3327;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--carta);
+    color: var(--inchiostro);
+    font-family: "Newsreader", Georgia, "Times New Roman", serif;
+    font-size: 18px;
+    line-height: 1.62;
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .foglio {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  /* ---------- testata ---------- */
+  .testata {
+    border-bottom: 3px solid var(--inchiostro);
+    padding: 40px 0 18px;
+    margin-bottom: 8px;
+  }
+  .riga-testata {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--grigio);
+  }
+  h1 {
+    font-family: "Anton", "Arial Narrow", Impact, sans-serif;
+    font-weight: 400;
+    font-size: clamp(52px, 12vw, 116px);
+    line-height: 0.86;
+    letter-spacing: -0.015em;
+    text-transform: uppercase;
+    margin: 18px 0 14px;
+    text-wrap: balance;
+  }
+  .sottotesta {
+    font-size: clamp(19px, 2.4vw, 24px);
+    line-height: 1.4;
+    font-style: italic;
+    color: var(--grigio);
+    max-width: 46ch;
+    margin: 0 0 12px;
+  }
+
+  /* ---------- sommario ---------- */
+  .sommario {
+    border: 2px solid var(--inchiostro);
+    background: var(--carta-alta);
+    padding: 22px 24px;
+    margin: 36px 0 56px;
+  }
+  .sommario h2 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+    color: var(--grigio);
+    border: 0;
+    padding: 0;
+  }
+  .sommario ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 4px 28px;
+    counter-reset: fasc;
+  }
+  .sommario li { counter-increment: fasc; }
+  .sommario a {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    color: var(--inchiostro);
+    text-decoration: none;
+    padding: 3px 0;
+    border-bottom: 1px solid transparent;
+  }
+  .sommario a:hover, .sommario a:focus-visible {
+    border-bottom-color: var(--inchiostro);
+  }
+  .sommario a::before {
+    content: counter(fasc, decimal-leading-zero);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    color: var(--tenue);
+    flex: none;
+  }
+
+  /* ---------- sezioni ---------- */
+  section { margin: 0 0 64px; scroll-margin-top: 20px; }
+
+  h2 {
+    font-family: "Anton", "Arial Narrow", Impact, sans-serif;
+    font-weight: 400;
+    font-size: clamp(28px, 4.6vw, 42px);
+    line-height: 1.02;
+    letter-spacing: 0.005em;
+    text-transform: uppercase;
+    margin: 0 0 20px;
+    padding-left: 16px;
+    border-left: 8px solid var(--dorso-1);
+    text-wrap: balance;
+  }
+  section:nth-of-type(6n+2) h2 { border-left-color: var(--dorso-2); }
+  section:nth-of-type(6n+3) h2 { border-left-color: var(--dorso-3); }
+  section:nth-of-type(6n+4) h2 { border-left-color: var(--dorso-4); }
+  section:nth-of-type(6n+5) h2 { border-left-color: var(--dorso-5); }
+  section:nth-of-type(6n)   h2 { border-left-color: var(--dorso-6); }
+
+  h3 {
+    font-family: "Newsreader", Georgia, serif;
+    font-weight: 600;
+    font-size: 23px;
+    line-height: 1.25;
+    margin: 38px 0 10px;
+    text-wrap: balance;
+  }
+  h4 {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--grigio);
+    margin: 28px 0 8px;
+  }
+
+  p, ul, ol { max-width: var(--misura); }
+  p { margin: 0 0 16px; }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; }
+  li { margin: 0 0 7px; }
+
+  a { color: var(--oro); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  strong { font-weight: 700; }
+  em { font-style: italic; }
+
+  code {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 0.85em;
+    background: var(--carta-bassa);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+
+  /* ---------- blocchi dati ---------- */
+  .dati {
+    overflow-x: auto;
+    margin: 0 0 22px;
+    border: 1px solid var(--filo);
+    background: var(--carta-alta);
+  }
+  .dati pre {
+    margin: 0;
+    padding: 16px 18px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    font-variant-numeric: tabular-nums;
+    white-space: pre;
+  }
+
+  .tabella { overflow-x: auto; margin: 0 0 24px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 480px;
+    font-size: 15px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--filo);
+    vertical-align: top;
+  }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grigio);
+    border-bottom: 2px solid var(--inchiostro);
+    white-space: nowrap;
+  }
+  td.num { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ---------- richiami ---------- */
+  .nota {
+    border-left: 3px solid var(--filo);
+    padding: 2px 0 2px 18px;
+    margin: 0 0 22px;
+    max-width: var(--misura);
+    color: var(--grigio);
+    font-size: 17px;
+  }
+  .nota p:last-child { margin-bottom: 0; }
+
+  .lezione {
+    border: 2px solid var(--inchiostro);
+    background: var(--carta-alta);
+    padding: 18px 20px;
+    margin: 0 0 24px;
+    max-width: var(--misura);
+  }
+  .lezione p:last-child { margin-bottom: 0; }
+  .lezione .etichetta {
+    display: block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--grigio);
+    margin-bottom: 8px;
+  }
+
+  .cifre {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px;
+    background: var(--filo);
+    border: 1px solid var(--filo);
+    margin: 0 0 26px;
+  }
+  .cifra { background: var(--carta-alta); padding: 14px 16px; }
+  .cifra .valore {
+    display: block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 25px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  .cifra .voce {
+    display: block;
+    font-size: 13px;
+    color: var(--grigio);
+    margin-top: 3px;
+    line-height: 1.3;
+  }
+
+  .pillola {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    vertical-align: 1px;
+  }
+  .pillola.ok { color: var(--buono); }
+  .pillola.ko { color: var(--allarme); }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--filo);
+    margin: 40px 0;
+  }
+
+  .chiusa {
+    border-top: 3px solid var(--inchiostro);
+    margin-top: 20px;
+    padding-top: 18px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--grigio);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    justify-content: space-between;
+  }
+
+  a:focus-visible, .sommario a:focus-visible {
+    outline: 2px solid var(--oro);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 17px; }
+    .foglio { padding: 0 16px 64px; }
+  }
+</style>
+
+<div class="foglio">
+
+  <header class="testata">
+    <div class="riga-testata">
+      <span>Tomo · documento tecnico</span>
+      <span>18 agosto 2026 · migrazione 0089</span>
+    </div>
+    <h1>Anatomia<br />di Tomo</h1>
+    <p class="sottotesta">Come è fatta l'app, come funziona davvero, e perché ogni pezzo è così — compresi i punti in cui si rompe.</p>
+    <div class="riga-testata">
+      <span>69.061 libri · 8.402 in italiano · 40 filoni</span>
+      <span>Postgres 17.6 · 90 migrazioni · 144 funzioni</span>
+    </div>
+  </header>
+
+  <nav class="sommario" aria-label="Sommario">
+    <h2>Sommario</h2>
+    <ol>
+      <li><a href="#cose">Che cos'è Tomo</a></li>
+      <li><a href="#architettura">L'architettura in una pagina</a></li>
+      <li><a href="#dati">Il modello dei dati</a></li>
+      <li><a href="#ricerca">La ricerca</a></li>
+      <li><a href="#catalogo">Come si riempie il catalogo</a></li>
+      <li><a href="#home">La Home, riga per riga</a></li>
+      <li><a href="#consigli">Come si formano i consigli</a></li>
+      <li><a href="#filoni">I filoni</a></li>
+      <li><a href="#recensioni">Recensioni, opere, social</a></li>
+      <li><a href="#lettura">La lettura in-app</a></li>
+      <li><a href="#sicurezza">Sicurezza</a></li>
+      <li><a href="#operazioni">Come si tiene in piedi</a></li>
+      <li><a href="#limiti">I limiti misurati</a></li>
+      <li><a href="#rotture">Come si rompe questa app</a></li>
+      <li><a href="#aperto">Cosa resta aperto</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section id="cose">
+    <h2>Che cos'è Tomo</h2>
+
+    <p>Un'app per scoprire libri <strong>attraverso le persone</strong>. Non un catalogo con sopra delle recensioni: un flusso di lettori di cui ti fidi, da cui i libri emergono. Il nome mette insieme <em>tomo</em> (libro, in italiano) e <em>tomodachi</em> (amico, in giapponese). La promessa: <em>la collana che leggi con gli amici</em>.</p>
+
+    <p>Il pubblico sono lettori italiani. Il catalogo è multilingua per necessità — i provider da cui arriva è così — ma <strong>la lingua di lettura è il centro di gravità di tutto ciò che si vede</strong>, e da agosto 2026 le vetrine mostrano solo italiano mentre la ricerca continua a trovare tutto.</p>
+
+    <p>Oggi è una beta privata con diciannove profili registrati e tre lettori attivi. Questo numero non è un dettaglio da bilancio: è la ragione per cui metà dei segnali su cui un'app di scoperta normalmente si regge — quante volte un libro è stato letto, salvato, votato — <strong>vale zero</strong>, e diversi pezzi del sistema sono stati progettati o corretti attorno a quel vuoto.</p>
+
+    <div class="cifre">
+      <div class="cifra"><span class="valore">69.061</span><span class="voce">libri in catalogo</span></div>
+      <div class="cifra"><span class="valore">8.402</span><span class="voce">in italiano (12%)</span></div>
+      <div class="cifra"><span class="valore">33.530</span><span class="voce">leggibili gratis</span></div>
+      <div class="cifra"><span class="valore">1.385</span><span class="voce">con una sinossi</span></div>
+      <div class="cifra"><span class="valore">14</span><span class="voce">recensioni scritte</span></div>
+      <div class="cifra"><span class="valore">19</span><span class="voce">profili</span></div>
+    </div>
+
+    <p>Le quattro schermate principali sono <strong>Home</strong> (le vetrine e i consigli), <strong>Comunità</strong> (i due feed), <strong>Crea</strong> (scrivere una recensione) e <strong>Profilo</strong> (scaffali e recensioni). Attorno ci sono la ricerca, la scheda libro, il lettore in-app, le liste, le notifiche e le pagine legali.</p>
+  </section>
+
+  <!-- 2 -->
+  <section id="architettura">
+    <h2>L'architettura in una pagina</h2>
+
+    <p>Tre pezzi, e nessun server applicativo in mezzo.</p>
+
+    <div class="tabella">
+      <table>
+        <thead>
+          <tr><th>Pezzo</th><th>Cos'è</th><th>Dove gira</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Client</strong></td><td>React Native / Expo, esportato per il web come SPA</td><td>Vercel, <code>jacopoz.vercel.app</code></td></tr>
+          <tr><td><strong>Dati e logica</strong></td><td>Postgres 17.6 con pgvector, pg_cron, pg_net, RLS</td><td>Supabase, eu-west-1, piano Pro, compute <strong>Micro</strong></td></tr>
+          <tr><td><strong>Lavori esterni</strong></td><td>5 Edge Function in Deno/TypeScript</td><td>Supabase Edge</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Il client non parla con un backend nostro: parla direttamente con Postgres attraverso PostgREST, chiamando <strong>funzioni SQL</strong>. Questo è il fatto architetturale più importante del progetto, e ha tre conseguenze che tornano ovunque in questo documento.</p>
+
+    <ul>
+      <li><strong>La logica di prodotto sta nel database.</strong> Cosa mostra la Home, come si ordina un consiglio, quali libri finiscono in una riga: tutto è plpgsql. Ci sono 144 funzioni nello schema <code>public</code>, di cui 33 <code>internal_*</code> non richiamabili dal client.</li>
+      <li><strong>I permessi sono l'unica difesa.</strong> Non esiste uno strato applicativo che possa filtrare: se una riga è leggibile, è leggibile. Da qui la RLS su 31 tabelle con 66 policy, e i permessi colonna per colonna su <code>books</code>.</li>
+      <li><strong>Il timeout di istruzione è un limite di prodotto.</strong> <code>anon</code> ha <code>statement_timeout = 3s</code>, <code>authenticated</code> 8s. Una query più lenta non dà un errore: viene cancellata, e il client riceve una risposta vuota. Metà dei difetti storici di questa app sono questo.</li>
+    </ul>
+
+    <h3>Le cinque Edge Function</h3>
+    <div class="tabella">
+      <table>
+        <thead><tr><th>Funzione</th><th>Cosa fa</th></tr></thead>
+        <tbody>
+          <tr><td><code>ingest-book</code></td><td>Importa libri dai provider (Google Books, Open Library, Gutenberg) e li normalizza in catalogo</td></tr>
+          <tr><td><code>blurbs</code></td><td>Prende da Google Books la quarta di copertina dei libri che non ce l'hanno</td></tr>
+          <tr><td><code>synopsis</code></td><td>Genera una sinossi con un modello linguistico, <strong>solo</strong> se c'è del materiale vero su cui poggiare</td></tr>
+          <tr><td><code>read</code></td><td>Serve il testo di un libro di pubblico dominio da Gutenberg</td></tr>
+          <tr><td><code>send-push</code></td><td>Notifiche push</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Le Edge Function leggono con la <em>service key</em>, quindi i permessi non le proteggono: lì è il codice a dover decidere cosa mettere nella risposta. È un invariante scritto nella specifica (<code>S-5</code>) perché è stato violato una volta, con <code>select("*")</code> che faceva uscire il testo dell'editore verso il client.</p>
+  </section>
+
+  <!-- 3 -->
+  <section id="dati">
+    <h2>Il modello dei dati</h2>
+
+    <p>Il centro è <code>books</code>: 48 colonne, 69.061 righe, <strong>467 MB</strong> fra tabella e indici. È l'unico oggetto grande del sistema — tutto il resto sta sotto il megabyte.</p>
+
+    <h3>Edizione, opera, filone</h3>
+    <p>Un libro fisico è un'<strong>edizione</strong>. Due edizioni dello stesso testo — l'Adelphi e l'Einaudi delle <em>Notti bianche</em> — sono due righe in <code>books</code>, ma una sola <strong>opera</strong>. L'identità dell'opera è <code>work_id</code>, un uuid derivato in modo deterministico da titolo normalizzato e autore.</p>
+
+    <p>Perché conta: <strong>una recensione parla dell'opera, non dell'edizione</strong>. Chi apre l'Adelphi vede la recensione scritta sull'Einaudi, il conteggio è lo stesso su entrambe le schede, e lo stesso lettore non può recensire due volte lo stesso libro passando da un'edizione diversa. L'edizione da cui la recensione è stata scritta resta registrata, perché è informazione vera, ma non è il punto di attacco.</p>
+
+    <div class="nota">
+      <p>Su 69.061 libri ci sono 68.900 opere distinte: il catalogo ha pochissime edizioni multiple. Il meccanismo serve comunque, perché le edizioni multiple sono <em>esattamente</em> i libri famosi, cioè quelli che qualcuno recensirà.</p>
+    </div>
+
+    <p>Il <strong>filone</strong> è un terzo livello, e non viene dalla catalogazione: è un gruppo emerso dagli embedding. Ne parla il fascicolo 8.</p>
+
+    <h3>Gli embedding</h3>
+    <p>Ogni libro ha un vettore a <strong>512 dimensioni</strong> calcolato su un testo costruito così:</p>
+    <div class="dati"><pre>titolo — autori. categorie. (sinossi oppure quarta di copertina)</pre></div>
+
+    <p>Il vettore è conservato come <code>vector(512)</code> e confrontato come <code>halfvec(512)</code>, con un indice HNSW da 91 MB. La differenza fra i due tipi non è un dettaglio: <code>avg()</code> lavora su <code>vector</code>, quindi le medie si fanno a piena precisione e si accorcia solo al confronto.</p>
+
+    <p><strong>Il punto debole di tutto il sistema semantico sta qui</strong>: solo 1.385 libri su 69.061 hanno una sinossi. Per il 98% del catalogo l'embedding è calcolato su titolo, autori e categorie — cioè su una manciata di parole. I filoni, i consigli semantici e i «simili a questo» sono buoni quanto quel testo, e quel testo per quasi tutti è povero.</p>
+
+    <h3>Le altre tabelle che contano</h3>
+    <div class="tabella">
+      <table>
+        <thead><tr><th>Tabella</th><th>Cosa tiene</th></tr></thead>
+        <tbody>
+          <tr><td><code>profiles</code></td><td>Il profilo pubblico, e la lingua di lettura</td></tr>
+          <tr><td><code>user_books</code></td><td>Lo scaffale: stato (letto / in lettura / da leggere), voto, «mi piace»</td></tr>
+          <tr><td><code>reviews</code></td><td>Le recensioni, agganciate a <code>work_id</code> con unicità <code>(user_id, work_id)</code></td></tr>
+          <tr><td><code>book_clusters</code></td><td>I 40 filoni: centroide, dimensione, etichetta</td></tr>
+          <tr><td><code>user_taste_clusters</code></td><td>I gruppi di gusto di un lettore, ricalcolati ogni notte</td></tr>
+          <tr><td><code>book_read_progress</code></td><td>Posizione di lettura e segnaposto</td></tr>
+          <tr><td><code>cache_entries</code></td><td>Uno store chiave/valore con scadenza, oggi non usato (vedi fascicolo 13)</td></tr>
+          <tr><td><code>genres</code></td><td>52 generi con nome italiano e sinonimi, sopra 19 slug reali</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="ricerca">
+    <h2>La ricerca</h2>
+
+    <p>Quattro schede — libri, autori, generi, utenti — e per i libri quattro filtri di lingua che <strong>non fanno tutti la stessa cosa</strong>: «La mia lingua» è una preferenza morbida che riordina, «Italiano» e «Inglese» sono filtri netti che escludono, «Tutte» non fa niente. La distinzione è scritta nella specifica perché un filtro che ordina soltanto è un filtro rotto: è la differenza fra «preferisco» e «voglio solo».</p>
+
+    <h3>Come trova</h3>
+    <p>Due strati sovrapposti. Prima la ricerca full-text sul <code>tsvector</code> di titolo, sottotitolo e autori. Poi, se quella non basta, il confronto per trigrammi con indici GIN, che è ciò che regge i refusi.</p>
+
+    <p>Il requisito è esplicito: <strong>nessuna ricerca deve richiedere la formulazione esatta</strong>. Devono funzionare i refusi (<code>orgolio e pregiudizio</code>), le parole troncate (<code>dostoev</code>), l'ordine invertito (<code>pregiudizio orgoglio</code>), gli accenti mancanti (<code>dialoghi con leuco</code>), autore e titolo mescolati (<code>murgia accabadora</code>), il solo cognome (<code>simenon</code>).</p>
+
+    <h3>Quando il catalogo non ce l'ha</h3>
+    <p>Se i risultati locali non contengono <em>ogni parola significativa</em> della query, l'app chiede ai provider e aggiorna la lista da sola. Il criterio è la pertinenza, non il numero di risultati: dieci libri sbagliati non sono una risposta.</p>
+
+    <p>Lo stesso import porta in catalogo anche i <strong>libri vicini</strong>: altre opere dello stesso autore, altri titoli sullo stesso soggetto. L'espansione parte da ciò che è stato davvero salvato — non dalla lista grezza del provider, che comincia con i risultati Gutenberg e porterebbe a espandere attorno all'autore sbagliato.</p>
+
+    <div class="nota">
+      <p><strong>Limite noto.</strong> Molte traduzioni italiane non esistono presso i provider: Google Books ha <em>The Goldfinch</em> ma non <em>Il cardellino</em>. Cercare il titolo italiano di un libro straniero può quindi importare solo l'edizione originale. Non è un difetto dell'import, è il catalogo di Google.</p>
+    </div>
+
+    <h3>Il difetto che ha definito questo progetto</h3>
+    <div class="lezione">
+      <span class="etichetta">Come si è rotta, e cosa ha insegnato</span>
+      <p>Per giorni «gli amici non trovano certi libri». La ricerca sembrava vuota. Non era vuota: era <strong>lenta</strong>. Superato il <code>statement_timeout</code>, Postgres cancella la query e PostgREST restituisce una risposta senza righe — indistinguibile da «non c'è niente».</p>
+      <p>Da lì viene il requisito <code>R-5</code>: <strong>ogni ricerca risponde entro un secondo nel caso peggiore</strong>. Non è un obiettivo di prestazioni, è un obiettivo di verità: sopra quella soglia l'app comincia a mentire.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="catalogo">
+    <h2>Come si riempie il catalogo</h2>
+
+    <p>Il catalogo non è stato caricato una volta: cresce, e viene arricchito da una catena di lavori pianificati. Ce ne sono <strong>diciassette</strong>, tutti in <code>pg_cron</code>.</p>
+
+    <h3>La catena</h3>
+    <div class="tabella">
+      <table>
+        <thead><tr><th>Passo</th><th>Cadenza</th><th>Cosa fa</th></tr></thead>
+        <tbody>
+          <tr><td>import</td><td>a richiesta</td><td>Una ricerca senza risposta chiama <code>ingest-book</code></td></tr>
+          <tr><td><code>enrich-enqueue</code> / <code>-ingest</code></td><td>2×/ora</td><td>Copertine, anno, pagine, identificativi esterni</td></tr>
+          <tr><td><code>blurb-backfill</code></td><td>ogni 15′</td><td>Quarta di copertina da Google Books</td></tr>
+          <tr><td><code>synopsis-backfill</code></td><td>ogni 10′</td><td>Sinossi generata, se c'è materiale</td></tr>
+          <tr><td><code>infer-categories</code></td><td>2×/ora</td><td>Assegna le categorie ai libri che non ne hanno</td></tr>
+          <tr><td><code>embed-enqueue</code> / <code>-ingest</code></td><td>ogni 15′</td><td>Calcola gli embedding mancanti</td></tr>
+          <tr><td><code>reembed-changed</code></td><td>ogni 15′</td><td>Rifà l'embedding dei libri il cui testo è cambiato</td></tr>
+          <tr><td><code>cluster-new-books</code></td><td>2×/ora</td><td>Mette i libri nuovi in un filone</td></tr>
+          <tr><td><code>taste-clusters</code></td><td>ogni notte</td><td>Ricalcola i gruppi di gusto dei lettori</td></tr>
+          <tr><td><code>fix-obvious-language</code></td><td>ogni notte</td><td>Corregge la lingua quando è palesemente sbagliata</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Le quarte di copertina, e la quota</h3>
+    <p>Google Books dà 1.000 chiamate al giorno, e il numero è stato <strong>misurato</strong> lasciando esaurire la quota, non letto in una documentazione. Il sistema tiene un registro giornaliero e si ferma a 600, riservando le restanti 400 alle ricerche dei lettori — perché lo stesso identificativo serve sia al backfill sia all'import interattivo, e un backfill goloso lascia un lettore senza risposta.</p>
+
+    <p>La scelta di quale descrizione tenere fra quelle che Google restituisce è un modulo a parte, con i suoi test su payload catturati su disco: riconosce la lingua contando marcatori con un margine (uno spagnolo era stato accettato come italiano, un danese dichiarato italiano), scarta il testo spazzatura, e verifica che il titolo corrisponda davvero.</p>
+
+    <h3>Le sinossi, e il motivo per cui quasi non esistono</h3>
+    <div class="lezione">
+      <span class="etichetta">Come si è rotta, e cosa ha insegnato</span>
+      <p>Le prime 32 sinossi generate sono state controllate una per una: <strong>26 erano inventate</strong>. A <em>Oblivion</em> era stata attribuita la trama di <em>Infinite Jest</em>. Il modello, non avendo materiale, aveva scritto qualcosa di plausibile.</p>
+      <p>La correzione non è stata chiedere meglio nel prompt: è stata un <strong>cancello</strong>. Nessuna sinossi viene generata se il libro non ha almeno 100 caratteri di materiale reale — quarta di copertina o descrizione dell'editore. Le 26 sono state ritirate e i loro embedding azzerati.</p>
+      <p>Il prezzo di quella regola è visibile nei numeri: 1.385 sinossi su 69.061 libri. È il prezzo giusto.</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="home">
+    <h2>La Home, riga per riga</h2>
+
+    <p>Dall'alto verso il basso, e ognuna è calcolata da una funzione diversa.</p>
+
+    <div class="tabella">
+      <table>
+        <thead><tr><th>Riga</th><th>Da dove viene</th><th>Come si ordina</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Continua a leggere</strong></td><td><code>get_continue_reading</code></td><td>I libri iniziati, con la percentuale</td></tr>
+          <tr><td><strong>Il numero del mese</strong></td><td>il primo consiglio, o la classifica</td><td>—</td></tr>
+          <tr><td><strong>Consigliati per te</strong></td><td><code>get_recommendations</code></td><td>Cinque segnali pesati, poi diversificazione</td></tr>
+          <tr><td><strong>Gratis, consigliati per te</strong></td><td><code>get_reco_by_availability</code></td><td>Vicinanza al gusto, fra i libri leggibili subito</td></tr>
+          <tr><td><strong>Top 10 su Tomo oggi</strong></td><td><code>get_trending_seeded</code></td><td>Popolarità mescolata con un seme di sessione</td></tr>
+          <tr><td><strong>Sezioni con un nome</strong></td><td><code>get_home_sections</code></td><td>Cinque estratte a sorte da un serbatoio</td></tr>
+          <tr><td><strong>Riga di genere</strong></td><td>lettura diretta su <code>books</code></td><td>I generi scelti all'iscrizione</td></tr>
+          <tr><td><strong>Nuove uscite</strong></td><td>lettura diretta su <code>books</code></td><td>Anno di pubblicazione</td></tr>
+          <tr><td><strong>Continua a scoprire</strong></td><td>coda infinita dei consigli</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Le sezioni con un nome</h3>
+    <p><code>get_home_sections</code> costruisce un serbatoio di «specifiche» e ne <strong>estrae cinque a sorte</strong> col seme della sessione, così una schermata non è mai identica alla precedente. Le specifiche sono di sei tipi: «Perché hai letto <em>X</em>», «Ancora <em>autore</em>», «Il tuo filone: <em>…</em>», «Classici da leggere gratis», «Brevi: finiscili in una sera», «Piccole gemme da scoprire».</p>
+
+    <div class="lezione">
+      <span class="etichetta">Come si è rotta, e cosa ha insegnato</span>
+      <p>Il sorteggio ha una conseguenza che non si vede finché non la si misura: <strong>una specifica che non può riempirsi non produce una riga vuota, produce una riga in meno.</strong></p>
+      <p>«Acclamati dai lettori di tutto il mondo» chiedeva voto ≥ 4,2 con almeno 500 giudizi. In catalogo <code>external_rating</code> è popolato su 245 righe su 69.061 e il conteggio massimo è 575: quella sezione <strong>non ha mai reso una carta a nessuno</strong>, e intanto bruciava uno dei cinque posti. Stessa cosa per metà delle righe «Ancora <em>autore</em>» dopo il filtro italiano.</p>
+      <p>Da qui il requisito <code>H-8</code>: una sezione che non ha quattro carte da mostrare <em>a questo lettore</em> non entra nel sorteggio. Verificato su quattro lettori veri e cinque semi: 25 sezioni estratte, 25 mostrabili.</p>
+    </div>
+
+    <h3>Il filtro italiano</h3>
+    <p>Da agosto 2026 tutte le vetrine mostrano solo libri in italiano. La ricerca no. La separazione viene da tre numeri:</p>
+
+    <div class="dati"><pre>catalogo                69.061
+in italiano              8.402   (12%)
+leggibili gratis        33.530
+gratis E in italiano     1.020</pre></div>
+
+    <p>Un filtro unico su tutta l'app ridurrebbe il catalogo visibile a un ottavo e toglierebbe l'etichetta GRATIS al 97% dei casi. Separando le due cose si ottiene una Home italiana <em>e</em> una ricerca che trova «Better di Carrie Leighton».</p>
+
+    <p><strong>Non è filtrato il vettore di gusto</strong>, in nessuna funzione: si costruisce su tutta la libreria del lettore, libri stranieri compresi. Quello che ha amato dice cosa gli piace; la lingua dice cosa gli si mostra.</p>
+  </section>
+
+  <!-- 7 -->
+  <section id="consigli">
+    <h2>Come si formano i consigli</h2>
+
+    <p><code>get_recommendations</code> è la funzione più complessa del sistema. Funziona in quattro tempi.</p>
+
+    <h4>1 · Il vettore di gusto</h4>
+    <p>La media degli embedding dei libri che il lettore ha amato, letto o votato almeno 4. Un solo vettore a 512 dimensioni che rappresenta la persona.</p>
+
+    <h4>2 · I candidati</h4>
+    <p>Due fonti messe insieme: 400 vicini semantici presi con una sonda sull'indice HNSW, e 300 libri per popolarità perché i segnali non semantici abbiano materiale da ordinare e un lettore appena iscritto veda comunque una riga piena.</p>
+
+    <h4>3 · Il punteggio</h4>
+    <div class="dati"><pre>0,30 × vicinanza semantica
+0,25 × affinità di genere
+0,15 × affinità d'autore
+0,15 × segnale collaborativo (chi legge come te)
+0,15 × popolarità
+      + un disturbo deterministico legato al seme</pre></div>
+    <p>Il disturbo è limitato apposta: riordina i pari, non promuove un libro debole sopra uno forte.</p>
+
+    <h4>4 · La diversificazione</h4>
+    <p>I primi 200 passano per un MMR: si prende il migliore, poi si preferisce chi è buono <strong>e diverso</strong> da quelli già scelti. Senza questo passaggio una riga di consigli diventa dieci varianti dello stesso libro. Sulla prima pagina si riservano anche alcuni posti di esplorazione, riempiti con libri lontani dal gusto — «qualcosa di diverso».</p>
+
+    <h3>La trappola della sonda vettoriale</h3>
+    <div class="lezione">
+      <span class="etichetta">Come si è rotta, e cosa ha insegnato</span>
+      <p>Aggiungere il filtro italiano dentro una sonda HNSW <strong>non restringe la ricerca nel grafo</strong>: pgvector percorre <code>ef_search</code> nodi e poi scarta le righe che non passano. Chiedendo 400 candidati:</p>
+      <div class="dati"><pre>gusto italiano  («Il gattopardo»)        93 candidati
+gusto inglese   («The Great Gatsby»)     18
+gusto inglese   («Living in the Light»)   2</pre></div>
+      <p>La correzione è <code>hnsw.iterative_scan = relaxed_order</code>, che continua a percorrere il grafo finché il filtro non ha prodotto abbastanza righe: 400 candidati in 17–46 ms.</p>
+      <p>Ma la lezione vera è un'altra, ed è emersa da un A/B sulla funzione intera invece che sulla sonda isolata: <strong>la riga resta piena in entrambi i casi</strong>, perché c'è anche il serbatoio di popolarità. Quello che la scansione iterativa compra non è la riga piena, è che «Consigliati per te» sia scelto per gusto e non sia la classifica con un altro titolo. Un pezzo misurato non autorizza una conclusione sull'insieme.</p>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="filoni">
+    <h2>I filoni</h2>
+
+    <p>Il catalogo ha 69.061 libri distribuiti su <strong>19 categorie</strong>: circa 3.600 per etichetta. «Saggistica» e «Narrativa» non sono filoni, sono scaffali, e una sezione della Home che dice «Il tuo filone: Narrativa» non dice niente.</p>
+
+    <p>I filoni nascono invece dagli embedding, con k-means: gruppi che <em>emergono dai libri</em> invece di essere decisi prima. Il giallo francese anni Cinquanta sta insieme, il dark romance italiano sta insieme, e nessuno dei due è una voce di tassonomia.</p>
+
+    <h3>Come sono fatti oggi</h3>
+    <div class="cifre">
+      <div class="cifra"><span class="valore">40</span><span class="voce">filoni</span></div>
+      <div class="cifra"><span class="valore">8.402</span><span class="voce">libri raggruppati</span></div>
+      <div class="cifra"><span class="valore">52</span><span class="voce">il più piccolo</span></div>
+      <div class="cifra"><span class="valore">888</span><span class="voce">il più grande</span></div>
+    </div>
+
+    <p>Sono calcolati <strong>sul solo catalogo italiano</strong>, che è quello che la Home mostra. La versione precedente raggruppava tutti i 69.061 libri in 200 filoni, e il risultato era inservibile per due motivi indipendenti: 157 filoni su 200 avevano meno del 10% di libri italiani, e <strong>nessuna schermata li leggeva</strong>. Il lavoro pianificato li aggiornava ogni mezz'ora per nessuno.</p>
+
+    <h3>Il nome di un filone</h3>
+    <p>Si deduce da cosa c'è dentro, non si inventa. Due segnali: il genere <strong>sovra-rappresentato</strong> — non il più frequente, che sarebbe quasi sempre <code>literary</code>, ma quello che qui pesa più che nel catalogo intero — e l'autore che in questo gruppo pesa molto più che altrove.</p>
+
+    <div class="dati"><pre>Giallo · attorno a Georges Simenon          205 libri
+Poesia · attorno a Eugenio Montale          141
+Biografie · attorno a Annie Ernaux          115
+Narrativa · attorno a Fëdor Dostoevskij      86
+Fantascienza · attorno a Arthur C. Clarke   264
+Storico · attorno a Cesare Cantù            382</pre></div>
+
+    <p>Tre regole rendono i nomi utilizzabili, e ognuna nasce da un difetto contato:</p>
+
+    <ul>
+      <li><strong>Nessun filone si chiama come un altro.</strong> Prima ce n'erano sei chiamati tutti «Storico»: non sei filoni, un filone rotto in sei. Se il genere da solo produce un omonimo, si aggiunge il decennio — l'anno medio dei sei era 1897, 1923, 1931, 1960, 1961, 1969, cioè un tratto vero.</li>
+      <li><strong>L'autore dev'essere una persona.</strong> «Economia · attorno a Germany» veniva da un catalogo bibliografico che accredita i governi come autori collettivi. L'elenco dei nomi che non sono persone è <em>contato</em> sul catalogo, non immaginato: nessuna regola strutturale separa «Germany» da «Virgil», e «Duchess», «Pansy» e «Saki» sono pseudonimi di persone vere. Una regola sul numero di parole avrebbe cancellato Omero insieme al Brasile.</li>
+      <li><strong>Niente ruoli nel nome.</strong> «Dick [Illustrator] Francis» arriva così da Gutenberg. Il difetto è stato corretto alla fonte, e la parte che conta è che <em>non</em> si tolgono le parentesi: quello non è Dick Francis, è l'illustratore, e togliere il marcatore creerebbe un'identità falsa proprio nella ricerca per autore. Dove il libro ha anche un autore pulito il nome col ruolo si toglie; dove non c'è altro — 72 antologie — si tiene ripulito, perché per un'antologia il curatore <em>è</em> l'attribuzione più vicina a un autore.</li>
+    </ul>
+  </section>
+
+  <!-- 9 -->
+  <section id="recensioni">
+    <h2>Recensioni, opere, social</h2>
+
+    <p>Una recensione ha un corpo, un voto in rombi da 1 a 5, e un interruttore per gli spoiler. Il voto vive in due posti: sulla recensione e su <code>user_books</code>, che è la fonte della media del libro. Un solo voto per persona per libro, e coincide con quello della propria recensione.</p>
+
+    <p>Il feed ha due schede, «Per te» e «Seguiti». Una recensione si può mettere fra i preferiti, commentare, salvare, segnalare. I contatori — like, commenti, follower — sono mantenuti da trigger e devono essere corretti dopo ogni azione, il che è un requisito verificato dai test perché i contatori denormalizzati sono il posto classico in cui un'app comincia a mentire.</p>
+
+    <h3>Il difetto peggiore trovato in questo progetto</h3>
+    <div class="lezione">
+      <span class="etichetta">Come si è rotta, e cosa ha insegnato</span>
+      <p>Dal giorno in cui le recensioni sono passate all'opera, <strong>salvare una recensione era impossibile</strong>. <code>upsert_review</code> e <code>get_my_review</code> fallivano con <code>42501</code> per ogni lettore autenticato, e con loro «Simili a questo» sulla scheda libro.</p>
+      <p>La causa: la protezione delle colonne interne toglie il permesso di lettura sulla tabella <code>books</code> e lo ridà colonna per colonna — 28 su 48. Una funzione che non sia <code>security definer</code> perde il permesso appena tocca una colonna aggiunta dopo, o l'intera riga.</p>
+      <p><strong>Niente di questo si vede leggendo il codice</strong>: il permesso sulla funzione c'è, la funzione esiste, la firma è giusta. Solo la chiamata lo dice. Da qui il requisito <code>S-6</code> e un controllo che chiama tutte le 31 RPC del client con l'identità di un lettore vero, e fallisce anche se una RPC nuova non ha una prova.</p>
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section id="lettura">
+    <h2>La lettura in-app</h2>
+
+    <p>I libri di pubblico dominio si leggono dentro l'app: testo servito da Gutenberg attraverso la Edge Function <code>read</code>, scorrimento lungo con barra di avanzamento, posizione salvata e ripresa. Superato il 90% il libro si marca come letto — è il segnale più forte che il sistema riceva. Un segnaposto si mette a mano, e ci si torna con un tocco.</p>
+
+    <p>Solo un testo Gutenberg si apre dentro l'app; una lettura gratuita offerta da Google è una pagina esterna, e porta alla scheda invece che al lettore. La distinzione è nel dato (<code>gutenberg_id</code> contro <code>free_read_url</code>) ed è esposta apposta a «Continua a leggere», perché mandare il lettore in-app su un libro che non ha testo apre una schermata vuota.</p>
+
+    <div class="lezione">
+      <span class="etichetta">Come si è rotta, e cosa ha insegnato</span>
+      <p>Per tre settimane <strong>la posizione di lettura non è stata salvata</strong>. Non a volte: mai, oltre il 2%.</p>
+      <p>La funzione che la salva aggiornava lo stato dello scaffale con un <code>case</code> i cui rami erano letterali senza tipo. Postgres risolve quell'espressione a <code>text</code>, e assegnarla a una colonna di tipo enumerato è un errore — che colpiva solo il ramo «fra il 3% e il 90%», cioè <em>un lettore a metà di un libro</em>. Al 95% funzionava.</p>
+      <p>Il client scartava l'errore. Non con negligenza: c'era un <code>try/catch</code>. Ma la libreria di Supabase <strong>non solleva</strong>, restituisce un oggetto con dentro l'errore, e nessuno lo leggeva. Il <code>catch</code> non aveva niente da catturare.</p>
+      <div class="dati"><pre>book_read_progress   15 righe, dal 24 luglio al 17 agosto
+  percent fra 3 e 89   0
+  percent >= 90        0
+  percent < 3         15</pre></div>
+      <p>Chi leggeva mezzo libro e riapriva l'app lo ritrovava all'inizio, e da nessuna parte c'era un errore.</p>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section id="sicurezza">
+    <h2>Sicurezza</h2>
+
+    <p>Senza uno strato applicativo, i permessi del database <em>sono</em> il modello di sicurezza. Cinque invarianti, verificati dai test:</p>
+
+    <div class="tabella">
+      <table>
+        <thead><tr><th></th><th>Invariante</th></tr></thead>
+        <tbody>
+          <tr><td><code>S-1</code></td><td>Un utente non può cambiarsi il ruolo né i propri contatori. Sono scrivibili solo i campi di presentazione: nome, bio, avatar, lingua di lettura.</td></tr>
+          <tr><td><code>S-2</code></td><td>Le funzioni <code>internal_*</code> non sono richiamabili da <code>anon</code>. Sono 33, e girano solo dai lavori pianificati.</td></tr>
+          <tr><td><code>S-3</code></td><td>Nessuna query di ricerca può alterare il database. Verificato contando le righe prima e dopo una raffica di input ostili.</td></tr>
+          <tr><td><code>S-4</code></td><td>Le chiavi private stanno nei segreti di Supabase, mai nel bundle web. Il controllo cerca forme che possano essere <em>solo</em> una chiave vera, perché cercare la sottostringa <code>sb_secret_</code> segnalerebbe la libreria stessa.</td></tr>
+          <tr><td><code>S-5</code></td><td>Le colonne interne — testo dell'editore, embedding, indice di ricerca — non escono verso un client <strong>da nessuna strada</strong>. Sulla tabella è un permesso; nelle Edge Function, che leggono con la chiave di servizio, è il codice a dover scegliere.</td></tr>
+          <tr><td><code>S-6</code></td><td>Ogni funzione che il client chiama è chiamabile da un lettore vero. Non «esiste» e non «ha il permesso»: si chiama, e risponde.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>La RLS copre 31 tabelle con 66 policy. Il contenuto pubblico è leggibile da tutti; ciò che appartiene a una persona è leggibile e scrivibile solo da lei. Le funzioni che devono superare la RLS sono <code>security definer</code> con <code>search_path</code> fissato, e ognuna vincola le scritture a <code>auth.uid()</code>.</p>
+  </section>
+
+  <!-- 12 -->
+  <section id="operazioni">
+    <h2>Come si tiene in piedi</h2>
+
+    <h3>Le migrazioni</h3>
+    <p>Novanta file numerati, applicati in ordine, ognuno con in testa un commento che dice <strong>perché</strong> esiste — spesso con i numeri che l'hanno motivato. Alcuni raccontano un errore e la sua correzione, compresi i casi in cui la diagnosi iniziale era sbagliata. Non è archeologia: è l'unico posto in cui è scritto perché un indice ha quella forma e non un'altra.</p>
+
+    <h3>La CI</h3>
+    <p>A ogni push girano tre lavori: il controllo dei tipi e il linter sul client; un controllo che vieta le letture che ingoiano l'errore senza dichiararlo; i test del modulo che sceglie le descrizioni, su payload salvati su disco, senza rete.</p>
+
+    <h3>L'allarme</h3>
+    <p>Un lavoro pianificato controlla che l'app risponda <em>davvero</em>. Non basta chiedere la pagina: <code>jacopoz.vercel.app</code> restituisce 200 anche col database giù, perché è il guscio statico di una SPA. Il controllo scarica la pagina, trova il bundle, ne estrae URL e chiave anon, e fa una lettura vera su <code>books</code>. Si riconfigura da solo dopo una rotazione delle chiavi, e se l'estrazione si rompe il lavoro <strong>fallisce</strong> — che è la direzione giusta in cui sbagliare: un falso allarme si nota, un allarme muto no.</p>
+
+    <div class="nota">
+      <p><strong>Il suo limite, misurato.</strong> Il <code>cron</code> dice ogni dieci minuti, ma GitHub dirada i lavori pianificati: le esecuzioni vere del 18 agosto distavano 25–52 minuti. La finestra cieca è mezz'ora. Va bene per un'indisponibilità di due ore — è ciò per cui è stato costruito — e non basta per un guasto di sei minuti, che infatti gli è passato in mezzo.</p>
+    </div>
+
+    <h3>Il deploy</h3>
+    <p>Vercel costruisce il bundle a ogni push. Ogni build stampa nella pagina un marcatore con istante, commit e ramo, quindi «cosa c'è in produzione» si legge da fuori:</p>
+    <div class="dati"><pre>curl -s https://jacopoz.vercel.app/ | grep -o 'tomo-build[^>]*'</pre></div>
+    <p>Il marcatore conteneva solo l'istante fino al giorno in cui è servito a verificare quale ramo fosse in produzione — e un istante da solo non distingue «l'impostazione non è cambiata» da «è cambiata dopo l'ultimo build».</p>
+  </section>
+
+  <!-- 13 -->
+  <section id="limiti">
+    <h2>I limiti misurati</h2>
+
+    <h3>Il numero che spiega quasi tutto</h3>
+    <div class="dati"><pre>tabella books più i suoi indici     467 MB
+shared_buffers (Micro, 1 GB RAM)   224 MB</pre></div>
+
+    <p>Il set di lavoro non ci sta in memoria. Quindi la latenza dell'app <strong>non dipende dal codice ma da cosa è stato sfrattato dalla cache un istante prima</strong>: la stessa query misura 4.994 ms a freddo e 68 ms a caldo. Un fattore 73.</p>
+
+    <p>La conclusione operativa non è «serve più RAM». È: <strong>smettere di leggere 33.526 righe per restituirne 15</strong>. Una query che usa un indice per prendere i primi quindici non si accorge se la tabella è residente.</p>
+
+    <h3>Cosa costa oggi, a caldo</h3>
+    <div class="dati"><pre>get_trending_seeded         4 –   5 ms
+get_reco_by_availability   23 –  27 ms
+get_home_sections          63 –  74 ms
+get_recommendations       240 – 263 ms</pre></div>
+    <p>Il primo giro di ogni misura sta però fra 1 e 6 secondi, sempre: il primo lettore della giornata paga il giro a freddo.</p>
+
+    <h3>La cache che non si usa</h3>
+    <p>Esiste uno strato di cache in Postgres — chiavi, scadenza, invalidazione a trigger, ripiego se lo store è illeggibile. È stato costruito, misurato, e <strong>lasciato spento</strong>: contro un indice giusto perdeva. Resta nel codice perché un giorno il traffico potrebbe cambiare il conto, e perché il confronto è documentato invece che ripetuto.</p>
+  </section>
+
+  <!-- 14 -->
+  <section id="rotture">
+    <h2>Come si rompe questa app</h2>
+
+    <p>Le rotture di questo progetto hanno tutte la stessa forma, e vale la pena isolarla: <strong>un guasto che si presenta come un successo</strong>. Non un errore rosso, non una schermata di crash — una lista vuota, una riga corta, un dato che non si salva.</p>
+
+    <h4>Le tre facce dello stesso difetto</h4>
+    <ul>
+      <li><strong>Il timeout che sembra un catalogo vuoto.</strong> Superato il limite, la query viene cancellata e la risposta è senza righe.</li>
+      <li><strong>L'errore che nessuno legge.</strong> La libreria restituisce <code>{ data, error }</code> e non solleva: chi guarda solo <code>data</code> trasforma un guasto in una lista vuota. Un controllo in CI ora lo vieta, a meno che il motivo non sia <em>scritto</em> in un commento attaccato alla riga.</li>
+      <li><strong>Il permesso mancante su una colonna.</strong> Invisibile finché non si chiama la funzione.</li>
+    </ul>
+
+    <h4>E il modo in cui si sbaglia a diagnosticarle</h4>
+    <div class="lezione">
+      <span class="etichetta">La regola che è costata di più</span>
+      <p><strong>Un numero senza un controllo non è una misura.</strong></p>
+      <p>Un tempo HTTP di 710 ms è sembrato la prova che un indice non venisse usato, e ha prodotto un indice nuovo. Il pavimento di rete da quella postazione era 300–555 ms, e la colonna <code>idx_scan</code> diceva che il vecchio indice era stato usato 22 volte e il nuovo mai. Quattro indici in due giorni sembravano servire una query e non la servivano.</p>
+      <p>Lo stesso vale per i piani: una colonna appena aggiunta non ha statistiche, e il planner ha stimato 121 righe su 68.675 scegliendo un piano da cinque secondi. <code>ANALYZE</code> nella stessa migrazione che aggiunge la colonna.</p>
+    </div>
+
+    <div class="lezione">
+      <span class="etichetta">L'errore più caro della giornata del 18 agosto</span>
+      <p>Il ruolo con cui girano le migrazioni <strong>non ha un limite di istruzione</strong>. È comodo, ed è esattamente ciò che ha permesso di fermare il database due volte in venti minuti con due query da catalogo intero: il sito rispondeva 200 e ogni lettura di dati andava in timeout.</p>
+      <p>La seconda volta non è stato possibile nemmeno connettersi per uccidere la query, ed è servito un riavvio del progetto.</p>
+      <p>Tre correzioni, e la seconda conta quanto la prima. Ogni funzione porta il suo <code>statement_timeout</code>, <strong>trenta secondi e non novanta</strong> — il primo limite scelto sarebbe stato una protezione finta, perché l'istanza si era ingolfata molto prima. Ogni operazione da catalogo intero si fa a lotti, guardando i lettori fra un lotto e l'altro. E due operazioni pesanti non si fanno lo stesso giorno.</p>
+    </div>
+
+    <div class="lezione">
+      <span class="etichetta">Quattro ipotesi plausibili e tutte sbagliate</span>
+      <p>Il ricalcolo dei filoni non finiva mai. Le cause incolpate, misurate e corrette una per una: la larghezza delle righe temporanee, le loro versioni morte, il carico di fondo, le statistiche mancanti. Nessuna era quella giusta.</p>
+      <p>Il segnale che avrebbe dovuto fermare l'indagine molto prima: <strong>nemmeno con cinque semi la funzione chiudeva.</strong> Se cinque costano quanto quaranta, il costo non è nei semi.</p>
+      <p>Era un vincolo di chiave esterna con <code>on delete set null</code>: cancellare i filoni aggiornava 69.061 righe larghe, ognuna con dentro un embedding. Tolto il vincolo, la semina passa da «non finisce» a <strong>4,1 secondi</strong>.</p>
+    </div>
+
+    <p>C'è un ultimo esempio che riassume tutti gli altri. Un lavoro pianificato bruciava <strong>68 secondi di CPU ogni quindici minuti</strong> ricalcolando il testo di ogni libro due volte, su tutte le 69.061 righe, per scoprire quali fossero cambiate — mentre esisteva già una colonna con l'impronta di quel testo, messa lì apposta per non doverlo fare. In regime, quel minuto serviva a trovare tre libri. Ora è un trigger e un indice parziale: <strong>1,4 secondi</strong>.</p>
+  </section>
+
+  <!-- 15 -->
+  <section id="aperto">
+    <h2>Cosa resta aperto</h2>
+
+    <h3>Nel prodotto</h3>
+    <ul>
+      <li><strong>Il materiale.</strong> 1.385 sinossi su 69.061 libri. Finché il numero è questo, i filoni e i consigli semantici lavorano su titolo, autore e categorie. È il limite più profondo del sistema, e dipende da una quota giornaliera di 1.000 chiamate.</li>
+      <li><strong>Consigli complementari</strong> nella fascia di somiglianza media — «diverso ma non estraneo» — non ancora costruiti.</li>
+      <li><strong>Righe della Home che chiedono una recensione</strong>, la domanda sulle abitudini di lettura all'iscrizione, la condivisione nelle storie.</li>
+    </ul>
+
+    <h3>Nell'infrastruttura</h3>
+    <ul>
+      <li><span class="pillola ko">aperto</span> <strong>La branch di produzione di Vercel.</strong> Finché la produzione è il ramo di lavoro, ogni push va direttamente ai lettori e una pull request non è una prova di niente, perché il codice è già live.</li>
+      <li><span class="pillola ko">aperto</span> <strong>Le chiavi</strong> incollate in chat durante lo sviluppo vanno ruotate prima di aprire al pubblico, e quella di Google ristretta alla sola API dei libri.</li>
+      <li><span class="pillola ko">aperto</span> <strong>Il ripristino puntuale</strong> è disattivato: oggi ci sono solo backup giornalieri, quindi fino a ventiquattro ore di recensioni a rischio.</li>
+      <li><span class="pillola ok">misurato</span> <strong>Il primo giro a freddo</strong> costa 1–6 secondi. È una domanda su 224 MB di memoria contro 467 MB di tabella, non su una funzione in particolare.</li>
+      <li><span class="pillola ok">misurato</span> <strong>La finestra cieca dell'allarme</strong> è di mezz'ora. Se serve accorgersi di guasti brevi, il controllo non può stare su un <code>cron</code> di GitHub.</li>
+    </ul>
+
+    <h3>Una cosa da non dimenticare</h3>
+    <p>Le migrazioni che impostano un parametro di pgvector <strong>non si applicano</strong> su una connessione appena aperta: quei parametri esistono solo dopo che la libreria è stata caricata, e prima di allora impostarli richiede il superutente. Per questo alcune migrazioni cominciano con un calcolo di distanza buttato via. Sembra un residuo; è la riga che le fa funzionare.</p>
+  </section>
+
+  <footer class="chiusa">
+    <span>Tomo · anatomia del sistema</span>
+    <span>Stato al 18 agosto 2026 · migrazione 0089</span>
+  </footer>
+
+</div>
