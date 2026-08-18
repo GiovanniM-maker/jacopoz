@@ -45,6 +45,7 @@ export default function Reader() {
   const [bookmark, setBookmark] = useState<number | null>(null);
   const [showJump, setShowJump] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errSegnaposto, setErrSegnaposto] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const contentH = useRef(0);
   const viewH = useRef(0);
@@ -100,14 +101,24 @@ export default function Reader() {
     }
   }
 
-  function onBookmark() {
+  // «Salvato» si scrive dopo che è salvato, non prima. Prima questa funzione
+  // lanciava la scrittura con `void` e mostrava la conferma subito: se la
+  // scrittura fallisce — ed è successo per settimane con la posizione di
+  // lettura — la schermata dichiara una cosa falsa.
+  async function onBookmark() {
     if (!bookId) return;
     const p = Math.round(percent);
     setBookmark(p);
     setShowJump(false);
-    void saveBookmark(bookId, p);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1600);
+    try {
+      await saveBookmark(bookId, p);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1600);
+    } catch {
+      setBookmark(bookmark);
+      setErrSegnaposto(true);
+      setTimeout(() => setErrSegnaposto(false), 2600);
+    }
   }
 
   return (
@@ -170,6 +181,10 @@ export default function Reader() {
           {saved ? (
             <View style={styles.toast}>
               <Text style={styles.toastText}>Segnalibro a {Math.round(percent)}%</Text>
+            </View>
+          ) : errSegnaposto ? (
+            <View style={styles.toast}>
+              <Text style={styles.toastText}>Segnalibro non salvato. Riprova.</Text>
             </View>
           ) : null}
         </>

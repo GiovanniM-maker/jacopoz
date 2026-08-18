@@ -100,7 +100,15 @@ export async function setReadingLanguage(userId: UUID, lang: string): Promise<vo
 }
 
 export async function saveOnboarding(userId: UUID, genreSlugs: string[]): Promise<void> {
-  await supabase.from("user_genre_prefs").delete().eq("user_id", userId);
+  // La cancellazione fa parte del salvataggio, non è una pulizia opportunistica:
+  // se falla, l'inserimento subito sotto trova un conflitto di chiave e solleva
+  // un errore che parla di un vincolo invece del vero motivo. Meglio sollevare
+  // qui, dove si capisce.
+  const { error: delErr } = await supabase
+    .from("user_genre_prefs")
+    .delete()
+    .eq("user_id", userId);
+  if (delErr) throw delErr;
   if (genreSlugs.length) {
     const { error } = await supabase
       .from("user_genre_prefs")

@@ -29,6 +29,9 @@ export type AnalyticsEvent =
 export async function track(name: AnalyticsEvent, props: Record<string, unknown> = {}) {
   try {
     const { data } = await supabase.auth.getSession();
+    // Ignorato di proposito: le statistiche non devono poter rompere un gesto
+    // del lettore. È l'unico caso in questo file, e la differenza col difetto di
+    // `saveReadProgress` è che qui non si perde niente che il lettore possieda.
     await supabase.from("analytics_events").insert({
       name,
       props,

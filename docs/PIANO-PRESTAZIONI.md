@@ -98,6 +98,28 @@ decide il primo schermo e non so quale dei suoi pezzi costa. Da fare con
 
 Non propongo una correzione che non ho misurato.
 
+> **Aggiornamento del 17 agosto, e va letto con cautela.** Strumentata mentre
+> facevo il filtro italiano (0082–0083), con `explain analyze` dentro una
+> transazione col ruolo `authenticated`, tre giri, su lettori veri:
+>
+> ```
+> get_home_sections        63 – 74 ms      (era 1.050 – 3.165)
+> get_recommendations     240 – 263 ms     (era 774)
+> get_reco_by_availability 23 –  27 ms
+> get_trending_seeded       4 –   5 ms
+> ```
+>
+> **Non concludo che A-2 è risolta**, per due motivi. Il primo è che i numeri
+> vecchi erano tempi HTTP dall'esterno e questi sono tempi lato server: non sono
+> la stessa grandezza, e confrontarli sarebbe l'errore di 0081 rifatto. Il
+> secondo è che il primo giro di ogni misura sta fra 1 e 6 secondi, sempre — a
+> freddo il divario è quello, e il primo lettore della giornata paga il giro a
+> freddo. Quello che è misurato è che **a caldo il costo non sta più qui**.
+>
+> Il resto di A-2 è quindi: perché il giro a freddo costa 1–6 s, che è una
+> domanda su 224 MB di `shared_buffers` contro un set di lavoro di 270 MB, non
+> su questa funzione.
+
 ### A-3 · Le scansioni sequenziali su `books`
 **Impatto: medio (era alto). Costo: già in parte pagato.**
 
@@ -186,6 +208,66 @@ corrette — hanno restituito 503 con il motivo. La differenza fra le due giorna
 **Da fare:** propagare l'errore e distinguere a schermo «vuoto» da «non ha
 funzionato». Aggiungere un controllo alla suite che vieti il ritorno silenzioso
 di lista vuota su una lettura fallita.
+
+*Fatto il 17 agosto: `scripts/check-silent-errors.py` + un lavoro di CI.*
+
+### C-2 · La forma che il controllo di C-1 non vedeva
+
+**Impatto: alto, ed è misurato, non temuto. Costo: pagato il 17 agosto.**
+
+`check-silent-errors.py` cercava `const { data } = await supabase...`: una
+lettura che destruttura `data` e lascia fuori `error`. Ma esiste una seconda
+forma, che non destruttura niente:
+
+```ts
+try { await supabase.rpc("save_read_progress", { … }); } catch { /* best-effort */ }
+```
+
+supabase-js **non solleva**: restituisce `{ data, error }`. Quel `try/catch` non
+aveva niente da catturare, e nessuno leggeva `error`. Nove chiamate nel client
+avevano questa forma.
+
+Quanto è costato saperlo tardi:
+
+```
+save_read_progress   errore di tipo 42804 per ogni percentuale fra 3 e 90
+book_read_progress   15 righe dal 24 luglio al 17 agosto
+                     percent fra 3 e 89 →  0
+                     percent >= 90      →  0
+                     percent < 3        → 15
+```
+
+Tre settimane in cui nessuna posizione di lettura è stata salvata oltre il 2%.
+Il lettore leggeva mezzo libro, riapriva, ripartiva dall'inizio — e non c'era un
+errore da nessuna parte, né a schermo né nei log.
+
+**Fatto:** il controllo ora vede anche `await supabase...` il cui risultato non
+viene guardato; delle nove chiamate, tre propagano l'errore (posizione di
+lettura, segnaposto, cancellazione delle preferenze in onboarding) e sei hanno la
+giustificazione scritta. Il difetto nel database è corretto in 0084, e B-7 nella
+specifica lo verifica alle percentuali di mezzo — perché al 95% funzionava.
+
+### C-3 · Quattro RPC che il lettore non poteva chiamare
+
+**Impatto: alto. Costo: pagato il 17 agosto.**
+
+Trovate chiamando una per una tutte le 31 RPC che il client usa, con l'identità
+di un lettore vero:
+
+```
+get_my_review        42501  → il compositore di recensioni
+upsert_review        42501  → salvare una recensione, impossibile
+get_similar_books    42501  → «Simili a questo» sulla scheda libro
+get_trending_books   42501  → nessun chiamante nel client
+```
+
+S-5 protegge `books` togliendo il `select` sulla tabella e ridandolo colonna per
+colonna: una funzione senza `security definer` perde il permesso appena tocca
+una colonna aggiunta dopo (`work_id`) o la riga intera
+(`book_avg_rating(b)`). Le prime due sono una regressione di 0071.
+
+**Fatto:** 0084, e S-6 nella specifica — un controllo che le chiama tutte, perché
+nessuna lettura del codice mostrava il problema.
 
 ---
 

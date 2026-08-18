@@ -100,6 +100,9 @@ export async function disablePush(): Promise<void> {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
+      // Ignorato di proposito: `sub.unsubscribe()` subito sotto ferma comunque
+      // gli avvisi su questo dispositivo. Una riga rimasta lato server manda
+      // notifiche a un endpoint morto, che il servizio scarta.
       await supabase.rpc("delete_push_subscription", { p_endpoint: sub.endpoint });
       await sub.unsubscribe();
     }

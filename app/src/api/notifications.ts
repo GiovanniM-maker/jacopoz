@@ -51,6 +51,8 @@ export async function getUnreadCount(): Promise<number> {
 
 export async function markNotificationsRead(): Promise<void> {
   try {
+    // Ignorato di proposito: nel peggiore dei casi il pallino resta acceso e
+    // basta riaprire la schermata. Nessun contenuto va perso.
     await supabase.rpc("mark_notifications_read");
   } catch {
     // best-effort

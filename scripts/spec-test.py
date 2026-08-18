@@ -13,6 +13,7 @@ Richiede /tmp/sbq.py (client Management API) — vedi docs/DEPLOY.md.
 import importlib.util
 import json
 import os
+import pathlib
 import re
 import ssl
 import sys
@@ -536,6 +537,75 @@ def test_home():
     check("H-3", "«Continua a leggere» espone l'id per riaprire il libro",
           "gutenberg_id" in (ret[0]["r"] if ret else ""), "")
 
+    # H-7: le vetrine in italiano, la ricerca no. Si guardano i libri veri che
+    # escono da ogni riga, non il testo delle funzioni: un `language = 'it'`
+    # scritto nel posto sbagliato passerebbe una grep e non un lettore.
+    vetrine = {
+        "consigliati":  "select id from public.get_recommendations(20, 0, 7)",
+        "gratis":       "select id from public.get_reco_by_availability(true, 15)",
+        "classifica":   "select id from public.get_trending_seeded(20, 7)",
+        "sezioni Home": "select id from public.get_home_sections(7, 5, 12)",
+    }
+    stranieri, vuote = {}, []
+    for nome, chiamata in vetrine.items():
+        righe = as_reader(
+            f"select b.language as lingua from ({chiamata}) t "
+            f"join public.books b on b.id = t.id;")
+        # Nessuna riga non è una prova che il filtro funzioni: è una riga che non
+        # si è potuta guardare, e va detto invece di contarla come verde.
+        if not righe:
+            vuote.append(nome)
+            continue
+        fuori = [r["lingua"] for r in righe if r["lingua"] != "it"]
+        if fuori:
+            stranieri[nome] = f"{len(fuori)}/{len(righe)} {sorted(set(fuori))}"
+    # E la riga «Nuove uscite», che il client interroga da sé.
+    books_ts = open("app/src/api/books.ts", encoding="utf-8").read()
+    nuove_filtrate = 'eq("language", "it")' in books_ts
+    check("H-7a", "le vetrine della Home mostrano solo italiano",
+          None if vuote else (not stranieri and nuove_filtrate),
+          (f"righe non verificabili: {vuote}; " if vuote else "")
+          + (f"righe con libri non italiani: {stranieri}; " if stranieri else "")
+          + f"«Nuove uscite» filtrata nel client={nuove_filtrate}")
+
+    # L'altra metà del requisito, e la più facile da rompere per zelo: la
+    # ricerca deve continuare a trovare i libri stranieri.
+    trovati = {}
+    for termine in ("The Great Gatsby", "Better", "Pride and Prejudice"):
+        righe = q("select b.language as lingua from public.search_books("
+                  f"'{lit(termine)}', 20) t join public.books b on b.id = t.id;") or []
+        trovati[termine] = sum(1 for r in righe if r["lingua"] != "it")
+    check("H-7b", "la ricerca continua a trovare i libri stranieri",
+          all(n > 0 for n in trovati.values()),
+          "risultati non italiani per termine: " + str(trovati))
+
+    # H-8: nessuna sezione proposta che non possa riempirsi. Si contano le
+    # sezioni estratte contro quelle che arrivano a quattro carte, su più semi:
+    # con un solo seme il sorteggio non dice niente.
+    estratte = mostrabili = 0
+    for seme in (1, 7, 13, 42, 99):
+        righe = as_reader(
+            f"select section_key, count(*) as n from public.get_home_sections({seme}, 5, 12) "
+            "group by section_key;") or []
+        estratte += len(righe)
+        mostrabili += sum(1 for r in righe if int(r["n"]) >= 4)
+    check("H-8", "nessuna sezione proposta che non possa riempirsi",
+          None if estratte == 0 else mostrabili == estratte,
+          f"{mostrabili} riempibili su {estratte} estratte, su cinque semi")
+
+    # H-9: una riga ordinata per una colonna vuota non è ordinata. Il controllo
+    # è sul testo delle funzioni perché il difetto è lì: l'ordinamento sbagliato
+    # produce comunque delle righe, quindi guardare l'esito non lo rivela.
+    src = q("select pg_get_functiondef(p.oid) as d from pg_proc p "
+            "join pg_namespace n on n.oid=p.pronamespace "
+            "where n.nspname='public' and p.proname='get_home_sections';")
+    testo = src[0]["d"] if src else ""
+    ordini_morti = testo.count("external_rating, 0) * ln(")
+    check("H-9", "le righe della Home non ordinano per una colonna vuota",
+          bool(testo) and ordini_morti == 0,
+          f"ordinamenti per external_rating rimasti: {ordini_morti} "
+          "(external_rating è popolato su 245 righe su 69.029)")
+
 
 def test_social():
     # F-3: i contatori memorizzati devono coincidere col conteggio reale.
@@ -692,6 +762,127 @@ def test_client():
           "Math.max(3," in open("app/src/theme/index.ts", encoding="utf-8").read())
 
 
+# ------------------------------------------- S-6/B-7: chiamare, non leggere
+#
+# Il controllo che mancava, e che è costato quattro RPC rotte in produzione. Il
+# 17 agosto ho scoperto che `get_my_review`, `upsert_review`, `get_similar_books`
+# e `get_trending_books` fallivano con 42501 per **ogni** lettore autenticato:
+# 0059 ha revocato `select` su `books` e ridato i permessi colonna per colonna, e
+# una funzione non-`security definer` che tocchi una colonna non concessa
+# (`embedding`, `work_id`) o la riga intera non ha più il permesso. Salvare una
+# recensione era impossibile da quando 0071 le ha spostate sull'opera.
+#
+# Nessuna lettura del codice lo mostra: il permesso manca su una colonna, non
+# sulla funzione, e il client riceve un errore che a volte viene scartato. La
+# sola cosa che lo dice è **chiamarle**, con l'identità di un lettore vero.
+#
+# Le chiamate scartano il risultato di proposito: a questo controllo interessa
+# una cosa sola, che la chiamata non solleva un errore. (E `riga IS NOT NULL` su
+# un tipo composito è vero solo se **tutti** i campi non sono nulli, quindi
+# sembrerebbe un'asserzione di correttezza senza esserlo.)
+#
+# Gli argomenti stanno qui perché non si possono dedurre dai tipi: `report_content`
+# prende un enum, `save_bookmark` due parametri e non quattro. Una RPC che il
+# client usa e che non è in questa tabella fa fallire il controllo — è il modo di
+# non dimenticarsi della prossima.
+def _argomenti_rpc(bid, rid, uid):
+    return {
+        "get_book_editions":        (f"select count(*) from public.get_book_editions('{bid}')", False),
+        "get_book_reviews_ranked":  (f"select count(*) from public.get_book_reviews_ranked('{bid}', 10, 0)", False),
+        "get_catalog_languages":    ("select count(*) from public.get_catalog_languages()", False),
+        "get_community_feed":       ("select count(*) from public.get_community_feed(10, 0)", False),
+        "get_continue_reading":     ("select count(*) from public.get_continue_reading(12)", False),
+        "get_following_feed":       ("select count(*) from public.get_following_feed(10, 0)", False),
+        "get_free_flags":           (f"select count(*) from public.get_free_flags(array['{bid}']::uuid[])", False),
+        "get_home_sections":        ("select count(*) from public.get_home_sections(7, 5, 12)", False),
+        "get_my_review":            (f"select public.get_my_review('{bid}');", False),
+        "get_profile_stats":        (f"select public.get_profile_stats('{uid}');", False),
+        "get_reco_by_availability": ("select count(*) from public.get_reco_by_availability(true, 15)", False),
+        "get_recommendations":      ("select count(*) from public.get_recommendations(20, 0, 7)", False),
+        "get_reviewed_book_ids":    ("select count(*) from public.get_reviewed_book_ids()", False),
+        "get_similar_books":        (f"select count(*) from public.get_similar_books('{bid}', 12)", False),
+        "get_trending_books":       ("select count(*) from public.get_trending_books(20, 0)", False),
+        "get_trending_seeded":      ("select count(*) from public.get_trending_seeded(20, 7)", False),
+        "is_premium":               ("select public.is_premium();", False),
+        "search_authors":           ("select count(*) from public.search_authors('baricco', 10)", False),
+        "search_books":             ("select count(*) from public.search_books('gattopardo', 10)", False),
+        "search_genres":            ("select count(*) from public.search_genres('fantasy', 10)", False),
+        "mark_notifications_read":  ("select public.mark_notifications_read();", True),
+        "request_book_enrichment":  (f"select public.request_book_enrichment('{bid}');", True),
+        "save_read_progress":       (f"select public.save_read_progress('{bid}'::uuid, 42::numeric)", True),
+        "save_bookmark":            (f"select public.save_bookmark('{bid}'::uuid, 42::numeric);", True),
+        "upsert_review":            (f"select public.upsert_review('{bid}'::uuid, 'prova'::text, 4::smallint, false);", True),
+        "toggle_like":              (f"select public.toggle_like('review'::likeable_type, '{rid}'::uuid);", True)
+                                    if rid else None,
+        "report_content":           (f"select public.report_content('review'::report_target, '{rid}'::uuid, 'spam'::text, null::text);", True)
+                                    if rid else None,
+        # Distruttive: non si chiamano nemmeno con rollback.
+        "delete_my_account":        None,
+        "moderate_content":         None,
+        "save_push_subscription":   None,
+        "delete_push_subscription": None,
+    }
+
+
+def test_rpc_chiamabili():
+    if not READER:
+        check("S-6", "ogni RPC del client è chiamabile da un lettore", None, "nessun lettore")
+        return
+
+    usate = set()
+    for percorso in pathlib.Path(".").glob("app/**/*.ts*"):
+        if "node_modules" in str(percorso):
+            continue
+        usate |= set(re.findall(r'rpc\("([a-z_]+)"', percorso.read_text(encoding="utf-8")))
+
+    righe = q("select id from public.books where work_id is not null and embedding is not null limit 1;")
+    bid = righe[0]["id"] if righe else None
+    righe = q("select id from public.reviews limit 1;")
+    rid = righe[0]["id"] if righe else None
+    if not bid:
+        check("S-6", "ogni RPC del client è chiamabile da un lettore", None, "nessun libro di prova")
+        return
+
+    tabella = _argomenti_rpc(bid, rid, READER)
+    senza_prova = sorted(usate - set(tabella))
+    rotte, saltate = [], []
+    for nome in sorted(usate & set(tabella)):
+        voce = tabella[nome]
+        if voce is None:
+            saltate.append(nome)
+            continue
+        chiamata, scrive = voce
+        try:
+            # Le scritture girano dentro una transazione annullata: il controllo
+            # deve poter provare `upsert_review` senza scrivere una recensione.
+            q(f"set local role authenticated; "
+              f"set local request.jwt.claims = '{{\"sub\":\"{READER}\",\"role\":\"authenticated\"}}'; "
+              f"{chiamata}; " + ("rollback;" if scrive else ""))
+        except Exception as e:
+            rotte.append(f"{nome}: {str(e)[:90]}")
+
+    check("S-6", "ogni RPC che il client usa è chiamabile da un lettore vero",
+          not rotte and not senza_prova,
+          (f"falliscono: {rotte}; " if rotte else "")
+          + (f"usate dal client e senza una prova qui: {senza_prova}; " if senza_prova else "")
+          + f"{len(usate & set(tabella)) - len(saltate)} provate, {len(saltate)} distruttive non provate")
+
+    # B-7: la posizione di lettura deve sopravvivere a metà libro. Il difetto era
+    # esattamente lì — al 95% funzionava, al 40% no — quindi il controllo prova
+    # le percentuali di mezzo e non solo una.
+    esiti = {}
+    for pct in (1, 10, 50, 95):
+        try:
+            q(f"set local role authenticated; "
+              f"set local request.jwt.claims = '{{\"sub\":\"{READER}\",\"role\":\"authenticated\"}}'; "
+              f"select public.save_read_progress('{bid}'::uuid, {pct}::numeric); rollback;")
+            esiti[pct] = "ok"
+        except Exception as e:
+            esiti[pct] = str(e)[:60]
+    check("B-7", "la posizione di lettura si salva anche a metà libro",
+          all(v == "ok" for v in esiti.values()), str(esiti))
+
+
 def _scegli_lettore():
     global READER
     rows = q("select p.id from public.profiles p "
@@ -705,7 +896,8 @@ def main():
     _scegli_lettore()
     for fn in (test_search, test_language, test_genres, test_catalog, test_security,
                test_import, test_home, test_social, test_book,
-               test_extra_language, test_genre_pages, test_bundle, test_client):
+               test_extra_language, test_genre_pages, test_bundle, test_client,
+               test_rpc_chiamabili):
         try:
             fn()
         except Exception as e:  # un test rotto non deve nascondere gli altri

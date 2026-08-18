@@ -109,6 +109,9 @@ export function mergeEditions(rows: BookCard[]): BookCard[] {
  */
 export async function requestSynopsis(bookId: UUID): Promise<void> {
   try {
+    // Ignorato di proposito: è una richiesta di lavoro futuro, non un dato del
+    // lettore. Se non parte, la scheda mostra lo stato vuoto onesto e la coda
+    // del cron ci arriverà comunque.
     await supabase.functions.invoke("synopsis", { body: { book_id: bookId } });
   } catch {
     // best-effort: senza sinossi la scheda mostra lo stato vuoto onesto
@@ -118,6 +121,8 @@ export async function requestSynopsis(bookId: UUID): Promise<void> {
 /** Fire-and-forget: ask the pipeline to enrich this book (circle 2). */
 export async function requestBookEnrichment(bookId: UUID): Promise<void> {
   try {
+    // Ignorato di proposito: come sopra, mette in coda un arricchimento. Il
+    // lettore non aspetta niente e non perde niente.
     await supabase.rpc("request_book_enrichment", { p_book_id: bookId });
   } catch {
     // enrichment is best-effort
@@ -154,16 +159,27 @@ export async function getTrendingSeeded(limit = 20, seed = 0): Promise<BookCard[
   return (data ?? []) as BookCard[];
 }
 
-/** Books in a single genre — powers the genre rows on the dashboard. */
-export async function getBooksByGenre(slug: string, limit = 20): Promise<BookCard[]> {
-  const { data, error } = await supabase
+/**
+ * Books in a single genre.
+ *
+ * Due chiamanti con due esigenze opposte, quindi il filtro è un parametro e non
+ * una decisione presa qui: la riga di genere sulla Home è una vetrina e va in
+ * italiano (`soloItaliano`), la schermata di un genere è navigazione — più
+ * vicina al cercare che al guardare — e mostra tutto. Vedi 0082.
+ */
+export async function getBooksByGenre(
+  slug: string,
+  limit = 20,
+  soloItaliano = false,
+): Promise<BookCard[]> {
+  let q = supabase
     .from("books")
     .select(
       "id,title,subtitle,authors,cover_url,published_year,categories,reads_count,saves_count,likes_count,reviews_count,rating_sum,rating_count",
     )
-    .contains("categories", [slug])
-    .order("reads_count", { ascending: false })
-    .limit(limit);
+    .contains("categories", [slug]);
+  if (soloItaliano) q = q.eq("language", "it");
+  const { data, error } = await q.order("reads_count", { ascending: false }).limit(limit);
   if (error) throw error;
   // Map raw rows to BookCard (compute avg_rating client-side).
   return (data ?? []).map((b) => ({
@@ -182,7 +198,15 @@ export async function getBooksByGenre(slug: string, limit = 20): Promise<BookCar
   }));
 }
 
-/** New releases row. */
+/**
+ * New releases row — una vetrina della Home, quindi in italiano (0082).
+ *
+ * `eq("language", "it")` non è cosmetico: `books_new_releases_idx` è parziale su
+ * `published_year is not null and language = 'it'`, e un indice parziale serve
+ * solo una query che contiene il suo predicato. Togliere questo filtro senza
+ * togliere quello dall'indice trasforma la riga in una scansione di 69.000
+ * righe.
+ */
 export async function getNewReleases(limit = 20): Promise<BookCard[]> {
   const { data, error } = await supabase
     .from("books")
@@ -190,6 +214,7 @@ export async function getNewReleases(limit = 20): Promise<BookCard[]> {
       "id,title,subtitle,authors,cover_url,published_year,categories,reads_count,saves_count,likes_count,reviews_count,rating_sum,rating_count",
     )
     .not("published_year", "is", null)
+    .eq("language", "it")
     .order("published_year", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -298,6 +323,9 @@ export async function importFromProviders(
     // subject). It used to be a second, unconditional Edge invocation on every
     // search; folding it in here means a search costs one provider round-trip
     // instead of two.
+    // Ignorato di proposito: se l'import non riesce, il catalogo resta com'è e
+    // la ricerca mostra quello che ha. R-8 pretende che la schermata lo dica,
+    // ed è lì che l'esito si vede, non qui.
     await supabase.functions.invoke("ingest-book", { body: { query, limit, lang, expand, mode } });
   } catch {
     // ignore — catalog stays as-is
