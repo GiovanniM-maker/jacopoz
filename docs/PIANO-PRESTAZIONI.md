@@ -120,6 +120,51 @@ Non propongo una correzione che non ho misurato.
 > domanda su 224 MB di `shared_buffers` contro un set di lavoro di 270 MB, non
 > su questa funzione.
 
+### A-4 · Questa istanza non regge un'aggregazione su tutto il catalogo mentre serve i lettori
+
+**Impatto: alto, ed è la cosa che ho imparato peggio. Costo: già pagato, due volte.**
+
+Il 18 agosto, lavorando alle etichette dei filoni, ho fermato la base dati due
+volte in venti minuti. Non «rallentato»: **fermato**. Il sito continuava a
+rispondere 200 — è una pagina statica — e ogni lettura di dati andava in timeout.
+
+```
+10:37 ca.   internal_label_clusters, prima stesura      la base dati smette di accettare connessioni
+            (autore_e_persona su 91.399 righe)          si riprende da sola dopo qualche minuto
+10:52 ca.   explain analyze della stessa aggregazione   di nuovo giù
+10:55       impossibile perfino connettersi per fare pg_terminate_backend
+10:56       riavvio del progetto dalla Management API
+10:58:50    lettori serviti di nuovo
+```
+
+**La diagnosi completa, che la prima volta avevo sbagliato per difetto.** La
+query pesante non era sola: la migrazione 0085, applicata mezz'ora prima, aveva
+rimesso in coda 2.229 libri per il ricalcolo dell'embedding, e ogni libro
+riembeddato è un inserimento in un indice HNSW da 91 MB. L'aggregazione è
+arrivata **sopra** a quell'onda. Probabilmente nessuna delle due, da sola,
+avrebbe fatto danno.
+
+Tre cose ne escono, e valgono più della correzione puntuale:
+
+1. **Il ruolo `postgres` non ha `statement_timeout`.** È comodo per le migrazioni
+   ed è esattamente ciò che ha permesso il guasto: `authenticated` sarebbe stato
+   fermato a 8 secondi. Ora `internal_label_clusters` porta il suo limite (30 s),
+   e le query esplorative vanno scritte con `set statement_timeout` in testa.
+   Non è un dettaglio di stile: è la differenza fra una query che fallisce e una
+   che porta via l'app.
+
+2. **Trenta secondi, non novanta.** Il primo limite che avevo messo era di
+   novanta secondi, e sarebbe stato una protezione finta: l'istanza si è
+   ingolfata molto prima. Un limite che scatta dopo il danno è un commento.
+
+3. **Le due cose non si fanno lo stesso giorno.** Un'onda di ri-embedding e un
+   ricalcolo dei filoni sono entrambe operazioni da catalogo intero: la seconda
+   aspetta che la prima sia finita.
+
+Il contesto è sempre quello di B-1 e A-2: 224 MB di `shared_buffers` contro un
+set di lavoro di 270 MB. Su questa taglia, «gira una query e vediamo» non è una
+misura, è un rischio.
+
 ### A-3 · Le scansioni sequenziali su `books`
 **Impatto: medio (era alto). Costo: già in parte pagato.**
 
@@ -297,6 +342,29 @@ una CI al momento del push invece che ore dopo.
 **Da fare:** un workflow su push che esegue typecheck + lint, e uno pianificato
 che esegue la suite contro produzione. La chiave anon serve come segreto del
 repository, non nel codice.
+
+### D-4 · L'allarme campiona ogni 25–40 minuti, non ogni 10
+
+**Impatto: medio. Costo: dipende da cosa si vuole.**
+
+Il 18 agosto ho fermato la base dati **due volte** lavorando ai filoni (vedi
+A-4). Il lavoro pianificato `l-app-risponde` è passato in mezzo ai due guasti e
+ha riportato verde. Non è un difetto del controllo: è la sua cadenza vera.
+
+```
+esecuzioni del 18 agosto   06:17 · 07:09 · 07:52 · 08:32 · 09:06 · 09:46 · 10:11 · 10:49
+distanza fra due           52 · 43 · 40 · 34 · 40 · 25 · 38 minuti
+```
+
+Il `cron` dice `*/10`. GitHub non garantisce la puntualità dei lavori pianificati
+e nei fatti li dirada di tre o quattro volte — cosa che il commento in
+`monitor.yml` prevedeva («spesso ritarda») ma senza un numero. Ora il numero c'è:
+**la finestra cieca è di mezz'ora**, e un guasto di sei minuti ci passa dentro
+senza essere visto.
+
+Va bene per ciò per cui è stato costruito — un'indisponibilità di due ore non
+sfugge. Non va bene per accorgersi di un guasto breve. Se serve quello, il
+controllo non può stare su un `cron` di GitHub.
 
 ### D-3 · Fino a 24 ore di dati a rischio
 **Impatto: medio ora, alto dopo il lancio. Costo: soldi.**
