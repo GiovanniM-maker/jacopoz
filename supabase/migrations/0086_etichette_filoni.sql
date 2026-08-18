@@ -182,8 +182,16 @@ declare
 begin
   create temp table _et on commit drop as
   with libri as (
+    -- Il join con `book_clusters` non è ornamentale. Da 0087 il vincolo di
+    -- chiave esterna non c'è più (imponeva un aggiornamento di tutto il catalogo
+    -- a ogni ricalcolo), quindi i libri non italiani si portano dietro l'id di un
+    -- filone che non esiste più: `cluster_id is not null` ha smesso di voler dire
+    -- «appartiene a un filone». Senza il join questa funzione lavorava su 39.425
+    -- libri invece di 8.402, e le statistiche per filone erano calcolate anche
+    -- sui residui.
     select b.cluster_id as cl, b.categories, b.authors, b.language, b.published_year
-    from public.books b where b.cluster_id is not null
+    from public.books b
+    join public.book_clusters c on c.id = b.cluster_id
   ),
   totale as (select count(*)::numeric n from libri),
   dim as (select cl, count(*)::numeric n from libri group by cl),

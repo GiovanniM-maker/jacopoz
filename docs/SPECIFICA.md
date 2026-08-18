@@ -192,6 +192,20 @@ I chip sono quattro e **non fanno tutti la stessa cosa**:
   quattro carte da mostrare non produce una riga vuota, produce una riga in
   meno. Vale per gli angoli editoriali (una soglia che nessun libro raggiunge) e
   per "Ancora \<autore\>" (un autore con meno di quattro libri italiani).
+- **H-10** — **«Il tuo filone» è un filone, non un genere.** Le sezioni con quel
+  nome vengono dal raggruppamento del catalogo per come i libri sono — k-means
+  sugli embedding — e si chiamano «Il tuo filone: Giallo · attorno a Georges
+  Simenon». Non «Il tuo filone: Narrativa»: con 8.400 libri distribuiti su 19
+  categorie, una categoria non è un filone, è uno scaffale.
+
+  I filoni sono calcolati sul **catalogo italiano**, che è quello che la Home
+  mostra (H-7). Chi non ha ancora una libreria non ha filoni, e vede una riga
+  costruita sui generi scelti all'iscrizione — che si chiama «Dai tuoi generi»,
+  perché un genere non è un filone.
+
+  Ogni filone ha un nome **diverso da tutti gli altri**: due righe con lo stesso
+  titolo non sono due filoni, sono un filone rotto in due.
+
 - **H-9** — Una riga della Home è **ordinata per qualcosa che il catalogo ha**.
   Ordinare per una colonna popolata sullo 0,35% delle righe è un pareggio fra
   decine di migliaia di libri: l'ordine risultante è quello che restituisce la
